@@ -1,0 +1,1421 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>🔧 Quản lý tài khoản Firebase</title>
+
+    <!-- Firebase SDK 9 (compat) -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            width: 100%;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+            padding: 32px 28px;
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: 700;
+            color: #0f172a;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 4px;
+        }
+        .subtitle {
+            font-size: 14px;
+            color: #64748b;
+            margin-bottom: 24px;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 12px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+        label {
+            display: block;
+            font-weight: 600;
+            font-size: 14px;
+            color: #334155;
+            margin-bottom: 4px;
+        }
+        label .required {
+            color: #ef4444;
+            margin-left: 2px;
+        }
+        input,
+        select {
+            width: 100%;
+            padding: 10px 14px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+            background: #f8fafc;
+            font-family: inherit;
+        }
+        input:focus,
+        select:focus {
+            border-color: #2563eb;
+            background: #ffffff;
+            outline: none;
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        @media (max-width: 480px) {
+            .form-row {
+                grid-template-columns: 1fr;
+                gap: 0;
+            }
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 15px;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-family: inherit;
+        }
+        .btn:active {
+            transform: scale(0.97);
+        }
+        .btn-primary {
+            background: #2563eb;
+            color: #fff;
+        }
+        .btn-primary:hover {
+            background: #1d4ed8;
+        }
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .btn-success {
+            background: #22c55e;
+            color: #fff;
+        }
+        .btn-success:hover {
+            background: #16a34a;
+        }
+        .btn-success:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .btn-danger {
+            background: #ef4444;
+            color: #fff;
+        }
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #334155;
+        }
+        .btn-secondary:hover {
+            background: #cbd5e1;
+        }
+        .btn-warning {
+            background: #f59e0b;
+            color: #fff;
+        }
+        .btn-warning:hover {
+            background: #d97706;
+        }
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 13px;
+            border-radius: 6px;
+        }
+        .btn-xs {
+            padding: 4px 10px;
+            font-size: 12px;
+            border-radius: 6px;
+            gap: 4px;
+        }
+        .btn-block {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .message {
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            margin: 12px 0 8px 0;
+            display: none;
+            white-space: pre-line;
+        }
+        .message.success {
+            display: block;
+            background: #dcfce7;
+            color: #166534;
+            border: 1px solid #bbf7d0;
+        }
+        .message.error {
+            display: block;
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+        .message.info {
+            display: block;
+            background: #dbeafe;
+            color: #1e40af;
+            border: 1px solid #bfdbfe;
+        }
+
+        .login-section {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #e2e8f0;
+        }
+        .login-section .form-row {
+            grid-template-columns: 1fr 1fr auto;
+        }
+        @media (max-width: 600px) {
+            .login-section .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        .status-badge.logged-in {
+            background: #dcfce7;
+            color: #166534;
+        }
+        .status-badge.logged-out {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .section-card {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #e2e8f0;
+        }
+        .section-card h3 {
+            font-size: 17px;
+            margin-bottom: 14px;
+            color: #0f172a;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+
+        .user-table-wrapper {
+            overflow-x: auto;
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+            background: #ffffff;
+        }
+        .user-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+            min-width: 640px;
+        }
+        .user-table thead {
+            background: #f1f5f9;
+        }
+        .user-table th {
+            text-align: left;
+            padding: 12px 14px;
+            font-weight: 600;
+            color: #475569;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            border-bottom: 2px solid #e2e8f0;
+            white-space: nowrap;
+        }
+        .user-table td {
+            padding: 12px 14px;
+            border-bottom: 1px solid #f1f5f9;
+            color: #334155;
+            vertical-align: middle;
+        }
+        .user-table tbody tr:hover {
+            background: #f8fafc;
+        }
+        .user-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+        .user-table .actions-cell {
+            white-space: nowrap;
+            text-align: right;
+        }
+        .user-table .actions-cell .btn {
+            margin-left: 4px;
+        }
+
+        .role-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .role-badge.admin {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .role-badge.truong_to {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        .role-badge.thu_ky {
+            background: #ede9fe;
+            color: #6d28d9;
+        }
+        .role-badge.giao_vien {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .team-tag {
+            display: inline-block;
+            padding: 3px 10px;
+            background: #e2e8f0;
+            color: #334155;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .uid-text {
+            font-family: monospace;
+            font-size: 11px;
+            color: #94a3b8;
+        }
+
+        .empty-row td {
+            text-align: center;
+            padding: 40px 20px;
+            color: #94a3b8;
+            font-style: italic;
+        }
+
+        .search-box {
+            position: relative;
+            flex: 1;
+            min-width: 200px;
+            max-width: 340px;
+        }
+        .search-box input {
+            padding-left: 38px;
+        }
+        .search-box i {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #94a3b8;
+            font-size: 14px;
+            pointer-events: none;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(15, 23, 42, 0.55);
+            backdrop-filter: blur(4px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            z-index: 9999;
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        .modal-box {
+            background: #ffffff;
+            border-radius: 14px;
+            max-width: 520px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+            animation: modalIn 0.25s ease;
+        }
+        @keyframes modalIn {
+            from {
+                transform: scale(0.95) translateY(15px);
+                opacity: 0;
+            }
+            to {
+                transform: scale(1) translateY(0);
+                opacity: 1;
+            }
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 18px 22px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .modal-header h3 {
+            font-size: 17px;
+            color: #0f172a;
+            margin: 0;
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 22px;
+            color: #94a3b8;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 6px;
+        }
+        .modal-close:hover {
+            background: #f1f5f9;
+            color: #334155;
+        }
+        .modal-body {
+            padding: 20px 22px;
+        }
+        .modal-footer {
+            padding: 14px 22px;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 99999;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-width: 380px;
+        }
+        .toast {
+            padding: 14px 18px;
+            border-radius: 10px;
+            background: #0f172a;
+            color: #fff;
+            font-size: 14px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            animation: toastIn 0.3s ease;
+        }
+        .toast.success { background: #22c55e; }
+        .toast.error { background: #ef4444; }
+        .toast.warning { background: #f59e0b; }
+        .toast.info { background: #2563eb; }
+        .toast i {
+            font-size: 18px;
+            margin-top: 1px;
+        }
+        .toast-content {
+            flex: 1;
+        }
+        @keyframes toastIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .footer-note {
+            font-size: 13px;
+            color: #94a3b8;
+            margin-top: 16px;
+            text-align: center;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 0.6s linear infinite;
+        }
+        .spinner.blue {
+            border: 3px solid #e2e8f0;
+            border-top-color: #2563eb;
+        }
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .init-status {
+            text-align: center;
+            padding: 20px;
+            font-size: 14px;
+            color: #64748b;
+        }
+
+        .table-loading {
+            text-align: center;
+            padding: 40px;
+            color: #64748b;
+        }
+        .table-loading .spinner {
+            margin-bottom: 8px;
+        }
+
+        .stat-info {
+            font-size: 13px;
+            color: #64748b;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .stat-info .num {
+            font-weight: 700;
+            color: #0f172a;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container" id="app">
+        <h1>🔧 Quản lý tài khoản Firebase</h1>
+        <div class="subtitle">Công cụ nội bộ – tạo, sửa, xóa tài khoản và phân quyền nhanh</div>
+
+        <div id="initStatus" class="init-status">
+            <span class="spinner blue"></span>
+            Đang khởi tạo Firebase...
+        </div>
+
+        <div id="loginSection" class="login-section hidden">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+                <div>
+                    <strong style="font-size:15px;">👤 Đăng nhập Admin</strong>
+                    <span id="loginStatus" class="status-badge logged-out" style="margin-left:10px;">Chưa đăng nhập</span>
+                </div>
+                <button class="btn btn-danger btn-sm" id="btnLogout" style="display:none;">
+                    <i class="fas fa-sign-out-alt"></i> Đăng xuất
+                </button>
+            </div>
+            <div class="form-row" id="loginFormRow">
+                <div class="form-group" style="margin-bottom:0;">
+                    <label>Email Admin</label>
+                    <input type="email" id="adminEmail" placeholder="admin@truong.edu.vn" />
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label>Mật khẩu</label>
+                    <input type="password" id="adminPassword" placeholder="••••••••" />
+                </div>
+                <div style="display:flex;align-items:flex-end;padding-bottom:4px;">
+                    <button class="btn btn-primary" id="btnAdminLogin" style="width:100%;">
+                        <i class="fas fa-sign-in-alt"></i> Đăng nhập
+                    </button>
+                </div>
+            </div>
+            <div id="loginMessage" class="message"></div>
+        </div>
+
+        <div id="mainContent" class="hidden">
+
+            <div class="section-card" id="createSection">
+                <h3>📝 Tạo tài khoản mới</h3>
+
+                <div class="form-group">
+                    <label>Họ và tên <span class="required">*</span></label>
+                    <input type="text" id="fullName" placeholder="Nguyễn Văn A" />
+                </div>
+
+                <div class="form-group">
+                    <label>Email <span class="required">*</span></label>
+                    <input type="email" id="email" placeholder="gv.nguyenvana@truong.edu.vn" />
+                </div>
+
+                <div class="form-group">
+                    <label>Mật khẩu <span class="required">*</span></label>
+                    <input type="password" id="password" placeholder="•••••••• (tối thiểu 6 ký tự)" />
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Vai trò <span class="required">*</span></label>
+                        <select id="role">
+                            <option value="giao_vien">Giáo viên</option>
+                            <option value="thu_ky">Thư ký</option>
+                            <option value="truong_to">Tổ trưởng</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Tổ chuyên môn</label>
+                        <select id="teamId">
+                            <option value="">-- Không chọn --</option>
+                            <option value="toan">Toán</option>
+                            <option value="van">Văn</option>
+                            <option value="anh">Tiếng Anh</option>
+                            <option value="ly">Vật lý</option>
+                            <option value="hoa">Hóa học</option>
+                            <option value="sinh">Sinh học</option>
+                            <option value="su">Lịch sử</option>
+                            <option value="dia">Địa lý</option>
+                            <option value="gdcd">GDCD</option>
+                            <option value="theduc">Thể dục</option>
+                            <option value="congnghe">Công nghệ</option>
+                            <option value="tin">Tin học</option>
+                            <option value="khtn">KHTN</option>
+                            <option value="khxh">KHXH</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button class="btn btn-success btn-block" id="btnCreateAccount">
+                    <i class="fas fa-user-plus"></i> Tạo tài khoản
+                </button>
+
+                <div id="createMessage" class="message"></div>
+            </div>
+
+            <div class="section-card" id="userListSection">
+                <div class="section-header">
+                    <h3 style="margin:0;">📋 Danh sách tài khoản</h3>
+                    <div class="stat-info">
+                        <i class="fas fa-users"></i>
+                        Tổng: <span class="num" id="userCount">0</span>
+                    </div>
+                </div>
+
+                <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px;">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="userSearch" placeholder="Tìm theo tên, email..." oninput="filterUserTable()" />
+                    </div>
+                    <button class="btn btn-secondary btn-sm" onclick="loadUserList()">
+                        <i class="fas fa-sync-alt"></i> Tải lại
+                    </button>
+                </div>
+
+                <div class="user-table-wrapper">
+                    <table class="user-table" id="userTable">
+                        <thead>
+                            <tr>
+                                <th>Tên</th>
+                                <th>Email</th>
+                                <th>Vai trò</th>
+                                <th>Tổ</th>
+                                <th style="text-align:right;">Hành động</th>
+                            </tr>
+                        </thead>
+                        <tbody id="userTableBody">
+                            <tr class="empty-row">
+                                <td colspan="5">Đang tải dữ liệu...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="footer-note">
+                ⚡ Tool sử dụng <strong>Secondary Firebase App</strong> để không ảnh hưởng đến phiên đăng nhập hiện tại.
+                <br />Chỉ hoạt động sau khi đăng nhập thành công với tài khoản Admin.
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="editModal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3>✏️ Sửa tài khoản</h3>
+                <button class="modal-close" onclick="closeEditModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>UID</label>
+                    <input type="text" id="editUid" disabled style="background:#f1f5f9;font-family:monospace;font-size:12px;" />
+                </div>
+                <div class="form-group">
+                    <label>Họ và tên <span class="required">*</span></label>
+                    <input type="text" id="editFullName" placeholder="Nguyễn Văn A" />
+                </div>
+                <div class="form-group">
+                    <label>Email (không thể sửa)</label>
+                    <input type="text" id="editEmail" disabled style="background:#f1f5f9;" />
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Vai trò <span class="required">*</span></label>
+                        <select id="editRole">
+                            <option value="giao_vien">Giáo viên</option>
+                            <option value="thu_ky">Thư ký</option>
+                            <option value="truong_to">Tổ trưởng</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Tổ chuyên môn</label>
+                        <select id="editTeamId">
+                            <option value="">-- Không chọn --</option>
+                            <option value="toan">Toán</option>
+                            <option value="van">Văn</option>
+                            <option value="anh">Tiếng Anh</option>
+                            <option value="ly">Vật lý</option>
+                            <option value="hoa">Hóa học</option>
+                            <option value="sinh">Sinh học</option>
+                            <option value="su">Lịch sử</option>
+                            <option value="dia">Địa lý</option>
+                            <option value="gdcd">GDCD</option>
+                            <option value="theduc">Thể dục</option>
+                            <option value="congnghe">Công nghệ</option>
+                            <option value="tin">Tin học</option>
+                            <option value="khtn">KHTN</option>
+                            <option value="khxh">KHXH</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="editMessage" class="message"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeEditModal()">Hủy</button>
+                <button class="btn btn-primary" id="btnSaveEdit">
+                    <i class="fas fa-save"></i> Lưu thay đổi
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="deleteModal">
+        <div class="modal-box" style="max-width:440px;">
+            <div class="modal-header">
+                <h3>⚠️ Xác nhận xóa</h3>
+                <button class="modal-close" onclick="closeDeleteModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size:15px;color:#334155;line-height:1.6;" id="deleteConfirmText">
+                    Bạn có chắc chắn muốn xóa tài khoản này?
+                </p>
+                <div style="margin-top:12px;padding:10px 12px;background:#fef3c7;border-radius:8px;font-size:13px;color:#92400e;">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>Lưu ý:</strong> Tài khoản sẽ bị xóa khỏi Realtime Database. Tài khoản Authentication cần xóa thủ công trên Firebase Console nếu muốn.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeDeleteModal()">Hủy</button>
+                <button class="btn btn-danger" id="btnConfirmDelete">
+                    <i class="fas fa-trash-alt"></i> Xóa tài khoản
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        (function() {
+            'use strict';
+
+            // ============================================================
+            // FIREBASE CONFIG (HARDCODED)
+            // ============================================================
+            const firebaseConfig = {
+                apiKey: "AIzaSyDGytyF7dvy-djx8QEgOOOBxFK9O_LE5_w",
+                authDomain: "meetingsystem-b9e71.firebaseapp.com",
+                databaseURL: "https://meetingsystem-b9e71-default-rtdb.asia-southeast1.firebasedatabase.app",
+                projectId: "meetingsystem-b9e71",
+                storageBucket: "meetingsystem-b9e71.firebasestorage.app",
+                messagingSenderId: "587548729744",
+                appId: "1:587548729744:web:0e8479fbf7305810e1d315"
+            };
+
+            // ---- DOM refs ----
+            const initStatus = document.getElementById('initStatus');
+            const loginSection = document.getElementById('loginSection');
+            const adminEmail = document.getElementById('adminEmail');
+            const adminPassword = document.getElementById('adminPassword');
+            const btnLogin = document.getElementById('btnAdminLogin');
+            const btnLogout = document.getElementById('btnLogout');
+            const loginStatus = document.getElementById('loginStatus');
+            const loginMessage = document.getElementById('loginMessage');
+            const loginFormRow = document.getElementById('loginFormRow');
+
+            const mainContent = document.getElementById('mainContent');
+            const fullName = document.getElementById('fullName');
+            const email = document.getElementById('email');
+            const password = document.getElementById('password');
+            const role = document.getElementById('role');
+            const teamId = document.getElementById('teamId');
+            const btnCreate = document.getElementById('btnCreateAccount');
+            const createMessage = document.getElementById('createMessage');
+
+            const userTableBody = document.getElementById('userTableBody');
+            const userSearch = document.getElementById('userSearch');
+            const userCount = document.getElementById('userCount');
+
+            const editModal = document.getElementById('editModal');
+            const editUid = document.getElementById('editUid');
+            const editFullName = document.getElementById('editFullName');
+            const editEmail = document.getElementById('editEmail');
+            const editRole = document.getElementById('editRole');
+            const editTeamId = document.getElementById('editTeamId');
+            const editMessage = document.getElementById('editMessage');
+            const btnSaveEdit = document.getElementById('btnSaveEdit');
+
+            const deleteModal = document.getElementById('deleteModal');
+            const deleteConfirmText = document.getElementById('deleteConfirmText');
+            const btnConfirmDelete = document.getElementById('btnConfirmDelete');
+
+            const toastContainer = document.getElementById('toastContainer');
+
+            // ---- State ----
+            let app = null;
+            let secondaryApp = null;
+            let isAdminLoggedIn = false;
+            let currentUserList = [];
+            let teamNameCache = {};
+            let pendingDeleteUid = null;
+
+            // ============================================================
+            // UTILITIES
+            // ============================================================
+            function showMessage(el, text, type) {
+                el.textContent = text;
+                el.className = 'message ' + type;
+                el.style.display = 'block';
+            }
+            function hideMessage(el) {
+                el.style.display = 'none';
+                el.className = 'message';
+            }
+            function escapeHtml(str) {
+                if (str === null || str === undefined) return '';
+                const div = document.createElement('div');
+                div.textContent = String(str);
+                return div.innerHTML;
+            }
+            function showToast(message, type = 'info', duration = 3500) {
+                const toast = document.createElement('div');
+                toast.className = 'toast ' + type;
+                const icons = {
+                    success: 'fa-check-circle',
+                    error: 'fa-exclamation-circle',
+                    warning: 'fa-exclamation-triangle',
+                    info: 'fa-info-circle'
+                };
+                toast.innerHTML = `
+                    <i class="fas ${icons[type] || icons.info}"></i>
+                    <span class="toast-content">${message}</span>
+                `;
+                toastContainer.appendChild(toast);
+                setTimeout(() => {
+                    toast.style.opacity = '0';
+                    toast.style.transform = 'translateX(100%)';
+                    toast.style.transition = 'all 0.3s';
+                    setTimeout(() => toast.remove(), 300);
+                }, duration);
+            }
+            function getRoleLabel(role) {
+                const map = {
+                    'admin': 'Admin',
+                    'truong_to': 'Tổ trưởng',
+                    'thu_ky': 'Thư ký',
+                    'giao_vien': 'Giáo viên'
+                };
+                return map[role] || role || 'Chưa rõ';
+            }
+            function getTeamLabel(teamIdVal) {
+                if (!teamIdVal) return '';
+                if (teamNameCache[teamIdVal]) return teamNameCache[teamIdVal];
+                const opt = document.querySelector(`#teamId option[value="${teamIdVal}"]`);
+                if (opt) return opt.textContent;
+                return teamIdVal;
+            }
+
+            // ============================================================
+            // KHỞI TẠO FIREBASE
+            // ============================================================
+            function initFirebaseAuto() {
+                try {
+                    if (firebase.apps.length === 0) {
+                        app = firebase.initializeApp(firebaseConfig);
+                    } else {
+                        app = firebase.app();
+                    }
+
+                    try {
+                        secondaryApp = firebase.initializeApp(firebaseConfig, 'secondary');
+                    } catch (e) {
+                        secondaryApp = firebase.app('secondary');
+                    }
+
+                    console.log('✅ Firebase đã khởi tạo thành công.');
+                    console.log('Project:', firebaseConfig.projectId);
+
+                    initStatus.classList.add('hidden');
+                    loginSection.classList.remove('hidden');
+
+                    const currentUser = firebase.auth(app).currentUser;
+                    if (currentUser) {
+                        handleLoggedIn(currentUser);
+                    }
+
+                    return true;
+                } catch (err) {
+                    console.error('❌ Lỗi khởi tạo Firebase:', err);
+                    initStatus.innerHTML = `
+                        <div style="color:#dc2626;text-align:left;padding:12px;">
+                            <strong>❌ Lỗi khởi tạo Firebase:</strong><br>
+                            <code style="font-size:12px;">${err.message}</code><br><br>
+                            <small>Vui lòng kiểm tra lại cấu hình hoặc kết nối Internet.</small>
+                        </div>
+                    `;
+                    return false;
+                }
+            }
+
+            // ============================================================
+            // ĐĂNG NHẬP / ĐĂNG XUẤT
+            // ============================================================
+            async function handleLoggedIn(user) {
+                isAdminLoggedIn = true;
+                loginStatus.textContent = '✅ Admin: ' + (user.email || user.uid);
+                loginStatus.className = 'status-badge logged-in';
+                btnLogout.style.display = 'inline-block';
+                btnLogin.textContent = 'Đã đăng nhập';
+                btnLogin.disabled = true;
+                loginFormRow.style.display = 'none';
+                mainContent.classList.remove('hidden');
+                showMessage(loginMessage, 'Đăng nhập thành công!', 'success');
+
+                await loadUserList();
+            }
+
+            async function loginAdmin(emailVal, passVal) {
+                if (!app) {
+                    showMessage(loginMessage, 'Firebase chưa khởi tạo. Vui lòng tải lại trang.', 'error');
+                    return;
+                }
+                try {
+                    btnLogin.disabled = true;
+                    btnLogin.innerHTML = '<span class="spinner"></span> Đang đăng nhập...';
+                    hideMessage(loginMessage);
+
+                    const cred = await firebase.auth(app).signInWithEmailAndPassword(emailVal, passVal);
+                    await handleLoggedIn(cred.user);
+                } catch (err) {
+                    console.error('Login error:', err);
+                    let msg = err.message;
+                    if (err.code === 'auth/user-not-found') {
+                        msg = 'Không tìm thấy tài khoản với email này.';
+                    } else if (err.code === 'auth/wrong-password') {
+                        msg = 'Mật khẩu không đúng.';
+                    } else if (err.code === 'auth/invalid-email') {
+                        msg = 'Email không hợp lệ.';
+                    } else if (err.code === 'auth/too-many-requests') {
+                        msg = 'Quá nhiều yêu cầu. Vui lòng thử lại sau.';
+                    }
+                    showMessage(loginMessage, '❌ ' + msg, 'error');
+                    btnLogin.disabled = false;
+                    btnLogin.innerHTML = '<i class="fas fa-sign-in-alt"></i> Đăng nhập';
+                }
+            }
+
+            async function logoutAdmin() {
+                if (app) {
+                    try {
+                        await firebase.auth(app).signOut();
+                    } catch (e) {}
+                }
+                isAdminLoggedIn = false;
+                currentUserList = [];
+                loginStatus.textContent = 'Chưa đăng nhập';
+                loginStatus.className = 'status-badge logged-out';
+                btnLogout.style.display = 'none';
+                btnLogin.disabled = false;
+                btnLogin.innerHTML = '<i class="fas fa-sign-in-alt"></i> Đăng nhập';
+                loginFormRow.style.display = 'grid';
+                hideMessage(loginMessage);
+                mainContent.classList.add('hidden');
+                hideMessage(createMessage);
+                userTableBody.innerHTML = `<tr class="empty-row"><td colspan="5">Chưa có dữ liệu.</td></tr>`;
+                userCount.textContent = '0';
+            }
+
+            // ============================================================
+            // TẠO TÀI KHOẢN (SECONDARY APP)
+            // ============================================================
+            async function createAccount() {
+                const name = fullName.value.trim();
+                const mail = email.value.trim();
+                const pass = password.value.trim();
+                const roleVal = role.value;
+                const teamVal = teamId.value;
+
+                if (!name) { showMessage(createMessage, 'Vui lòng nhập Họ và tên.', 'error'); return; }
+                if (!mail) { showMessage(createMessage, 'Vui lòng nhập Email.', 'error'); return; }
+                if (pass.length < 6) { showMessage(createMessage, 'Mật khẩu phải có ít nhất 6 ký tự.', 'error'); return; }
+                if (!roleVal) { showMessage(createMessage, 'Vui lòng chọn Vai trò.', 'error'); return; }
+
+                if (!isAdminLoggedIn) {
+                    showMessage(createMessage, 'Bạn cần đăng nhập với tài khoản Admin trước.', 'error');
+                    return;
+                }
+
+                btnCreate.disabled = true;
+                btnCreate.innerHTML = '<span class="spinner"></span> Đang tạo...';
+                hideMessage(createMessage);
+
+                try {
+                    const userCred = await firebase.auth(secondaryApp)
+                        .createUserWithEmailAndPassword(mail, pass);
+                    const uid = userCred.user.uid;
+
+                    const dbRef = firebase.database(app).ref();
+
+                    await userCred.user.updateProfile({ displayName: name });
+
+                    await dbRef.child('users/' + uid).set({
+                        email: mail,
+                        displayName: name,
+                        role: roleVal,
+                        teamId: teamVal || null,
+                        createdAt: firebase.database.ServerValue.TIMESTAMP
+                    });
+
+                    if (teamVal) {
+                        await dbRef.child('teams/' + teamVal + '/members/' + uid).set(true);
+                        const teamSnap = await dbRef.child('teams/' + teamVal + '/name').once('value');
+                        if (!teamSnap.exists()) {
+                            const teamName = getTeamLabel(teamVal);
+                            await dbRef.child('teams/' + teamVal).update({
+                                name: teamName,
+                                code: teamVal.toUpperCase(),
+                                createdAt: firebase.database.ServerValue.TIMESTAMP
+                            });
+                        }
+                    }
+
+                    try {
+                        await firebase.auth(secondaryApp).signOut();
+                    } catch (e) {}
+
+                    showMessage(
+                        createMessage,
+                        '✅ Tạo tài khoản thành công!\n' +
+                        'UID: ' + uid + '\n' +
+                        'Email: ' + mail + '\n' +
+                        'Vai trò: ' + getRoleLabel(roleVal) + (teamVal ? ' | Tổ: ' + getTeamLabel(teamVal) : ''),
+                        'success'
+                    );
+                    showToast('Đã tạo tài khoản: ' + name, 'success');
+
+                    fullName.value = '';
+                    password.value = '';
+
+                    await loadUserList();
+
+                } catch (err) {
+                    console.error('Create account error:', err);
+                    let msg = err.message;
+                    if (err.code === 'auth/email-already-in-use') {
+                        msg = 'Email này đã được sử dụng.';
+                    } else if (err.code === 'auth/invalid-email') {
+                        msg = 'Email không hợp lệ.';
+                    } else if (err.code === 'auth/weak-password') {
+                        msg = 'Mật khẩu quá yếu (tối thiểu 6 ký tự).';
+                    } else if (err.code === 'PERMISSION_DENIED') {
+                        msg = 'Không có quyền ghi dữ liệu. Vui lòng kiểm tra tài khoản Admin có role "admin".';
+                    }
+                    showMessage(createMessage, '❌ ' + msg, 'error');
+                } finally {
+                    btnCreate.disabled = false;
+                    btnCreate.innerHTML = '<i class="fas fa-user-plus"></i> Tạo tài khoản';
+                }
+            }
+
+            // ============================================================
+            // ĐỌC DANH SÁCH USERS (READ)
+            // ============================================================
+            async function loadUserList() {
+                if (!app || !isAdminLoggedIn) return;
+
+                userTableBody.innerHTML = `
+                    <tr class="empty-row"><td colspan="5">
+                        <div class="table-loading">
+                            <span class="spinner blue"></span>
+                            <div>Đang tải danh sách tài khoản...</div>
+                        </div>
+                    </td></tr>
+                `;
+
+                try {
+                    const dbRef = firebase.database(app).ref();
+
+                    const userSnap = await dbRef.child('users').once('value');
+                    const userData = userSnap.val() || {};
+
+                    const teamSnap = await dbRef.child('teams').once('value');
+                    const teamData = teamSnap.val() || {};
+                    teamNameCache = {};
+                    Object.keys(teamData).forEach(tid => {
+                        teamNameCache[tid] = teamData[tid].name || tid;
+                    });
+
+                    currentUserList = Object.keys(userData).map(uid => ({
+                        uid: uid,
+                        ...userData[uid]
+                    }));
+
+                    renderUserTable();
+                    userCount.textContent = currentUserList.length;
+
+                } catch (err) {
+                    console.error('Load users error:', err);
+                    userTableBody.innerHTML = `
+                        <tr class="empty-row"><td colspan="5" style="color:#dc2626;">
+                            ❌ Lỗi tải danh sách: ${escapeHtml(err.message)}
+                        </td></tr>
+                    `;
+                }
+            }
+
+            // ============================================================
+            // HIỂN THỊ BẢNG USERS
+            // ============================================================
+            function renderUserTable() {
+                const filter = (userSearch.value || '').toLowerCase().trim();
+
+                const roleOrder = { 'admin': 1, 'truong_to': 2, 'thu_ky': 3, 'giao_vien': 4 };
+                const sorted = [...currentUserList].sort((a, b) => {
+                    const oa = roleOrder[a.role] || 99;
+                    const ob = roleOrder[b.role] || 99;
+                    if (oa !== ob) return oa - ob;
+                    return (a.displayName || '').localeCompare(b.displayName || '');
+                });
+
+                const filtered = sorted.filter(u => {
+                    if (!filter) return true;
+                    const name = (u.displayName || '').toLowerCase();
+                    const mail = (u.email || '').toLowerCase();
+                    return name.includes(filter) || mail.includes(filter);
+                });
+
+                if (filtered.length === 0) {
+                    userTableBody.innerHTML = `
+                        <tr class="empty-row">
+                            <td colspan="5">
+                                ${currentUserList.length === 0
+                                    ? '📭 Chưa có tài khoản nào. Hãy tạo tài khoản đầu tiên ở trên.'
+                                    : '🔍 Không tìm thấy tài khoản phù hợp với từ khóa.'}
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                userTableBody.innerHTML = filtered.map(u => {
+                    const roleLabel = getRoleLabel(u.role);
+                    const roleClass = u.role || 'giao_vien';
+                    const teamLabel = u.teamId ? getTeamLabel(u.teamId) : '';
+                    return `
+                        <tr>
+                            <td>
+                                <div style="font-weight:600;color:#0f172a;">${escapeHtml(u.displayName || '(Chưa có tên)')}</div>
+                                <div class="uid-text">${escapeHtml((u.uid || '').substring(0, 10))}…</div>
+                            </td>
+                            <td>${escapeHtml(u.email || '')}</td>
+                            <td>
+                                <span class="role-badge ${roleClass}">${escapeHtml(roleLabel)}</span>
+                            </td>
+                            <td>
+                                ${teamLabel ? `<span class="team-tag">${escapeHtml(teamLabel)}</span>` : '<span style="color:#94a3b8;">—</span>'}
+                            </td>
+                            <td class="actions-cell">
+                                <button class="btn btn-warning btn-xs" onclick="openEditModal('${u.uid}')">
+                                    <i class="fas fa-edit"></i> Sửa
+                                </button>
+                                <button class="btn btn-danger btn-xs" onclick="openDeleteModal('${u.uid}')">
+                                    <i class="fas fa-trash-alt"></i> Xóa
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+
+            function filterUserTable() {
+                renderUserTable();
+            }
+
+            // ============================================================
+            // SỬA TÀI KHOẢN (UPDATE)
+            // ============================================================
+            function openEditModal(uid) {
+                const user = currentUserList.find(u => u.uid === uid);
+                if (!user) {
+                    showToast('Không tìm thấy user', 'error');
+                    return;
+                }
+                editUid.value = user.uid;
+                editFullName.value = user.displayName || '';
+                editEmail.value = user.email || '';
+                editRole.value = user.role || 'giao_vien';
+                editTeamId.value = user.teamId || '';
+                hideMessage(editMessage);
+                editModal.classList.add('active');
+                setTimeout(() => editFullName.focus(), 100);
+            }
+
+            function closeEditModal() {
+                editModal.classList.remove('active');
+                hideMessage(editMessage);
+            }
+
+            async function saveUserEdit() {
+                const uid = editUid.value;
+                const newName = editFullName.value.trim();
+                const newRole = editRole.value;
+                const newTeamId = editTeamId.value;
+
+                if (!newName) {
+                    showMessage(editMessage, 'Vui lòng nhập Họ và tên.', 'error');
+                    return;
+                }
+
+                const user = currentUserList.find(u => u.uid === uid);
+                if (!user) {
+                    showMessage(editMessage, 'Không tìm thấy user.', 'error');
+                    return;
+                }
+
+                const oldTeamId = user.teamId || '';
+
+                btnSaveEdit.disabled = true;
+                btnSaveEdit.innerHTML = '<span class="spinner"></span> Đang lưu...';
+                hideMessage(editMessage);
+
+                try {
+                    const dbRef = firebase.database(app).ref();
+
+                    await dbRef.child('users/' + uid).update({
+                        displayName: newName,
+                        role: newRole,
+                        teamId: newTeamId || null,
+                        updatedAt: firebase.database.ServerValue.TIMESTAMP
+                    });
+
+                    if (oldTeamId && oldTeamId !== newTeamId) {
+                        await dbRef.child('teams/' + oldTeamId + '/members/' + uid).remove();
+                    }
+                    if (newTeamId) {
+                        const teamSnap = await dbRef.child('teams/' + newTeamId + '/name').once('value');
+                        if (!teamSnap.exists()) {
+                            await dbRef.child('teams/' + newTeamId).update({
+                                name: getTeamLabel(newTeamId),
+                                code: newTeamId.toUpperCase(),
+                                createdAt: firebase.database.ServerValue.TIMESTAMP
+                            });
+                        }
+                        await dbRef.child('teams/' + newTeamId + '/members/' + uid).set(true);
+                    }
+
+                    showToast('✅ Đã cập nhật tài khoản: ' + newName, 'success');
+                    closeEditModal();
+                    await loadUserList();
+
+                } catch (err) {
+                    console.error('Save edit error:', err);
+                    showMessage(editMessage, '❌ Lỗi: ' + err.message, 'error');
+                } finally {
+                    btnSaveEdit.disabled = false;
+                    btnSaveEdit.innerHTML = '<i class="fas fa-save"></i> Lưu thay đổi';
+                }
+            }
+
+            // ============================================================
+            // XÓA TÀI KHOẢN (DELETE)
+            // ============================================================
+            function openDeleteModal(uid) {
+                const user = currentUserList.find(u => u.uid === uid);
+                if (!user) {
+                    showToast('Không tìm thấy user', 'error');
+                    return;
+                }
+                pendingDeleteUid = uid;
+                deleteConfirmText.innerHTML = `Bạn có chắc chắn muốn xóa tài khoản của <strong>"${escapeHtml(user.displayName || user.email)}"</strong>?<br><br>Hành động này không thể hoàn tác.`;
+                deleteModal.classList.add('active');
+            }
+
+            function closeDeleteModal() {
+                deleteModal.classList.remove('active');
+                pendingDeleteUid = null;
+            }
+
+            async function confirmDeleteUser() {
+                const uid = pendingDeleteUid;
+                if (!uid) return;
+
+                const user = currentUserList.find(u => u.uid === uid);
+                if (!user) {
+                    closeDeleteModal();
+                    return;
+                }
+
+                btnConfirmDelete.disabled = true;
+                btnConfirmDelete.innerHTML = '<span class="spinner"></span> Đang xóa...';
+
+                try {
+                    const dbRef = firebase.database(app).ref();
+
+                    if (user.teamId) {
+                        await dbRef.child('teams/' + user.teamId + '/members/' + uid).remove();
+                    }
+
+                    await dbRef.child('users/' + uid).remove();
+
+                    showToast('🗑️ Đã xóa tài khoản: ' + (user.displayName || user.email), 'success');
+                    closeDeleteModal();
+                    await loadUserList();
+
+                } catch (err) {
+                    console.error('Delete user error:', err);
+                    showToast('❌ Lỗi xóa: ' + err.message, 'error');
+                } finally {
+                    btnConfirmDelete.disabled = false;
+                    btnConfirmDelete.innerHTML = '<i class="fas fa-trash-alt"></i> Xóa tài khoản';
+                }
+            }
+
+            // ============================================================
+            // EVENT LISTENERS
+            // ============================================================
+            btnLogin.addEventListener('click', function() {
+                const emailVal = adminEmail.value.trim();
+                const passVal = adminPassword.value.trim();
+                if (!emailVal || !passVal) {
+                    showMessage(loginMessage, 'Vui lòng nhập email và mật khẩu Admin.', 'error');
+                    return;
+                }
+                loginAdmin(emailVal, passVal);
+            });
+
+            btnLogout.addEventListener('click', logoutAdmin);
+            btnCreate.addEventListener('click', createAccount);
+            btnSaveEdit.addEventListener('click', saveUserEdit);
+            btnConfirmDelete.addEventListener('click', confirmDeleteUser);
+
+            editModal.addEventListener('click', function(e) {
+                if (e.target === editModal) closeEditModal();
+            });
+            deleteModal.addEventListener('click', function(e) {
+                if (e.target === deleteModal) closeDeleteModal();
+            });
+
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    if (editModal.classList.contains('active')) closeEditModal();
+                    if (deleteModal.classList.contains('active')) closeDeleteModal();
+                }
+                if (e.key === 'Enter') {
+                    if (editModal.classList.contains('active') && !btnSaveEdit.disabled) {
+                        btnSaveEdit.click();
+                    } else if (deleteModal.classList.contains('active') && !btnConfirmDelete.disabled) {
+                        btnConfirmDelete.click();
+                    } else if (e.target.closest('#loginSection') && !btnLogin.disabled) {
+                        btnLogin.click();
+                    } else if (e.target.closest('#createSection') && !btnCreate.disabled) {
+                        btnCreate.click();
+                    }
+                }
+            });
+
+            // ============================================================
+            // AUTO-INIT KHI MỞ FILE
+            // ============================================================
+            document.addEventListener('DOMContentLoaded', function() {
+                initFirebaseAuto();
+            });
+
+            if (document.readyState === 'complete' || document.readyState === 'interactive') {
+                setTimeout(initFirebaseAuto, 0);
+            }
+
+            // Expose ra window cho các onclick handler
+            window.openEditModal = openEditModal;
+            window.closeEditModal = closeEditModal;
+            window.openDeleteModal = openDeleteModal;
+            window.closeDeleteModal = closeDeleteModal;
+            window.loadUserList = loadUserList;
+            window.filterUserTable = filterUserTable;
+
+            console.log('🔧 Tool Quản lý tài khoản Firebase đã sẵn sàng.');
+
+        })();
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chi tiết cuộc họp</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+    
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/responsive.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loader"></div>
+        <p>Đang tải...</p>
+    </div>
+
+    <div id="app">
+        <aside id="sidebar" class="sidebar">
+            <div class="sidebar-brand">
+                <div class="brand-icon">🏫</div>
+                <div class="brand-text">
+                    <span class="brand-title">Quản lý sinh hoạt</span>
+                    <span class="brand-subtitle">Tổ chuyên môn</span>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item" data-page="dashboard"><i class="fas fa-chart-pie"></i><span>Tổng quan</span></a>
+                <a href="#" class="nav-item" data-page="meetings"><i class="fas fa-calendar-alt"></i><span>Cuộc họp</span></a>
+                <a href="#" class="nav-item" data-page="tasks"><i class="fas fa-tasks"></i><span>Nhiệm vụ</span></a>
+                <a href="#" class="nav-item active" data-page="archive"><i class="fas fa-archive"></i><span>Hồ sơ điện tử</span></a>
+                <a href="#" class="nav-item" data-page="notifications"><i class="fas fa-bell"></i><span>Thông báo</span><span class="badge" id="notificationBadge">0</span></a>
+                <a href="#" class="nav-item" data-page="admin" id="adminNav" style="display:none;"><i class="fas fa-cog"></i><span>Quản lý</span></a>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar" id="userAvatar">👤</div>
+                    <div class="user-details">
+                        <span id="userName">Tên người dùng</span>
+                        <span id="userRole" class="user-role">Vai trò</span>
+                    </div>
+                </div>
+                <!-- NÚT ĐỔI MẬT KHẨU - MỚI THÊM -->
+                <button id="changePasswordBtn" class="btn-change-password">
+                    <i class="fas fa-key"></i>
+                    <span>Đổi mật khẩu</span>
+                </button>
+                <button id="logoutBtn" class="btn-logout">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Đăng xuất</span>
+                </button>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-bar">
+                <button id="toggleSidebar" class="btn-toggle-sidebar"><i class="fas fa-bars"></i></button>
+                <h1 id="pageTitle">Chi tiết cuộc họp</h1>
+                <div class="top-bar-actions"><span class="current-date" id="currentDate"></span></div>
+            </header>
+
+            <div id="pageContainer" class="page-container">
+                <!-- Meeting detail will be loaded here -->
+            </div>
+        </main>
+
+        <nav class="mobile-bottom-nav">
+            <a href="#" class="mobile-nav-item" data-page="dashboard"><i class="fas fa-chart-pie"></i><span>Tổng quan</span></a>
+            <a href="#" class="mobile-nav-item" data-page="meetings"><i class="fas fa-calendar-alt"></i><span>Cuộc họp</span></a>
+            <a href="#" class="mobile-nav-item" data-page="create-meeting"><i class="fas fa-plus-circle"></i><span>Tạo mới</span></a>
+            <a href="#" class="mobile-nav-item" data-page="tasks"><i class="fas fa-tasks"></i><span>Nhiệm vụ</span></a>
+            <a href="#" class="mobile-nav-item" data-page="profile"><i class="fas fa-user"></i><span>Tôi</span></a>
+        </nav>
+    </div>
+
+    <div id="toastContainer" class="toast-container"></div>
+    <div id="modalContainer" class="modal-container"></div>
+
+    <!-- JavaScript -->
+    <script src="js/firebase-config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/database.js"></script>
+    <script src="js/ui.js"></script>
+
+    <!-- Modules phụ thuộc -->
+    <script src="js/tasks.js"></script>
+    <script src="js/discussion.js"></script>
+    <script src="js/confirmation.js"></script>
+    <script src="js/activity-log.js"></script>
+    <script src="js/archive.js"></script>
+    <script src="js/notifications.js"></script>
+    <!-- Module chính -->
+    <script src="js/meetings.js"></script>
+    <script src="js/app.js"></script>
+
+    <script>
+        // Override to load meeting detail
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const meetingId = urlParams.get('id');
+            
+            if (meetingId) {
+                initAuth().then(() => {
+                    loadMeetingDetail(meetingId);
+                });
+            } else {
+                showToast('Không có ID cuộc họp', 'error');
+                navigateTo('meetings');
+            }
+        });
+        
+        async function loadMeetingDetail(meetingId) {
+            const container = document.getElementById('pageContainer');
+            await renderMeetingDetail(container, meetingId);
+        }
+        
+        window.loadMeetingDetail = loadMeetingDetail;
+    </script>
+</body>
+</html>

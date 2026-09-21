@@ -1,0 +1,50 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Allow read access for authenticated users
+    match /{allPaths=**} {
+      allow read: if request.auth != null;
+    }
+    
+    // Meetings storage
+    match /meetings/{meetingId}/{allPaths=**} {
+      allow write: if request.auth != null && 
+        (request.resource.size < 20 * 1024 * 1024) && // 20MB max
+        request.resource.contentType.matches('(image/.*|application/pdf|application/vnd.openxmlformats-officedocument.wordprocessingml.document|application/vnd.openxmlformats-officedocument.spreadsheetml.sheet)');
+      
+      // Only team members or admin can upload
+      allow write: if request.auth != null && (
+        root.child('users/' + request.auth.uid + '/role').val() == 'admin' ||
+        root.child('meetings/' + meetingId + '/teamId').val() == root.child('users/' + request.auth.uid + '/teamId').val()
+      );
+    }
+    
+    // Discussion images
+    match /meetings/{meetingId}/discussions/{discussionId}/{fileName} {
+      allow write: if request.auth != null &&
+        request.resource.size < 10 * 1024 * 1024 &&
+        request.resource.contentType.matches('image/.*');
+    }
+    
+    // Documents and PDFs
+    match /meetings/{meetingId}/documents/{fileName} {
+      allow write: if request.auth != null &&
+        request.resource.size < 20 * 1024 * 1024 &&
+        request.resource.contentType.matches('(application/pdf|application/vnd.openxmlformats-officedocument.wordprocessingml.document|application/vnd.openxmlformats-officedocument.spreadsheetml.sheet)');
+    }
+    
+    // Appendices
+    match /meetings/{meetingId}/appendices/{appendixId}/{fileName} {
+      allow write: if request.auth != null &&
+        root.child('users/' + request.auth.uid + '/role').val() == 'admin' &&
+        request.resource.size < 20 * 1024 * 1024;
+    }
+    
+    // Delete protection for closed meetings
+    match /meetings/{meetingId}/{allPaths=**} {
+      allow delete: if request.auth != null &&
+        root.child('users/' + request.auth.uid + '/role').val() == 'admin' &&
+        root.child('meetings/' + meetingId + '/status').val() != 'CLOSED';
+    }
+  }
+}

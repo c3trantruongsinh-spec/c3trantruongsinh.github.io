@@ -1,0 +1,154 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    
+    "users": {
+      ".read": "auth.uid !== null",
+      ".write": false,
+      "$uid": {
+        ".read": "auth.uid === $uid || root.child('users/' + auth.uid + '/role').val() === 'admin'",
+        ".write": "auth.uid === $uid || root.child('users/' + auth.uid + '/role').val() === 'admin'",
+        "role": {
+          ".write": "root.child('users/' + auth.uid + '/role').val() === 'admin'"
+        }
+      }
+    },
+    
+    "teams": {
+      ".read": "auth.uid !== null",
+      ".write": "root.child('users/' + auth.uid + '/role').val() === 'admin'",
+      "$teamId": {
+        ".read": "auth.uid !== null",
+        ".write": "root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('teams/' + $teamId + '/leaderId').val() === auth.uid",
+        "members": {
+          ".write": "root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('teams/' + $teamId + '/leaderId').val() === auth.uid"
+        }
+      }
+    },
+    
+    "meetings": {
+      ".read": "auth.uid !== null",
+      ".write": false,
+      "$meetingId": {
+        ".read": "auth.uid !== null && (root.child('meetings/' + $meetingId + '/teamId').val() === root.child('users/' + auth.uid + '/teamId').val() || root.child('users/' + auth.uid + '/role').val() === 'admin')",
+        ".write": "root.child('users/' + auth.uid + '/role').val() === 'admin' || (root.child('meetings/' + $meetingId + '/teamId').val() === root.child('users/' + auth.uid + '/teamId').val() && (root.child('users/' + auth.uid + '/role').val() === 'truong_to' || root.child('users/' + auth.uid + '/role').val() === 'thu_ky'))",
+        "status": {
+          ".write": "root.child('users/' + auth.uid + '/role').val() === 'truong_to' || root.child('users/' + auth.uid + '/role').val() === 'admin'"
+        },
+        "closedAt": {
+          ".write": "root.child('users/' + auth.uid + '/role').val() === 'truong_to' || root.child('users/' + auth.uid + '/role').val() === 'admin'"
+        },
+        "closedBy": {
+          ".write": "root.child('users/' + auth.uid + '/role').val() === 'truong_to' || root.child('users/' + auth.uid + '/role').val() === 'admin'"
+        }
+      }
+    },
+    
+    "meetingContents": {
+      "$meetingId": {
+        ".read": "auth.uid !== null && (root.child('meetings/' + $meetingId + '/teamId').val() === root.child('users/' + auth.uid + '/teamId').val() || root.child('users/' + auth.uid + '/role').val() === 'admin')",
+        ".write": "root.child('users/' + auth.uid + '/role').val() === 'admin' || (root.child('meetings/' + $meetingId + '/teamId').val() === root.child('users/' + auth.uid + '/teamId').val() && (root.child('users/' + auth.uid + '/role').val() === 'truong_to' || root.child('users/' + auth.uid + '/role').val() === 'thu_ky'))",
+        "$contentId": {
+          "conclusion": {
+            ".write": "root.child('users/' + auth.uid + '/role').val() === 'truong_to' || root.child('users/' + auth.uid + '/role').val() === 'admin'"
+          },
+          "concludedAt": {
+            ".write": "root.child('users/' + auth.uid + '/role').val() === 'truong_to' || root.child('users/' + auth.uid + '/role').val() === 'admin'"
+          },
+          "concludedBy": {
+            ".write": "root.child('users/' + auth.uid + '/role').val() === 'truong_to' || root.child('users/' + auth.uid + '/role').val() === 'admin'"
+          },
+          "status": {
+            ".write": "root.child('users/' + auth.uid + '/role').val() === 'truong_to' || root.child('users/' + auth.uid + '/role').val() === 'admin'"
+          }
+        }
+      }
+    },
+    
+    "discussions": {
+      "$meetingId": {
+        ".read": "auth.uid !== null && (root.child('meetings/' + $meetingId + '/teamId').val() === root.child('users/' + auth.uid + '/teamId').val() || root.child('users/' + auth.uid + '/role').val() === 'admin')",
+        ".write": "auth.uid !== null && (root.child('meetings/' + $meetingId + '/teamId').val() === root.child('users/' + auth.uid + '/teamId').val() || root.child('users/' + auth.uid + '/role').val() === 'admin')",
+        "$discussionId": {
+          ".write": "auth.uid !== null && (root.child('discussions/' + $meetingId + '/' + $discussionId + '/authorId').val() === auth.uid || root.child('users/' + auth.uid + '/role').val() === 'truong_to' || root.child('users/' + auth.uid + '/role').val() === 'admin')",
+          "content": {
+            ".write": "root.child('discussions/' + $meetingId + '/' + $discussionId + '/authorId').val() === auth.uid || root.child('users/' + auth.uid + '/role').val() === 'admin'"
+          },
+          "status": {
+            ".write": "root.child('discussions/' + $meetingId + '/' + $discussionId + '/authorId').val() === auth.uid || root.child('users/' + auth.uid + '/role').val() === 'admin'"
+          }
+        }
+      }
+    },
+    
+    "tasks": {
+      "$meetingId": {
+        ".read": "auth.uid !== null && (root.child('meetings/' + $meetingId + '/teamId').val() === root.child('users/' + auth.uid + '/teamId').val() || root.child('users/' + auth.uid + '/role').val() === 'admin')",
+        ".write": "root.child('users/' + auth.uid + '/role').val() === 'admin' || (root.child('meetings/' + $meetingId + '/teamId').val() === root.child('users/' + auth.uid + '/teamId').val() && root.child('users/' + auth.uid + '/role').val() === 'truong_to')",
+        "$taskId": {
+          "confirmed": {
+            ".write": "root.child('tasks/' + $meetingId + '/' + $taskId + '/assignedTo').val() === auth.uid || root.child('users/' + auth.uid + '/role').val() === 'truong_to' || root.child('users/' + auth.uid + '/role').val() === 'admin'"
+          },
+          "confirmedAt": {
+            ".write": "root.child('tasks/' + $meetingId + '/' + $taskId + '/assignedTo').val() === auth.uid || root.child('users/' + auth.uid + '/role').val() === 'truong_to' || root.child('users/' + auth.uid + '/role').val() === 'admin'"
+          }
+        }
+      }
+    },
+    
+    "confirmations": {
+      "$meetingId": {
+        ".read": "auth.uid !== null && (root.child('meetings/' + $meetingId + '/teamId').val() === root.child('users/' + auth.uid + '/teamId').val() || root.child('users/' + auth.uid + '/role').val() === 'admin')",
+        ".write": "auth.uid !== null && (root.child('meetings/' + $meetingId + '/teamId').val() === root.child('users/' + auth.uid + '/teamId').val() || root.child('users/' + auth.uid + '/role').val() === 'admin')",
+        "$uid": {
+          ".write": "$uid === auth.uid || root.child('users/' + auth.uid + '/role').val() === 'admin'",
+          "participated": {
+            ".write": "$uid === auth.uid || root.child('users/' + auth.uid + '/role').val() === 'admin'"
+          },
+          "conclusionRead": {
+            ".write": "$uid === auth.uid || root.child('users/' + auth.uid + '/role').val() === 'admin'"
+          },
+          "finalConfirmed": {
+            ".write": "$uid === auth.uid || root.child('users/' + auth.uid + '/role').val() === 'admin'"
+          }
+        }
+      }
+    },
+    
+    "activityLogs": {
+      "$meetingId": {
+        ".read": "auth.uid !== null && (root.child('meetings/' + $meetingId + '/teamId').val() === root.child('users/' + auth.uid + '/teamId').val() || root.child('users/' + auth.uid + '/role').val() === 'admin')",
+        ".write": "auth.uid !== null && (root.child('meetings/' + $meetingId + '/teamId').val() === root.child('users/' + auth.uid + '/teamId').val() || root.child('users/' + auth.uid + '/role').val() === 'admin')",
+        "$logId": {
+          ".write": "auth.uid !== null",
+          ".delete": false
+        }
+      }
+    },
+    
+    "attachments": {
+      "$meetingId": {
+        ".read": "auth.uid !== null && (root.child('meetings/' + $meetingId + '/teamId').val() === root.child('users/' + auth.uid + '/teamId').val() || root.child('users/' + auth.uid + '/role').val() === 'admin')",
+        ".write": "auth.uid !== null && (root.child('meetings/' + $meetingId + '/teamId').val() === root.child('users/' + auth.uid + '/teamId').val() || root.child('users/' + auth.uid + '/role').val() === 'admin')"
+      }
+    },
+    
+    "appendices": {
+      "$meetingId": {
+        ".read": "auth.uid !== null && (root.child('meetings/' + $meetingId + '/teamId').val() === root.child('users/' + auth.uid + '/teamId').val() || root.child('users/' + auth.uid + '/role').val() === 'admin')",
+        ".write": "root.child('users/' + auth.uid + '/role').val() === 'admin'"
+      }
+    },
+    
+    "notifications": {
+      "$userId": {
+        ".read": "$userId === auth.uid || root.child('users/' + auth.uid + '/role').val() === 'admin'",
+        ".write": "auth.uid !== null",
+        "$notificationId": {
+          ".write": "auth.uid !== null"
+        }
+      }
+    }
+  }
+}
