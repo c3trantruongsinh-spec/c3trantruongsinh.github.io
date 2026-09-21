@@ -1,157 +1,583 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hệ thống quản lý sinh hoạt tổ chuyên môn</title>
-    
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-    <!-- Đã bỏ storage -->
-    
-    <!-- CSS -->
-    <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="css/responsive.css">
-    
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Trường THCS-THPT Trần Trường Sinh | Cổng thông tin điện tử</title>
+  <meta name="description" content="Cổng thông tin điện tử Trường THCS-THPT Trần Trường Sinh - Tin tức, tuyển sinh, hoạt động chuyên môn, Đoàn - Đội.">
+
+  <!-- Favicon: thay bằng logo thật của trường -->
+  <link rel="icon" type="image/png" href="images/logo.png">
+
+  <!-- Hàm thay thế ảnh khi chưa có file ảnh thật -->
+  <script>
+    function imgFallback(img) {
+      img.onerror = null;
+      img.src = "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500">' +
+        '<rect width="800" height="500" fill="#e8ecf7"/>' +
+        '<text x="400" y="250" font-family="Arial, sans-serif" font-size="34" ' +
+        'fill="#1a237e" text-anchor="middle" dominant-baseline="middle">Ảnh minh họa</text>' +
+        '</svg>'
+      );
+    }
+  </script>
+
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- Font Awesome 6 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+
+  <!-- Google Fonts: Be Vietnam Pro -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- CSS của website -->
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- Loading overlay -->
-    <div id="loadingOverlay" class="loading-overlay">
-        <div class="loader"></div>
-        <p>Đang tải...</p>
-    </div>
 
-    <!-- Main App -->
-    <div id="app">
-        <!-- Sidebar -->
-        <aside id="sidebar" class="sidebar">
-            <div class="sidebar-brand">
-                <div class="brand-icon">🏫</div>
-                <div class="brand-text">
-                    <span class="brand-title">Quản lý sinh hoạt</span>
-                    <span class="brand-subtitle">Tổ chuyên môn</span>
+  <!-- ================= TOPBAR ================= -->
+  <div class="topbar">
+    <div class="container">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div class="topbar-left">
+          <i class="fa-solid fa-graduation-cap me-1"></i>
+          <span>Cổng thông tin điện tử</span>
+        </div>
+        <div class="topbar-right d-flex align-items-center gap-3">
+          <span class="d-none d-sm-inline">
+            <i class="fa-regular fa-calendar-days me-1"></i>
+            <span id="currentDate">Đang tải...</span>
+          </span>
+          <span class="topbar-social">
+            <a href="#" aria-label="Facebook"><i class="fa-brands fa-facebook-f"></i></a>
+            <a href="#" aria-label="YouTube"><i class="fa-brands fa-youtube"></i></a>
+            <a href="#" aria-label="Email"><i class="fa-solid fa-envelope"></i></a>
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= HEADER ================= -->
+  <header class="site-header">
+    <div class="container">
+      <div class="row align-items-center g-3">
+        <div class="col-auto">
+          <a href="index.html" class="d-inline-block">
+            <!-- LOGO: thay file images/logo.png -->
+            <img src="images/logo.png"
+                 alt="Logo Trường THCS-THPT Trần Trường Sinh"
+                 class="logo-img"
+                 onerror="imgFallback(this)">
+          </a>
+        </div>
+        <div class="col">
+          <h1 class="school-name">TRƯỜNG THCS-THPT TRẦN TRƯỜNG SINH</h1>
+          <p class="school-slogan mb-0">ĐOÀN KẾT – TRÁCH NHIỆM – SÁNG TẠO</p>
+        </div>
+        <div class="col-12 col-lg-auto d-none d-lg-block">
+          <div class="header-contact">
+            <div><i class="fa-solid fa-location-dot"></i> <span>[ĐỂ TÔI CẬP NHẬT SAU]</span></div>
+            <div><i class="fa-solid fa-phone"></i> <span>[ĐỂ TÔI CẬP NHẬT SAU]</span></div>
+            <div><i class="fa-solid fa-envelope"></i> <span>[ĐỂ TÔI CẬP NHẬT SAU]</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ================= NAVBAR ================= -->
+  <nav class="navbar navbar-expand-lg main-nav sticky-top" id="mainNav">
+    <div class="container">
+      <a class="navbar-brand d-lg-none" href="index.html">TRẦN TRƯỜNG SINH</a>
+
+      <button class="navbar-toggler" type="button"
+              data-bs-toggle="collapse" data-bs-target="#mainMenu"
+              aria-controls="mainMenu" aria-expanded="false" aria-label="Mở menu">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <div class="collapse navbar-collapse" id="mainMenu">
+        <ul class="navbar-nav mx-auto">
+          <li class="nav-item"><a class="nav-link active" href="#trang-chu">Trang chủ</a></li>
+          <li class="nav-item"><a class="nav-link" href="#">Giới thiệu</a></li>
+          <li class="nav-item"><a class="nav-link" href="#tin-tuc">Tin tức</a></li>
+          <li class="nav-item"><a class="nav-link" href="#">Tuyển sinh</a></li>
+          <li class="nav-item"><a class="nav-link" href="#chuyen-mon">Môn học</a></li>
+          <li class="nav-item"><a class="nav-link" href="#">Phòng ban</a></li>
+          <li class="nav-item"><a class="nav-link" href="#doan-doi">Đoàn thể</a></li>
+          <li class="nav-item"><a class="nav-link" href="#lien-he">Liên hệ</a></li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ================= HERO / BANNER ================= -->
+  <main id="trang-chu">
+    <section class="hero-section">
+      <div class="container">
+        <div class="row g-3 g-lg-4">
+
+          <!-- Carousel -->
+          <div class="col-12 col-lg-8">
+            <div id="heroCarousel" class="carousel slide hero-carousel" data-bs-ride="carousel" data-bs-interval="5000">
+              <div class="carousel-indicators">
+                <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="0" class="active" aria-current="true" aria-label="Slide 1"></button>
+                <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="1" aria-label="Slide 2"></button>
+                <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="2" aria-label="Slide 3"></button>
+              </div>
+
+              <div class="carousel-inner">
+                <!-- Slide 1 -->
+                <div class="carousel-item active">
+                  <!-- BANNER 1: thay file images/banner-1.jpg -->
+                  <img src="images/banner-1.jpg" class="d-block w-100"
+                       alt="Lễ khai giảng năm học mới" onerror="imgFallback(this)">
+                  <div class="carousel-caption">
+                    <h2 class="slide-title">Khai giảng năm học mới</h2>
+                    <p class="slide-desc d-none d-sm-block">
+                      Chào đón năm học mới với khí thế mới, quyết tâm mới của thầy và trò nhà trường.
+                    </p>
+                    <a href="#" class="btn btn-slide">Xem chi tiết <i class="fa-solid fa-arrow-right ms-1"></i></a>
+                  </div>
                 </div>
+
+                <!-- Slide 2 -->
+                <div class="carousel-item">
+                  <!-- BANNER 2: thay file images/banner-2.jpg -->
+                  <img src="images/banner-2.jpg" class="d-block w-100"
+                       alt="Hoạt động chuyên môn" onerror="imgFallback(this)">
+                  <div class="carousel-caption">
+                    <h2 class="slide-title">Đổi mới phương pháp dạy và học</h2>
+                    <p class="slide-desc d-none d-sm-block">
+                      Đẩy mạnh sinh hoạt chuyên môn, ứng dụng công nghệ thông tin trong giảng dạy.
+                    </p>
+                    <a href="#" class="btn btn-slide">Xem chi tiết <i class="fa-solid fa-arrow-right ms-1"></i></a>
+                  </div>
+                </div>
+
+                <!-- Slide 3 -->
+                <div class="carousel-item">
+                  <!-- BANNER 3: thay file images/banner-3.jpg -->
+                  <img src="images/banner-3.jpg" class="d-block w-100"
+                       alt="Hoạt động Đoàn - Đội" onerror="imgFallback(this)">
+                  <div class="carousel-caption">
+                    <h2 class="slide-title">Sân chơi bổ ích cho học sinh</h2>
+                    <p class="slide-desc d-none d-sm-block">
+                      Các hoạt động Đoàn – Đội, văn nghệ, thể thao và trải nghiệm được tổ chức thường xuyên.
+                    </p>
+                    <a href="#" class="btn btn-slide">Xem chi tiết <i class="fa-solid fa-arrow-right ms-1"></i></a>
+                  </div>
+                </div>
+              </div>
+
+              <button class="carousel-control-prev" type="button" data-bs-target="#heroCarousel" data-bs-slide="prev">
+                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Trước</span>
+              </button>
+              <button class="carousel-control-next" type="button" data-bs-target="#heroCarousel" data-bs-slide="next">
+                <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Sau</span>
+              </button>
             </div>
-            
-            <nav class="sidebar-nav">
-                <a href="#" class="nav-item active" data-page="dashboard">
-                    <i class="fas fa-chart-pie"></i>
-                    <span>Tổng quan</span>
-                </a>
-                <a href="#" class="nav-item" data-page="meetings">
-                    <i class="fas fa-calendar-alt"></i>
-                    <span>Cuộc họp</span>
-                </a>
-                <a href="#" class="nav-item" data-page="tasks">
-                    <i class="fas fa-tasks"></i>
-                    <span>Nhiệm vụ</span>
-                </a>
-                <a href="#" class="nav-item" data-page="archive">
-                    <i class="fas fa-archive"></i>
-                    <span>Hồ sơ điện tử</span>
-                </a>
-                <a href="#" class="nav-item" data-page="notifications">
-                    <i class="fas fa-bell"></i>
-                    <span>Thông báo</span>
-                    <span class="badge" id="notificationBadge">0</span>
-                </a>
-                <a href="#" class="nav-item" data-page="admin" id="adminNav" style="display:none;">
-                    <i class="fas fa-cog"></i>
-                    <span>Quản lý</span>
-                </a>
-            </nav>
-            
-            <div class="sidebar-footer">
-                <div class="user-info">
-                    <div class="user-avatar" id="userAvatar">👤</div>
-                    <div class="user-details">
-                        <span id="userName">Tên người dùng</span>
-                        <span id="userRole" class="user-role">Vai trò</span>
+          </div>
+
+          <!-- Tin mới nhất -->
+          <div class="col-12 col-lg-4">
+            <div class="news-box">
+              <div class="news-box-header">
+                <i class="fa-solid fa-bolt me-2"></i>TIN MỚI NHẤT
+              </div>
+              <ul class="news-list">
+                <li>
+                  <a href="#">Khai giảng năm học mới 2025 – 2026</a>
+                  <span class="news-date"><i class="fa-regular fa-clock me-1"></i>05/09/2025</span>
+                </li>
+                <li>
+                  <a href="#">Hoạt động chuyên môn: sinh hoạt tổ, nhóm</a>
+                  <span class="news-date"><i class="fa-regular fa-clock me-1"></i>12/09/2025</span>
+                </li>
+                <li>
+                  <a href="#">Hoạt động Đoàn – Đội tháng 9</a>
+                  <span class="news-date"><i class="fa-regular fa-clock me-1"></i>20/09/2025</span>
+                </li>
+                <li>
+                  <a href="#">Thông báo tuyển sinh năm học 2025 – 2026</a>
+                  <span class="news-date"><i class="fa-regular fa-clock me-1"></i>25/09/2025</span>
+                </li>
+                <li>
+                  <a href="#">Hoạt động ngoại khóa và trải nghiệm</a>
+                  <span class="news-date"><i class="fa-regular fa-clock me-1"></i>02/10/2025</span>
+                </li>
+              </ul>
+              <a href="#tin-tuc" class="news-box-footer">
+                Xem tất cả tin <i class="fa-solid fa-angle-right ms-1"></i>
+              </a>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= NỘI DUNG CHÍNH ================= -->
+    <section class="content-section">
+      <div class="container">
+        <div class="row g-4">
+
+          <!-- ===== CỘT NỘI DUNG CHÍNH ===== -->
+          <div class="col-12 col-lg-8">
+
+            <!-- A. TIN TỨC NHÀ TRƯỜNG -->
+            <section id="tin-tuc" class="mb-4">
+              <h2 class="section-title">
+                <i class="fa-solid fa-newspaper"></i> Tin tức nhà trường
+              </h2>
+
+              <div class="row g-3">
+                <!-- Card 1 -->
+                <div class="col-12 col-md-6">
+                  <article class="news-card">
+                    <img src="images/banner-1.jpg" class="card-img-top"
+                         alt="Lễ khai giảng năm học mới" loading="lazy" onerror="imgFallback(this)">
+                    <div class="card-body">
+                      <div class="news-date mb-1"><i class="fa-regular fa-calendar me-1"></i>05/09/2025</div>
+                      <h3 class="card-title">
+                        <a href="#">Lễ khai giảng năm học mới 2025 – 2026</a>
+                      </h3>
+                      <p class="card-text">
+                        Nhà trường long trọng tổ chức lễ khai giảng, chào đón học sinh các khối lớp
+                        bước vào năm học mới với nhiều kỳ vọng.
+                      </p>
+                      <div class="card-more" id="more-1">
+                        <p class="card-text mb-0">
+                          Trong buổi lễ, nhà trường đã triển khai các nội dung trọng tâm của năm học,
+                          phát động các phong trào thi đua và trao học bổng cho học sinh có thành tích
+                          tiêu biểu. Nội dung chi tiết sẽ được cập nhật tại đây.
+                        </p>
+                      </div>
+                      <button class="btn btn-sm btn-outline-primary btn-toggle-more"
+                              type="button" data-target="#more-1" aria-expanded="false">
+                        Xem thêm <i class="fa-solid fa-angle-down"></i>
+                      </button>
                     </div>
+                  </article>
                 </div>
-                <!-- NÚT ĐỔI MẬT KHẨU - MỚI THÊM -->
-                <button id="changePasswordBtn" class="btn-change-password">
-                    <i class="fas fa-key"></i>
-                    <span>Đổi mật khẩu</span>
-                </button>
-                <button id="logoutBtn" class="btn-logout">
-                    <i class="fas fa-sign-out-alt"></i>
-                    <span>Đăng xuất</span>
-                </button>
-            </div>
-        </aside>
 
-        <!-- Main Content -->
-        <main class="main-content">
-            <!-- Top Bar -->
-            <header class="top-bar">
-                <button id="toggleSidebar" class="btn-toggle-sidebar">
-                    <i class="fas fa-bars"></i>
-                </button>
-                <h1 id="pageTitle">Tổng quan</h1>
-                <div class="top-bar-actions">
-                    <span class="current-date" id="currentDate"></span>
+                <!-- Card 2 -->
+                <div class="col-12 col-md-6">
+                  <article class="news-card">
+                    <img src="images/banner-2.jpg" class="card-img-top"
+                         alt="Hội nghị triển khai nhiệm vụ năm học" loading="lazy" onerror="imgFallback(this)">
+                    <div class="card-body">
+                      <div class="news-date mb-1"><i class="fa-regular fa-calendar me-1"></i>18/09/2025</div>
+                      <h3 class="card-title">
+                        <a href="#">Triển khai nhiệm vụ năm học mới</a>
+                      </h3>
+                      <p class="card-text">
+                        Cán bộ, giáo viên, nhân viên nhà trường tham dự hội nghị triển khai nhiệm vụ
+                        năm học và thống nhất các giải pháp nâng cao chất lượng giáo dục.
+                      </p>
+                      <div class="card-more" id="more-2">
+                        <p class="card-text mb-0">
+                          Hội nghị tập trung thảo luận về kế hoạch dạy học, công tác bồi dưỡng học sinh,
+                          đổi mới kiểm tra đánh giá và các hoạt động trải nghiệm. Nội dung chi tiết
+                          sẽ được cập nhật tại đây.
+                        </p>
+                      </div>
+                      <button class="btn btn-sm btn-outline-primary btn-toggle-more"
+                              type="button" data-target="#more-2" aria-expanded="false">
+                        Xem thêm <i class="fa-solid fa-angle-down"></i>
+                      </button>
+                    </div>
+                  </article>
                 </div>
-            </header>
 
-            <!-- Page Container -->
-            <div id="pageContainer" class="page-container">
-                <!-- Pages will be dynamically loaded here -->
-            </div>
-        </main>
+                <!-- Card 3 -->
+                <div class="col-12 col-md-6">
+                  <article class="news-card">
+                    <img src="images/banner-3.jpg" class="card-img-top"
+                         alt="Hoạt động trải nghiệm hướng nghiệp" loading="lazy" onerror="imgFallback(this)">
+                    <div class="card-body">
+                      <div class="news-date mb-1"><i class="fa-regular fa-calendar me-1"></i>26/09/2025</div>
+                      <h3 class="card-title">
+                        <a href="#">Hoạt động trải nghiệm – hướng nghiệp</a>
+                      </h3>
+                      <p class="card-text">
+                        Học sinh tham gia các hoạt động trải nghiệm, hướng nghiệp nhằm định hướng
+                        nghề nghiệp và rèn luyện kỹ năng mềm.
+                      </p>
+                      <div class="card-more" id="more-3">
+                        <p class="card-text mb-0">
+                          Chương trình gồm các hoạt động theo chủ đề, giao lưu với khách mời và tham quan
+                          thực tế (nếu có). Nội dung chi tiết sẽ được cập nhật tại đây.
+                        </p>
+                      </div>
+                      <button class="btn btn-sm btn-outline-primary btn-toggle-more"
+                              type="button" data-target="#more-3" aria-expanded="false">
+                        Xem thêm <i class="fa-solid fa-angle-down"></i>
+                      </button>
+                    </div>
+                  </article>
+                </div>
+              </div>
+            </section>
 
-        <!-- Mobile Bottom Navigation -->
-        <nav class="mobile-bottom-nav">
-            <a href="#" class="mobile-nav-item active" data-page="dashboard">
-                <i class="fas fa-chart-pie"></i>
-                <span>Tổng quan</span>
-            </a>
-            <a href="#" class="mobile-nav-item" data-page="meetings">
-                <i class="fas fa-calendar-alt"></i>
-                <span>Cuộc họp</span>
-            </a>
-            <a href="#" class="mobile-nav-item" data-page="create-meeting">
-                <i class="fas fa-plus-circle"></i>
-                <span>Tạo mới</span>
-            </a>
-            <a href="#" class="mobile-nav-item" data-page="tasks">
-                <i class="fas fa-tasks"></i>
-                <span>Nhiệm vụ</span>
-            </a>
-            <a href="#" class="mobile-nav-item" data-page="profile">
-                <i class="fas fa-user"></i>
-                <span>Tôi</span>
-            </a>
-        </nav>
+            <!-- B. HOẠT ĐỘNG CHUYÊN MÔN -->
+            <section id="chuyen-mon" class="mb-4">
+              <h2 class="section-title">
+                <i class="fa-solid fa-chalkboard-user"></i> Hoạt động chuyên môn
+              </h2>
+              <ul class="activity-list">
+                <li>
+                  <i class="fa-solid fa-users-gear"></i>
+                  <a href="#">Sinh hoạt chuyên môn theo tổ, nhóm</a>
+                </li>
+                <li>
+                  <i class="fa-solid fa-clipboard-check"></i>
+                  <a href="#">Dạy học và kiểm tra, đánh giá học sinh</a>
+                </li>
+                <li>
+                  <i class="fa-solid fa-laptop-code"></i>
+                  <a href="#">Ứng dụng công nghệ thông tin trong dạy học</a>
+                </li>
+                <li>
+                  <i class="fa-solid fa-lightbulb"></i>
+                  <a href="#">Bồi dưỡng học sinh giỏi, phụ đạo học sinh</a>
+                </li>
+                <li>
+                  <i class="fa-solid fa-book-open-reader"></i>
+                  <a href="#">Ôn thi tốt nghiệp THPT</a>
+                </li>
+              </ul>
+            </section>
+
+            <!-- C. ĐOÀN – ĐỘI / PHONG TRÀO -->
+            <section id="doan-doi" class="mb-4">
+              <h2 class="section-title">
+                <i class="fa-solid fa-flag"></i> Đoàn – Đội / Phong trào
+              </h2>
+              <ul class="activity-list">
+                <li>
+                  <i class="fa-solid fa-star"></i>
+                  <a href="#">Hoạt động Đoàn TNCS Hồ Chí Minh</a>
+                </li>
+                <li>
+                  <i class="fa-solid fa-child-reaching"></i>
+                  <a href="#">Hoạt động Đội TNTP Hồ Chí Minh</a>
+                </li>
+                <li>
+                  <i class="fa-solid fa-music"></i>
+                  <a href="#">Văn nghệ chào mừng các ngày lễ lớn</a>
+                </li>
+                <li>
+                  <i class="fa-solid fa-futbol"></i>
+                  <a href="#">Thể dục – thể thao học đường</a>
+                </li>
+                <li>
+                  <i class="fa-solid fa-compass"></i>
+                  <a href="#">Hoạt động trải nghiệm, hướng nghiệp</a>
+                </li>
+              </ul>
+            </section>
+
+          </div>
+          <!-- ===== HẾT CỘT NỘI DUNG CHÍNH ===== -->
+
+          <!-- ===== SIDEBAR ===== -->
+          <div class="col-12 col-lg-4">
+            <aside class="sidebar">
+
+              <!-- Khối 1: Bài hát truyền thống -->
+              <div class="side-box mb-4" id="bai-hat">
+                <div class="side-box-header">
+                  <i class="fa-solid fa-music"></i> BÀI HÁT TRUYỀN THỐNG
+                </div>
+                <div class="side-box-body">
+                  <div class="song-info">
+                    <div class="song-icon"><i class="fa-solid fa-headphones"></i></div>
+                    <div>
+                      <div class="song-title">Bài hát truyền thống Trường THCS-THPT Trần Trường Sinh</div>
+                      <div class="song-sub">Nhạc và lời: [ĐỂ TÔI CẬP NHẬT SAU]</div>
+                    </div>
+                  </div>
+
+                  <!-- AUDIO: thay file audio/bai-hat-truyen-thong.mp3 -->
+                  <audio id="schoolSong" class="w-100" controls preload="none"
+                         src="audio/bai-hat-truyen-thong.mp3">
+                    Trình duyệt của bạn không hỗ trợ phát âm thanh.
+                  </audio>
+
+                  <button id="btnToggleSong" class="btn btn-primary w-100 mt-2" type="button">
+                    <i class="fa-solid fa-play me-1"></i> Phát nhạc
+                  </button>
+                  <p class="song-note mb-0">
+                    <i class="fa-solid fa-circle-info me-1"></i>Nhạc không tự động phát khi mở trang.
+                  </p>
+                </div>
+              </div>
+
+              <!-- Khối 2: Thông báo -->
+              <div class="side-box mb-4" id="thong-bao">
+                <div class="side-box-header">
+                  <i class="fa-solid fa-bullhorn"></i> THÔNG BÁO
+                </div>
+                <ul class="side-list">
+                  <li>
+                    <a href="#">
+                      <i class="fa-solid fa-bullhorn"></i>
+                      <span>Thông báo nhà trường
+                        <em class="side-date">05/09/2025</em>
+                      </span>
+                    </a>
+                  </li>
+                  <li>
+                    <a href="#">
+                      <i class="fa-solid fa-utensils"></i>
+                      <span>Thông báo bán trú
+                        <em class="side-date">08/09/2025</em>
+                      </span>
+                    </a>
+                  </li>
+                  <li>
+                    <a href="#">
+                      <i class="fa-solid fa-scroll"></i>
+                      <span>Nội quy học sinh
+                        <em class="side-date">10/09/2025</em>
+                      </span>
+                    </a>
+                  </li>
+                  <li>
+                    <a href="#">
+                      <i class="fa-regular fa-calendar-xmark"></i>
+                      <span>Lịch nghỉ
+                        <em class="side-date">15/09/2025</em>
+                      </span>
+                    </a>
+                  </li>
+                  <li>
+                    <a href="#">
+                      <i class="fa-solid fa-triangle-exclamation"></i>
+                      <span>Các thông báo quan trọng
+                        <em class="side-date">20/09/2025</em>
+                      </span>
+                    </a>
+                  </li>
+                </ul>
+              </div>
+
+              <!-- Khối 3: Y tế học đường -->
+              <div class="side-box" id="y-te">
+                <div class="side-box-header">
+                  <i class="fa-solid fa-heart-pulse"></i> Y TẾ HỌC ĐƯỜNG
+                </div>
+                <ul class="side-list">
+                  <li>
+                    <a href="#">
+                      <i class="fa-solid fa-shield-virus"></i>
+                      <span>Phòng chống dịch bệnh</span>
+                    </a>
+                  </li>
+                  <li>
+                    <a href="#">
+                      <i class="fa-solid fa-apple-whole"></i>
+                      <span>An toàn thực phẩm</span>
+                    </a>
+                  </li>
+                  <li>
+                    <a href="#">
+                      <i class="fa-solid fa-stethoscope"></i>
+                      <span>Chăm sóc sức khỏe học sinh</span>
+                    </a>
+                  </li>
+                  <li>
+                    <a href="#">
+                      <i class="fa-solid fa-kit-medical"></i>
+                      <span>Sơ cứu và phòng tránh tai nạn</span>
+                    </a>
+                  </li>
+                </ul>
+              </div>
+
+            </aside>
+          </div>
+          <!-- ===== HẾT SIDEBAR ===== -->
+
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ================= FOOTER ================= -->
+  <footer class="site-footer" id="lien-he">
+    <div class="container">
+      <div class="row g-4">
+
+        <div class="col-12 col-lg-5">
+          <h5 class="footer-title">TRƯỜNG THCS-THPT TRẦN TRƯỜNG SINH</h5>
+          <ul class="footer-info">
+            <li>
+              <i class="fa-solid fa-location-dot"></i>
+              <span>Địa chỉ: [ĐỂ TÔI CẬP NHẬT SAU]</span>
+            </li>
+            <li>
+              <i class="fa-solid fa-envelope"></i>
+              <span>Email: [ĐỂ TÔI CẬP NHẬT SAU]</span>
+            </li>
+            <li>
+              <i class="fa-solid fa-phone"></i>
+              <span>Điện thoại: [ĐỂ TÔI CẬP NHẬT SAU]</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="col-6 col-lg-3">
+          <h5 class="footer-title">LIÊN KẾT NHANH</h5>
+          <ul class="footer-links">
+            <li><a href="#trang-chu">Trang chủ</a></li>
+            <li><a href="#">Giới thiệu</a></li>
+            <li><a href="#tin-tuc">Tin tức</a></li>
+            <li><a href="#">Tuyển sinh</a></li>
+            <li><a href="#chuyen-mon">Hoạt động chuyên môn</a></li>
+            <li><a href="#doan-doi">Đoàn – Đội</a></li>
+          </ul>
+        </div>
+
+        <div class="col-6 col-lg-4">
+          <h5 class="footer-title">KẾT NỐI</h5>
+          <div class="footer-social">
+            <a href="#" aria-label="Facebook"><i class="fa-brands fa-facebook-f"></i></a>
+            <a href="#" aria-label="YouTube"><i class="fa-brands fa-youtube"></i></a>
+            <a href="#" aria-label="Email"><i class="fa-solid fa-envelope"></i></a>
+          </div>
+          <p class="footer-map mb-0">
+            <i class="fa-solid fa-map-location-dot me-1"></i>
+            Bản đồ nhà trường: [ĐỂ TÔI CẬP NHẬT SAU]
+          </p>
+        </div>
+
+      </div>
     </div>
 
-    <!-- Toast Notification -->
-    <div id="toastContainer" class="toast-container"></div>
+    <div class="footer-bottom">
+      <div class="container">
+        © <span id="year">2025</span> Trường THCS-THPT Trần Trường Sinh. Bảo lưu mọi quyền.
+      </div>
+    </div>
+  </footer>
 
-    <!-- Modal Container -->
-    <div id="modalContainer" class="modal-container"></div>
+  <!-- Nút lên đầu trang -->
+  <button id="backToTop" class="back-to-top" type="button" aria-label="Lên đầu trang">
+    <i class="fa-solid fa-arrow-up"></i>
+  </button>
 
-    <!-- JavaScript -->
-    <script src="js/firebase-config.js"></script>
-    <script src="js/auth.js"></script>
-    <script src="js/database.js"></script>
-    <script src="js/ui.js"></script>
-
-    <!-- Modules phụ thuộc (cần trước meetings.js) -->
-    <script src="js/tasks.js"></script>
-    <script src="js/discussion.js"></script>
-    <script src="js/confirmation.js"></script>
-    <script src="js/activity-log.js"></script>
-    <script src="js/archive.js"></script>
-    <script src="js/notifications.js"></script>
-    <!-- Module chính -->
-    <script src="js/meetings.js"></script>
-    <script src="js/app.js"></script>
-
-    
+  <!-- Bootstrap 5 JS Bundle -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- JS của website -->
+  <script src="script.js"></script>
 </body>
 </html>
