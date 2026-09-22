@@ -4,19 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Kết quả thi | Trường THCS-THPT Trần Trường Sinh</title>
-  <meta name="description" content="Tra cứu kết quả thi, điểm thi của Trường THCS-THPT Trần Trường Sinh – cập nhật từ Google Sheets." />
-
+  <meta name="description" content="Kết quả thi Trường THCS-THPT Trần Trường Sinh – Tra cứu kết quả thi mới nhất." />
   <link rel="icon" type="image/png" href="images/logo.png" />
 
   <script>
     function imgFallback(img) {
       img.onerror = null;
       img.src = "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(
-        '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500">' +
-        '<rect width="800" height="500" fill="#EDF2F7"/>' +
-        '<text x="400" y="250" font-family="Arial,sans-serif" font-size="32" ' +
-        'fill="#1A365D" text-anchor="middle" dominant-baseline="middle">Ảnh minh họa</text>' +
-        '</svg>'
+        '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500"><rect width="800" height="500" fill="#EDF2F7"/><text x="400" y="250" font-family="Arial,sans-serif" font-size="32" fill="#1A365D" text-anchor="middle" dominant-baseline="middle">Ảnh minh họa</text></svg>'
       );
     }
   </script>
@@ -28,20 +23,12 @@
         extend: {
           colors: {
             brand: {
-              navy: '#1A365D',
-              'navy-light': '#2C5282',
-              'navy-dark': '#0F2440',
-              gold: '#D69E2E',
-              'gold-light': '#ECC94B',
-              bg: '#F7FAFC',
-              text: '#2D3748',
-              muted: '#718096',
-              border: '#E2E8F0'
+              navy: '#1A365D', 'navy-light': '#2C5282', 'navy-dark': '#0F2440',
+              gold: '#D69E2E', 'gold-light': '#ECC94B',
+              bg: '#F7FAFC', text: '#2D3748', muted: '#718096', border: '#E2E8F0'
             }
           },
-          fontFamily: {
-            sans: ['"Be Vietnam Pro"', 'system-ui', 'Segoe UI', 'sans-serif']
-          },
+          fontFamily: { sans: ['"Be Vietnam Pro"', 'system-ui', 'Segoe UI', 'sans-serif'] },
           boxShadow: {
             card: '0 1px 3px rgba(26,54,93,0.08), 0 1px 2px rgba(26,54,93,0.04)',
             'card-hover': '0 10px 25px rgba(26,54,93,0.12)'
@@ -52,251 +39,153 @@
   </script>
 
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-
   <link rel="stylesheet" href="style.css" />
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 </head>
 
 <body class="bg-brand-bg text-brand-text font-sans antialiased">
 
-  <a href="#kqt-main" class="skip-link">Chuyển đến nội dung chính</a>
+  <a href="#main-content" class="skip-link">Chuyển đến nội dung chính</a>
 
+  <!-- TOPBAR -->
   <div class="bg-brand-navy-dark text-white/85 text-xs">
     <div class="max-w-7xl mx-auto px-4">
       <div class="flex flex-wrap items-center justify-between py-2 gap-2">
         <div class="flex items-center gap-4">
           <a href="tel:02753876235" class="hover:text-brand-gold transition-colors flex items-center gap-1.5">
-            <i class="fa-solid fa-phone text-brand-gold"></i>
-            <span class="hidden sm:inline">02753876235</span>
+            <i class="fa-solid fa-phone text-brand-gold"></i><span class="hidden sm:inline">0275 387 6235</span>
           </a>
           <a href="mailto:c3trantruongsinh@vinhlong.edu.vn" class="hover:text-brand-gold transition-colors flex items-center gap-1.5">
-            <i class="fa-solid fa-envelope text-brand-gold"></i>
-            <span class="hidden sm:inline">c3trantruongsinh@vinhlong.edu.vn</span>
+            <i class="fa-solid fa-envelope text-brand-gold"></i><span class="hidden md:inline">c3trantruongsinh@vinhlong.edu.vn</span>
           </a>
         </div>
         <div class="flex items-center gap-3">
-          <span class="hidden md:inline text-white/60">
-            <i class="fa-regular fa-calendar mr-1"></i>
-            <span id="currentDate"></span>
-          </span>
-          <div class="flex gap-1.5">
-            <a href="#" aria-label="Facebook" class="w-7 h-7 inline-flex items-center justify-center rounded-full bg-white/10 hover:bg-brand-gold hover:text-brand-navy-dark transition-all">
-              <i class="fa-brands fa-facebook-f"></i>
-            </a>
-            <a href="#" aria-label="YouTube" class="w-7 h-7 inline-flex items-center justify-center rounded-full bg-white/10 hover:bg-brand-gold hover:text-brand-navy-dark transition-all">
-              <i class="fa-brands fa-youtube"></i>
-            </a>
-            <a href="mailto:c3trantruongsinh@vinhlong.edu.vn" aria-label="Email" class="w-7 h-7 inline-flex items-center justify-center rounded-full bg-white/10 hover:bg-brand-gold hover:text-brand-navy-dark transition-all">
-              <i class="fa-solid fa-envelope"></i>
-            </a>
-          </div>
+          <a href="admin.html" class="hover:text-brand-gold transition-colors"><i class="fa-solid fa-user-shield mr-1"></i>Quản trị</a>
+          <a href="thoikhoabieu.html" class="hover:text-brand-gold transition-colors"><i class="fa-regular fa-calendar-days mr-1"></i>Thời khóa biểu</a>
+          <a href="MeetingSystem/index.html" class="hover:text-brand-gold transition-colors hidden sm:inline"><i class="fa-solid fa-video mr-1"></i>Sinh hoạt chuyên môn</a>
         </div>
       </div>
     </div>
   </div>
 
-  <header id="siteHeader" class="bg-white sticky top-0 z-40 transition-shadow">
+  <!-- HEADER -->
+  <header id="siteHeader" class="bg-white sticky top-0 z-40 transition-shadow border-b border-brand-border">
     <div class="max-w-7xl mx-auto px-4">
       <div class="flex items-center justify-between py-3 gap-4">
-        <a href="index.html" class="flex items-center gap-3 shrink-0 group" aria-label="Về trang chủ">
-          <img src="images/logo.png" alt="Logo Trường THCS-THPT Trần Trường Sinh"
-               class="w-14 h-14 lg:w-16 lg:h-16 object-contain transition-transform group-hover:scale-105"
-               onerror="imgFallback(this)" />
+        <a href="index.html" class="flex items-center gap-3 shrink-0 group">
+          <img src="images/logo.png" alt="Logo" class="w-14 h-14 object-contain transition-transform group-hover:scale-105" onerror="imgFallback(this)" />
           <div class="hidden sm:block">
-            <h1 class="text-brand-navy font-extrabold text-sm lg:text-base leading-tight tracking-tight">
-              TRƯỜNG THCS-THPT<br class="hidden lg:hidden" />
-              TRẦN TRƯỜNG SINH
-            </h1>
-            <p class="text-brand-gold text-[10px] lg:text-[11px] font-bold tracking-[0.12em] mt-0.5">
-              ĐOÀN KẾT – TRÁCH NHIỆM – SÁNG TẠO
-            </p>
+            <h1 class="text-brand-navy font-extrabold text-sm lg:text-base leading-tight tracking-tight">TRƯỜNG THCS-THPT TRẦN TRƯỜNG SINH</h1>
+            <p class="text-brand-gold text-[10px] lg:text-[11px] font-bold tracking-[0.12em] mt-0.5">KẾT QUẢ THI</p>
           </div>
         </a>
 
-        <nav class="hidden lg:block" aria-label="Điều hướng chính">
+        <nav class="hidden lg:block">
           <ul class="flex items-center gap-0.5">
             <li><a href="index.html" class="nav-link">Trang chủ</a></li>
-            <li><a href="index.html#news" class="nav-link">Tin tức</a></li>
             <li><a href="thoikhoabieu.html" class="nav-link">Thời khóa biểu</a></li>
             <li><a href="ketquathi.html" class="nav-link nav-link-active">Kết quả thi</a></li>
-            <li><a href="index.html#contact" class="nav-link">Liên hệ</a></li>
-            <li>
-              <a href="admin.html" class="ml-2 inline-flex items-center gap-1.5 bg-brand-gold text-brand-navy-dark font-bold text-xs px-3.5 py-2 rounded-full hover:bg-brand-gold-light transition shadow-card">
-                <i class="fa-solid fa-user-shield"></i> Quản trị
-              </a>
-            </li>
+            <li><a href="admin.html" class="nav-link">Quản trị</a></li>
           </ul>
         </nav>
 
-        <button id="mobileToggle" type="button"
-                class="lg:hidden w-10 h-10 inline-flex items-center justify-center rounded-lg text-brand-navy hover:bg-brand-bg transition-colors"
-                aria-label="Mở menu" aria-expanded="false" aria-controls="mobileMenu">
+        <button id="mobileToggle" type="button" class="lg:hidden w-10 h-10 inline-flex items-center justify-center rounded-lg text-brand-navy hover:bg-brand-bg transition-colors" aria-label="Mở menu" aria-expanded="false" aria-controls="mobileMenu">
           <i class="fa-solid fa-bars text-lg" id="mobileToggleIcon"></i>
         </button>
       </div>
     </div>
 
     <div id="mobileMenu" class="lg:hidden hidden border-t border-brand-border bg-white">
-      <nav class="max-w-7xl mx-auto px-4 py-2" aria-label="Điều hướng di động">
+      <nav class="max-w-7xl mx-auto px-4 py-2">
         <ul class="flex flex-col">
           <li><a href="index.html" class="mobile-nav-link">Trang chủ</a></li>
-          <li><a href="index.html#news" class="mobile-nav-link">Tin tức</a></li>
           <li><a href="thoikhoabieu.html" class="mobile-nav-link">Thời khóa biểu</a></li>
           <li><a href="ketquathi.html" class="mobile-nav-link mobile-nav-link-active">Kết quả thi</a></li>
-          <li><a href="index.html#contact" class="mobile-nav-link">Liên hệ</a></li>
-          <li>
-            <a href="admin.html" class="mt-2 inline-flex items-center justify-center gap-1.5 bg-brand-gold text-brand-navy-dark font-bold text-sm px-3.5 py-2.5 rounded-full hover:bg-brand-gold-light transition">
-              <i class="fa-solid fa-user-shield"></i> Quản trị
-            </a>
-          </li>
+          <li><a href="admin.html" class="mobile-nav-link">Quản trị</a></li>
         </ul>
       </nav>
     </div>
   </header>
 
-  <main id="kqt-main" class="max-w-7xl mx-auto px-4 py-10 lg:py-12">
+  <!-- MAIN -->
+  <main id="main-content" class="max-w-7xl mx-auto px-4 py-8 lg:py-10">
 
-    <div class="text-center mb-8">
-      <span class="section-eyebrow">Tra cứu trực tuyến</span>
-      <h2 class="text-2xl lg:text-3xl font-extrabold text-brand-navy">Kết quả thi &amp; Điểm</h2>
-      <p class="text-sm text-brand-muted mt-2 max-w-2xl mx-auto">
-        Tra cứu kết quả thi, điểm kiểm tra được công bố trực tiếp từ Google Sheets của nhà trường.
-      </p>
+    <div class="mb-6">
+      <nav class="text-xs text-brand-muted mb-3" aria-label="Breadcrumb">
+        <a href="index.html" class="hover:text-brand-navy">Trang chủ</a>
+        <i class="fa-solid fa-angle-right mx-2 text-[10px]"></i>
+        <span class="text-brand-navy font-semibold">Kết quả thi</span>
+      </nav>
+      <span class="section-eyebrow">Tra cứu</span>
+      <h2 class="section-title"><i class="fa-solid fa-award text-brand-gold mr-1"></i> Kết quả thi nhà trường</h2>
+      <p class="text-sm text-brand-muted mt-2">Chọn đợt kết quả thi bên dưới để xem chi tiết. Đợt mới nhất được hiển thị mặc định.</p>
     </div>
 
-    <div class="widget p-0 overflow-hidden">
+    <!-- LOADING -->
+    <div id="examLoading" class="text-center py-16 text-brand-muted">
+      <i class="fa-solid fa-spinner fa-spin text-3xl text-brand-navy mb-3"></i>
+      <p class="text-sm">Đang tải kết quả thi...</p>
+    </div>
 
-      <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-brand-border bg-white">
-        <div class="flex items-center gap-2.5">
-          <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-brand-navy to-brand-navy-light text-white flex items-center justify-center shadow-card">
-            <i class="fa-solid fa-award"></i>
+    <!-- EMPTY -->
+    <div id="examEmpty" class="hidden text-center py-16 text-brand-muted widget">
+      <i class="fa-regular fa-file-lines text-4xl mb-3 text-brand-navy"></i>
+      <p class="text-base font-semibold text-brand-navy mb-1">Chưa có kết quả thi nào</p>
+      <p class="text-sm">Vui lòng quay lại sau hoặc liên hệ nhà trường để biết thêm thông tin.</p>
+    </div>
+
+    <!-- CONTENT -->
+    <div id="examContent" class="hidden">
+      <div class="widget mb-5">
+        <div class="flex flex-col sm:flex-row sm:items-end gap-4">
+          <div class="flex-1 min-w-0">
+            <label for="examSelect" class="form-label">
+              <i class="fa-solid fa-list-ul text-brand-gold mr-1"></i>
+              Chọn đợt kết quả thi
+            </label>
+            <select id="examSelect" class="form-control"></select>
+          </div>
+          <div class="flex gap-2">
+            <a id="examOpenNew" href="#" target="_blank" rel="noopener" class="px-4 py-3 rounded-full font-semibold text-sm border-2 border-brand-navy text-brand-navy hover:bg-brand-navy hover:text-white transition-colors inline-flex items-center gap-2">
+              <i class="fa-solid fa-up-right-from-square"></i> Mở tab mới
+            </a>
+          </div>
+        </div>
+
+        <div class="mt-4 pt-4 border-t border-brand-border grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+          <div>
+            <span class="text-brand-muted text-xs uppercase tracking-wider">Tiêu đề</span>
+            <p id="examTitle" class="font-semibold text-brand-navy mt-0.5">—</p>
           </div>
           <div>
-            <p class="text-sm font-bold text-brand-navy">Bảng kết quả thi</p>
-            <p class="text-xs text-brand-muted">Nguồn: Google Sheets</p>
+            <span class="text-brand-muted text-xs uppercase tracking-wider">Ngày đăng</span>
+            <p id="examDate" class="font-semibold text-brand-navy mt-0.5">—</p>
           </div>
         </div>
+      </div>
 
-        <div class="flex flex-wrap gap-2">
-          <button id="reloadKqtBtn" type="button"
-                  class="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-navy border border-brand-border hover:bg-brand-bg px-3.5 py-2 rounded-lg transition">
-            <i class="fa-solid fa-rotate"></i>
-            Tải lại
-          </button>
-          <a id="openKqtLink" href="https://docs.google.com/spreadsheets/d/SPREADSHEET_ID/preview"
-             target="_blank" rel="noopener"
-             class="inline-flex items-center gap-1.5 text-sm font-semibold text-white bg-brand-navy hover:bg-brand-navy-light px-3.5 py-2 rounded-lg transition">
-            <i class="fa-solid fa-up-right-from-square"></i>
-            Mở tab mới
-          </a>
+      <div class="widget">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="widget-title mb-0 border-b-0 pb-0"><i class="fa-solid fa-table-list text-brand-gold"></i> Bảng kết quả thi</h3>
+        </div>
+        <div class="sheet-frame-wrap">
+          <iframe id="examFrame" title="Kết quả thi" class="sheet-frame" loading="lazy" referrerpolicy="no-referrer"></iframe>
         </div>
       </div>
-
-      <div class="bg-brand-bg">
-        <iframe
-          id="kqtFrame"
-          src="https://docs.google.com/spreadsheets/d/SPREADSHEET_ID/preview"
-          title="Kết quả thi Trường THCS-THPT Trần Trường Sinh"
-          class="w-full block"
-          style="height: 78vh; min-height: 520px; border: 0;"
-          loading="lazy"
-          allowfullscreen
-          referrerpolicy="no-referrer-when-downgrade">
-        </iframe>
-      </div>
-    </div>
-
-    <div class="mt-6 rounded-xl border border-brand-border bg-white p-4 text-sm text-brand-muted">
-      <p class="font-semibold text-brand-navy mb-1.5">
-        <i class="fa-solid fa-circle-info text-brand-gold mr-1.5"></i>Ghi chú
-      </p>
-      <ul class="list-disc pl-5 space-y-1">
-        <li>Kết quả thi được cập nhật theo từng đợt công bố của nhà trường.</li>
-        <li>Nếu bảng không hiển thị, vui lòng bấm nút <strong>Tải lại</strong> hoặc <strong>Mở tab mới</strong>.</li>
-        <li>Mọi thắc mắc vui lòng liên hệ số điện thoại <a href="tel:02753876235" class="text-brand-navy font-semibold hover:text-brand-gold">02753876235</a>.</li>
-      </ul>
     </div>
 
   </main>
 
-  <footer class="bg-brand-navy-dark text-white/75 mt-8">
-    <div class="max-w-7xl mx-auto px-4 pt-12 pb-6">
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-10">
-        <div class="lg:col-span-1">
-          <div class="flex items-center gap-3 mb-4">
-            <img src="images/logo.png" alt="Logo" class="w-12 h-12 object-contain bg-white rounded-full p-1" onerror="imgFallback(this)" />
-            <div>
-              <p class="text-white font-extrabold text-sm leading-tight">TRƯỜNG THCS-THPT<br />TRẦN TRƯỜNG SINH</p>
-              <p class="text-brand-gold text-[10px] font-bold tracking-wider mt-0.5">ĐOÀN KẾT – TRÁCH NHIỆM – SÁNG TẠO</p>
-            </div>
-          </div>
-          <p class="text-sm leading-relaxed text-white/65 mb-4">
-            Cổng thông tin điện tử chính thức của nhà trường.
-          </p>
-          <div class="flex gap-2">
-            <a href="#" aria-label="Facebook" class="w-9 h-9 inline-flex items-center justify-center rounded-full bg-white/10 hover:bg-brand-gold hover:text-brand-navy-dark transition-all">
-              <i class="fa-brands fa-facebook-f"></i>
-            </a>
-            <a href="#" aria-label="YouTube" class="w-9 h-9 inline-flex items-center justify-center rounded-full bg-white/10 hover:bg-brand-gold hover:text-brand-navy-dark transition-all">
-              <i class="fa-brands fa-youtube"></i>
-            </a>
-            <a href="mailto:c3trantruongsinh@vinhlong.edu.vn" aria-label="Email" class="w-9 h-9 inline-flex items-center justify-center rounded-full bg-white/10 hover:bg-brand-gold hover:text-brand-navy-dark transition-all">
-              <i class="fa-solid fa-envelope"></i>
-            </a>
-          </div>
-        </div>
-
-        <div>
-          <h4 class="footer-heading">Liên kết</h4>
-          <ul class="footer-links">
-            <li><a href="index.html">Trang chủ</a></li>
-            <li><a href="index.html#news">Tin tức</a></li>
-            <li><a href="thoikhoabieu.html">Thời khóa biểu</a></li>
-            <li><a href="ketquathi.html">Kết quả thi</a></li>
-            <li><a href="admin.html">Quản trị</a></li>
-          </ul>
-        </div>
-
-        <div>
-          <h4 class="footer-heading">Chuyên mục</h4>
-          <ul class="footer-links">
-            <li><a href="#">Hoạt động chuyên môn</a></li>
-            <li><a href="#">Hoạt động Đoàn – Đội</a></li>
-            <li><a href="#">Y tế học đường</a></li>
-            <li><a href="#">Văn bản – Biểu mẫu</a></li>
-            <li><a href="#">Thư viện ảnh</a></li>
-          </ul>
-        </div>
-
-        <div>
-          <h4 class="footer-heading">Liên hệ</h4>
-          <ul class="footer-contact">
-            <li>
-              <i class="fa-solid fa-phone"></i>
-              <span>Điện thoại: <a href="tel:02753876235" class="hover:text-brand-gold">02753876235</a></span>
-            </li>
-            <li>
-              <i class="fa-solid fa-envelope"></i>
-              <span>Email: <a href="mailto:c3trantruongsinh@vinhlong.edu.vn" class="hover:text-brand-gold break-all">c3trantruongsinh@vinhlong.edu.vn</a></span>
-            </li>
-          </ul>
-        </div>
-      </div>
-    </div>
-
-    <div class="border-t border-white/10">
-      <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-white/55">
-        <p>© <span id="year">2025</span> Trường THCS-THPT Trần Trường Sinh. Bảo lưu mọi quyền.</p>
-        <p>Thiết kế &amp; phát triển bởi nhà trường.</p>
-      </div>
+  <footer class="bg-brand-navy-dark text-white/70">
+    <div class="max-w-7xl mx-auto px-4 py-6 text-center text-xs">
+      © <span id="year">2025</span> Trường THCS-THPT Trần Trường Sinh · Kết quả thi
     </div>
   </footer>
 
-  <button id="backToTop" type="button" class="back-to-top" aria-label="Lên đầu trang">
-    <i class="fa-solid fa-arrow-up"></i>
-  </button>
+  <button id="backToTop" type="button" class="back-to-top" aria-label="Lên đầu trang"><i class="fa-solid fa-arrow-up"></i></button>
 
   <script src="script.js"></script>
 </body>
