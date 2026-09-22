@@ -3,20 +3,15 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Quản trị | Trường THCS-THPT Trần Trường Sinh</title>
+  <title>Trang Quản Trị | Trường THCS-THPT Trần Trường Sinh</title>
   <meta name="robots" content="noindex, nofollow" />
-
   <link rel="icon" type="image/png" href="images/logo.png" />
 
   <script>
     function imgFallback(img) {
       img.onerror = null;
       img.src = "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(
-        '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500">' +
-        '<rect width="800" height="500" fill="#EDF2F7"/>' +
-        '<text x="400" y="250" font-family="Arial,sans-serif" font-size="32" ' +
-        'fill="#1A365D" text-anchor="middle" dominant-baseline="middle">Ảnh minh họa</text>' +
-        '</svg>'
+        '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500"><rect width="800" height="500" fill="#EDF2F7"/><text x="400" y="250" font-family="Arial,sans-serif" font-size="32" fill="#1A365D" text-anchor="middle" dominant-baseline="middle">Ảnh minh họa</text></svg>'
       );
     }
   </script>
@@ -28,20 +23,12 @@
         extend: {
           colors: {
             brand: {
-              navy: '#1A365D',
-              'navy-light': '#2C5282',
-              'navy-dark': '#0F2440',
-              gold: '#D69E2E',
-              'gold-light': '#ECC94B',
-              bg: '#F7FAFC',
-              text: '#2D3748',
-              muted: '#718096',
-              border: '#E2E8F0'
+              navy: '#1A365D', 'navy-light': '#2C5282', 'navy-dark': '#0F2440',
+              gold: '#D69E2E', 'gold-light': '#ECC94B',
+              bg: '#F7FAFC', text: '#2D3748', muted: '#718096', border: '#E2E8F0'
             }
           },
-          fontFamily: {
-            sans: ['"Be Vietnam Pro"', 'system-ui', 'Segoe UI', 'sans-serif']
-          },
+          fontFamily: { sans: ['"Be Vietnam Pro"', 'system-ui', 'Segoe UI', 'sans-serif'] },
           boxShadow: {
             card: '0 1px 3px rgba(26,54,93,0.08), 0 1px 2px rgba(26,54,93,0.04)',
             'card-hover': '0 10px 25px rgba(26,54,93,0.12)'
@@ -52,355 +39,265 @@
   </script>
 
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-
   <link rel="stylesheet" href="style.css" />
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 </head>
 
 <body class="bg-brand-bg text-brand-text font-sans antialiased">
 
-  <a href="#admin-main" class="skip-link">Chuyển đến nội dung chính</a>
-
-  <!-- TOPBAR -->
   <div class="bg-brand-navy-dark text-white/85 text-xs">
     <div class="max-w-7xl mx-auto px-4">
       <div class="flex flex-wrap items-center justify-between py-2 gap-2">
         <div class="flex items-center gap-4">
           <a href="tel:02753876235" class="hover:text-brand-gold transition-colors flex items-center gap-1.5">
-            <i class="fa-solid fa-phone text-brand-gold"></i>
-            <span class="hidden sm:inline">02753876235</span>
+            <i class="fa-solid fa-phone text-brand-gold"></i><span class="hidden sm:inline">0275 387 6235</span>
           </a>
           <a href="mailto:c3trantruongsinh@vinhlong.edu.vn" class="hover:text-brand-gold transition-colors flex items-center gap-1.5">
-            <i class="fa-solid fa-envelope text-brand-gold"></i>
-            <span class="hidden sm:inline">c3trantruongsinh@vinhlong.edu.vn</span>
+            <i class="fa-solid fa-envelope text-brand-gold"></i><span class="hidden md:inline">c3trantruongsinh@vinhlong.edu.vn</span>
           </a>
         </div>
         <div class="flex items-center gap-3">
-          <span class="hidden md:inline text-white/60">
-            <i class="fa-regular fa-calendar mr-1"></i>
-            <span id="currentDate"></span>
-          </span>
-          <div class="flex gap-1.5">
-            <a href="#" aria-label="Facebook" class="w-7 h-7 inline-flex items-center justify-center rounded-full bg-white/10 hover:bg-brand-gold hover:text-brand-navy-dark transition-all">
-              <i class="fa-brands fa-facebook-f"></i>
-            </a>
-            <a href="#" aria-label="YouTube" class="w-7 h-7 inline-flex items-center justify-center rounded-full bg-white/10 hover:bg-brand-gold hover:text-brand-navy-dark transition-all">
-              <i class="fa-brands fa-youtube"></i>
-            </a>
-            <a href="mailto:c3trantruongsinh@vinhlong.edu.vn" aria-label="Email" class="w-7 h-7 inline-flex items-center justify-center rounded-full bg-white/10 hover:bg-brand-gold hover:text-brand-navy-dark transition-all">
-              <i class="fa-solid fa-envelope"></i>
-            </a>
-          </div>
+          <a href="index.html" class="hover:text-brand-gold transition-colors"><i class="fa-solid fa-house mr-1"></i>Trang chủ</a>
+          <a href="ketquathi.html" class="hover:text-brand-gold transition-colors"><i class="fa-solid fa-award mr-1"></i>Kết quả thi</a>
+          <a href="MeetingSystem/index.html" class="hover:text-brand-gold transition-colors hidden sm:inline"><i class="fa-solid fa-video mr-1"></i>Sinh hoạt chuyên môn</a>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- HEADER -->
-  <header id="siteHeader" class="bg-white sticky top-0 z-40 transition-shadow">
+  <header id="siteHeader" class="bg-white sticky top-0 z-40 transition-shadow border-b border-brand-border">
     <div class="max-w-7xl mx-auto px-4">
       <div class="flex items-center justify-between py-3 gap-4">
-        <a href="index.html" class="flex items-center gap-3 shrink-0 group" aria-label="Về trang chủ">
-          <img src="images/logo.png" alt="Logo Trường THCS-THPT Trần Trường Sinh"
-               class="w-14 h-14 lg:w-16 lg:h-16 object-contain transition-transform group-hover:scale-105"
-               onerror="imgFallback(this)" />
+        <a href="index.html" class="flex items-center gap-3 shrink-0 group">
+          <img src="images/logo.png" alt="Logo" class="w-14 h-14 object-contain transition-transform group-hover:scale-105" onerror="imgFallback(this)" />
           <div class="hidden sm:block">
-            <h1 class="text-brand-navy font-extrabold text-sm lg:text-base leading-tight tracking-tight">
-              TRƯỜNG THCS-THPT<br class="hidden lg:hidden" />
-              TRẦN TRƯỜNG SINH
-            </h1>
-            <p class="text-brand-gold text-[10px] lg:text-[11px] font-bold tracking-[0.12em] mt-0.5">
-              ĐOÀN KẾT – TRÁCH NHIỆM – SÁNG TẠO
-            </p>
+            <h1 class="text-brand-navy font-extrabold text-sm lg:text-base leading-tight tracking-tight">TRƯỜNG THCS-THPT TRẦN TRƯỜNG SINH</h1>
+            <p class="text-brand-gold text-[10px] lg:text-[11px] font-bold tracking-[0.12em] mt-0.5">TRANG QUẢN TRỊ NỘI DUNG</p>
           </div>
         </a>
 
-        <nav class="hidden lg:block" aria-label="Điều hướng chính">
+        <nav class="hidden lg:block">
           <ul class="flex items-center gap-0.5">
             <li><a href="index.html" class="nav-link">Trang chủ</a></li>
-            <li><a href="index.html#news" class="nav-link">Tin tức</a></li>
+            <li><a href="tintuc.html" class="nav-link">Tin tức</a></li>
+            <li><a href="thongbao.html" class="nav-link">Thông báo</a></li>
             <li><a href="thoikhoabieu.html" class="nav-link">Thời khóa biểu</a></li>
             <li><a href="ketquathi.html" class="nav-link">Kết quả thi</a></li>
-            <li><a href="index.html#contact" class="nav-link">Liên hệ</a></li>
-            <li>
-              <a href="admin.html" class="ml-2 inline-flex items-center gap-1.5 bg-brand-gold text-brand-navy-dark font-bold text-xs px-3.5 py-2 rounded-full hover:bg-brand-gold-light transition shadow-card">
-                <i class="fa-solid fa-user-shield"></i> Quản trị
-              </a>
-            </li>
+            <li><a href="admin.html" class="nav-link nav-link-active">Quản trị</a></li>
           </ul>
         </nav>
 
-        <button id="mobileToggle" type="button"
-                class="lg:hidden w-10 h-10 inline-flex items-center justify-center rounded-lg text-brand-navy hover:bg-brand-bg transition-colors"
-                aria-label="Mở menu" aria-expanded="false" aria-controls="mobileMenu">
-          <i class="fa-solid fa-bars text-lg" id="mobileToggleIcon"></i>
-        </button>
+        <div class="flex items-center gap-3">
+          <div id="adminUserBox" class="hidden items-center gap-3">
+            <div class="hidden md:block text-right">
+              <p class="text-xs text-brand-muted leading-tight">Đăng nhập với</p>
+              <p id="adminUserEmail" class="text-xs font-semibold text-brand-navy leading-tight">—</p>
+            </div>
+            <button id="logoutBtn" type="button" class="px-3 py-2 rounded-lg text-xs font-semibold text-red-600 border border-red-200 hover:bg-red-50 transition-colors inline-flex items-center gap-1.5">
+              <i class="fa-solid fa-right-from-bracket"></i>
+              <span class="hidden sm:inline">Đăng xuất</span>
+            </button>
+          </div>
+
+          <button id="mobileToggle" type="button" class="lg:hidden w-10 h-10 inline-flex items-center justify-center rounded-lg text-brand-navy hover:bg-brand-bg transition-colors" aria-label="Mở menu" aria-expanded="false" aria-controls="mobileMenu">
+            <i class="fa-solid fa-bars text-lg" id="mobileToggleIcon"></i>
+          </button>
+        </div>
       </div>
     </div>
 
     <div id="mobileMenu" class="lg:hidden hidden border-t border-brand-border bg-white">
-      <nav class="max-w-7xl mx-auto px-4 py-2" aria-label="Điều hướng di động">
+      <nav class="max-w-7xl mx-auto px-4 py-2">
         <ul class="flex flex-col">
           <li><a href="index.html" class="mobile-nav-link">Trang chủ</a></li>
-          <li><a href="index.html#news" class="mobile-nav-link">Tin tức</a></li>
+          <li><a href="tintuc.html" class="mobile-nav-link">Tin tức</a></li>
+          <li><a href="thongbao.html" class="mobile-nav-link">Thông báo</a></li>
           <li><a href="thoikhoabieu.html" class="mobile-nav-link">Thời khóa biểu</a></li>
           <li><a href="ketquathi.html" class="mobile-nav-link">Kết quả thi</a></li>
-          <li><a href="index.html#contact" class="mobile-nav-link">Liên hệ</a></li>
-          <li>
-            <a href="admin.html" class="mt-2 inline-flex items-center justify-center gap-1.5 bg-brand-gold text-brand-navy-dark font-bold text-sm px-3.5 py-2.5 rounded-full hover:bg-brand-gold-light transition">
-              <i class="fa-solid fa-user-shield"></i> Quản trị
-            </a>
-          </li>
+          <li><a href="admin.html" class="mobile-nav-link mobile-nav-link-active">Quản trị</a></li>
         </ul>
       </nav>
     </div>
   </header>
 
-  <!-- MAIN -->
-  <main id="admin-main" class="max-w-4xl mx-auto px-4 py-10 lg:py-14">
+  <main class="max-w-7xl mx-auto px-4 py-8 lg:py-10">
 
-    <div class="text-center mb-10">
-      <span class="section-eyebrow">Khu vực quản trị</span>
-      <h2 class="text-2xl lg:text-3xl font-extrabold text-brand-navy">Trang quản trị nội dung</h2>
-      <p class="text-sm text-brand-muted mt-2">Đăng nhập để đăng, sửa, xóa tin tức và thông báo trên cổng thông tin.</p>
-    </div>
-
-    <div id="configWarning" class="hidden mb-6 rounded-xl border border-yellow-300 bg-yellow-50 p-4 text-sm text-yellow-800">
-      <i class="fa-solid fa-triangle-exclamation mr-2"></i>
-      Chưa cấu hình Firebase. Vui lòng mở <code class="bg-yellow-100 px-1.5 py-0.5 rounded">script.js</code>
-      và điền <code class="bg-yellow-100 px-1.5 py-0.5 rounded">firebaseConfig</code>.
-    </div>
-
-    <!-- LOGIN -->
-    <section id="loginSection" class="widget max-w-md mx-auto">
-      <h3 class="widget-title">
-        <i class="fa-solid fa-lock text-brand-gold"></i>
-        Đăng nhập quản trị
-      </h3>
-      <form id="loginForm" class="space-y-4" novalidate>
-        <div>
-          <label for="loginEmail" class="block text-sm font-semibold text-brand-navy mb-1.5">Email</label>
-          <input id="loginEmail" type="email" required autocomplete="username"
-                 class="w-full px-4 py-2.5 rounded-lg border border-brand-border bg-white text-sm focus:border-brand-navy focus:ring-2 focus:ring-brand-navy/20 outline-none transition" />
+    <section id="loginView" class="login-view">
+      <div class="login-card">
+        <div class="login-icon">
+          <i class="fa-solid fa-user-shield"></i>
         </div>
+        <h2 class="login-title">Đăng nhập quản trị</h2>
+        <p class="login-sub">Vui lòng đăng nhập bằng tài khoản được nhà trường cấp để tiếp tục.</p>
 
-        <div>
-          <label for="loginPassword" class="block text-sm font-semibold text-brand-navy mb-1.5">Mật khẩu</label>
-          <input id="loginPassword" type="password" required autocomplete="current-password"
-                 class="w-full px-4 py-2.5 rounded-lg border border-brand-border bg-white text-sm focus:border-brand-navy focus:ring-2 focus:ring-brand-navy/20 outline-none transition" />
-        </div>
-
-        <div id="loginError" class="hidden text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3"></div>
-
-        <button type="submit" id="loginBtn" class="btn-primary w-full justify-center">
-          <i class="fa-solid fa-right-to-bracket mr-1.5"></i>
-          Đăng nhập
-        </button>
-      </form>
-    </section>
-
-    <!-- ADMIN PANEL -->
-    <section id="adminSection" class="hidden">
-
-      <div class="widget mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div class="flex items-center gap-3">
-          <div class="w-11 h-11 rounded-full bg-gradient-to-br from-brand-navy to-brand-navy-light text-white flex items-center justify-center">
-            <i class="fa-solid fa-user-shield"></i>
-          </div>
+        <form id="loginForm" class="space-y-4 mt-6" novalidate>
           <div>
-            <p class="text-xs text-brand-muted">Đang đăng nhập</p>
-            <p id="currentUserEmail" class="text-sm font-bold text-brand-navy">—</p>
-          </div>
-        </div>
-        <button id="logoutBtn" type="button"
-                class="inline-flex items-center gap-1.5 text-sm font-semibold text-red-600 hover:text-red-700 border border-red-200 hover:bg-red-50 px-3.5 py-2 rounded-lg transition">
-          <i class="fa-solid fa-right-from-bracket"></i>
-          Đăng xuất
-        </button>
-      </div>
-
-      <!-- POST FORM -->
-      <div class="widget">
-        <div class="flex items-center justify-between gap-3 mb-2">
-          <h3 class="widget-title mb-0">
-            <i class="fa-solid fa-pen-to-square text-brand-gold"></i>
-            <span id="postFormHeading">Đăng bài viết mới</span>
-          </h3>
-          <span id="editingBadge" class="hidden inline-flex items-center gap-1 text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-full">
-            <i class="fa-solid fa-pen"></i> Đang sửa
-          </span>
-        </div>
-
-        <form id="postForm" class="space-y-5 mt-4" novalidate>
-
-          <div>
-            <label for="postType" class="block text-sm font-semibold text-brand-navy mb-1.5">
-              Loại bài <span class="text-red-500">*</span>
+            <label for="loginEmail" class="form-label">
+              <i class="fa-solid fa-envelope text-brand-gold mr-1"></i>Email
             </label>
-            <select id="postType" required
-                    class="w-full px-4 py-2.5 rounded-lg border border-brand-border bg-white text-sm focus:border-brand-navy focus:ring-2 focus:ring-brand-navy/20 outline-none transition">
-              <option value="news">Tin tức (hiển thị cột trái trang chủ)</option>
-              <option value="notice">Thông báo văn bản (hiển thị sidebar)</option>
-            </select>
+            <input type="email" id="loginEmail" class="form-control" placeholder="ten@vinhlong.edu.vn" autocomplete="username" required />
           </div>
 
           <div>
-            <label for="postTitle" class="block text-sm font-semibold text-brand-navy mb-1.5">
-              Tiêu đề bài viết <span class="text-red-500">*</span>
+            <label for="loginPassword" class="form-label">
+              <i class="fa-solid fa-lock text-brand-gold mr-1"></i>Mật khẩu
             </label>
-            <input id="postTitle" type="text" required maxlength="200"
-                   placeholder="Ví dụ: Lễ khai giảng năm học mới 2025 – 2026"
-                   class="w-full px-4 py-2.5 rounded-lg border border-brand-border bg-white text-sm focus:border-brand-navy focus:ring-2 focus:ring-brand-navy/20 outline-none transition" />
+            <div class="relative">
+              <input type="password" id="loginPassword" class="form-control pr-12" placeholder="••••••••" autocomplete="current-password" required />
+              <button type="button" id="togglePwBtn" class="pw-toggle" aria-label="Hiện/ẩn mật khẩu">
+                <i class="fa-solid fa-eye" id="togglePwIcon"></i>
+              </button>
+            </div>
           </div>
 
-          <div>
-            <label for="postDesc" class="block text-sm font-semibold text-brand-navy mb-1.5">
-              Mô tả ngắn <span class="text-red-500">*</span>
-            </label>
-            <textarea id="postDesc" rows="3" required maxlength="500"
-                      placeholder="Tóm tắt nội dung bài viết trong 2–3 câu..."
-                      class="w-full px-4 py-2.5 rounded-lg border border-brand-border bg-white text-sm focus:border-brand-navy focus:ring-2 focus:ring-brand-navy/20 outline-none transition resize-y"></textarea>
-          </div>
+          <button type="submit" id="loginBtn" class="btn-primary w-full justify-center">
+            <i class="fa-solid fa-right-to-bracket mr-1.5"></i> Đăng nhập
+          </button>
 
-          <div id="imageField">
-            <label for="postImage" class="block text-sm font-semibold text-brand-navy mb-1.5">
-              Link ảnh đại diện <span class="text-red-500">*</span>
-            </label>
-            <input id="postImage" type="url" placeholder="https://..."
-                   class="w-full px-4 py-2.5 rounded-lg border border-brand-border bg-white text-sm focus:border-brand-navy focus:ring-2 focus:ring-brand-navy/20 outline-none transition" />
-            <p class="text-xs text-brand-muted mt-1.5">
-              <i class="fa-solid fa-circle-info mr-1"></i>Dán đường dẫn ảnh trực tiếp.
-            </p>
-          </div>
+          <div id="loginAlert" class="hidden rounded-lg px-4 py-3 text-sm"></div>
 
-          <div id="driveField" class="hidden">
-            <label for="postDrive" class="block text-sm font-semibold text-brand-navy mb-1.5">
-              Link Google Drive đính kèm <span class="text-red-500">*</span>
-            </label>
-            <input id="postDrive" type="url" placeholder="https://drive.google.com/..."
-                   class="w-full px-4 py-2.5 rounded-lg border border-brand-border bg-white text-sm focus:border-brand-navy focus:ring-2 focus:ring-brand-navy/20 outline-none transition" />
-            <p class="text-xs text-brand-muted mt-1.5">
-              <i class="fa-solid fa-circle-info mr-1"></i>Dán link chia sẻ Google Drive (file, thư mục, hoặc Google Docs).
-            </p>
-          </div>
-
-          <div id="postMessage" class="hidden text-sm rounded-lg p-3"></div>
-
-          <div class="flex flex-wrap gap-3 pt-2">
-            <button type="submit" id="postSubmitBtn" class="btn-primary justify-center">
-              <i class="fa-solid fa-paper-plane mr-1.5"></i>
-              <span id="postSubmitLabel">Đăng bài</span>
-            </button>
-            <button type="button" id="cancelEditBtn"
-                    class="hidden inline-flex items-center gap-1.5 text-sm font-semibold text-brand-navy border border-brand-border hover:bg-brand-bg px-4 py-2.5 rounded-full transition">
-              <i class="fa-solid fa-xmark"></i>
-              Hủy sửa
-            </button>
-            <button type="reset" id="resetFormBtn"
-                    class="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-muted border border-brand-border hover:bg-brand-bg px-4 py-2.5 rounded-full transition">
-              <i class="fa-solid fa-rotate-left"></i>
-              Làm mới
-            </button>
-          </div>
+          <p class="login-hint">
+            <i class="fa-solid fa-circle-info mr-1"></i>
+            Nếu quên mật khẩu, vui lòng liên hệ quản trị viên nhà trường.
+          </p>
         </form>
       </div>
+    </section>
 
-      <!-- RECENT POSTS -->
-      <div class="widget mt-6">
-        <h3 class="widget-title">
-          <i class="fa-solid fa-list-check text-brand-gold"></i>
-          Bài viết gần đây
-        </h3>
-        <ul id="recentPostsList" class="quick-list"></ul>
+    <section id="adminView" class="admin-view hidden">
+      <div class="mb-6">
+        <span class="section-eyebrow">Bảng điều khiển</span>
+        <h2 class="section-title">Quản trị nội dung</h2>
+        <p class="text-sm text-brand-muted mt-2">Đăng bài viết mới, thời khóa biểu và kết quả thi lên cổng thông tin nhà trường.</p>
       </div>
 
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
+
+        <div class="lg:col-span-5">
+          <div class="widget lg:sticky lg:top-24">
+            <h3 id="formTitle" class="widget-title"><i class="fa-solid fa-pen-to-square text-brand-gold"></i> Đăng bài mới</h3>
+
+            <form id="postForm" class="space-y-4" novalidate>
+              <input type="hidden" id="postId" value="" />
+
+              <div>
+                <label for="postType" class="form-label">Loại bài đăng <span class="text-red-500">*</span></label>
+                <select id="postType" class="form-control" required>
+                  <option value="news">Tin tức</option>
+                  <option value="announcement">Thông báo</option>
+                  <option value="timetable">Thời khóa biểu</option>
+                  <option value="exam">Kết quả thi</option>
+                </select>
+              </div>
+
+              <div>
+                <label for="postTitle" class="form-label">Tiêu đề <span class="text-red-500">*</span></label>
+                <input type="text" id="postTitle" class="form-control" placeholder="VD: Thông báo tuyển sinh năm học 2025 – 2026" required />
+              </div>
+
+              <div id="fieldImage">
+                <label for="postImage" class="form-label">Link ảnh đại diện (tùy chọn)</label>
+                <input type="url" id="postImage" class="form-control" placeholder="https://... (để trống dùng ảnh mặc định)" />
+                <p class="form-hint">Dùng cho Tin tức. Có thể để trống.</p>
+              </div>
+
+              <div id="fieldLink" class="hidden">
+                <label for="postLink" class="form-label">Link Google Drive văn bản <span class="text-red-500">*</span></label>
+                <input type="url" id="postLink" class="form-control" placeholder="https://drive.google.com/file/d/.../view" />
+                <p class="form-hint">Hệ thống tự chuyển sang dạng /preview khi xem.</p>
+              </div>
+
+              <div id="fieldSheet" class="hidden">
+                <label for="postSheet" class="form-label">Link Google Sheets <span class="text-red-500">*</span></label>
+                <input type="url" id="postSheet" class="form-control" placeholder="https://docs.google.com/spreadsheets/d/.../edit" />
+                <p class="form-hint">Hệ thống tự chuyển sang dạng nhúng (embed).</p>
+              </div>
+
+              <div id="fieldContent">
+                <label for="postContent" class="form-label">Nội dung bài viết</label>
+                <textarea id="postContent" class="form-control" rows="6" placeholder="Nhập nội dung..."></textarea>
+                <p class="form-hint">Hỗ trợ HTML cơ bản (thẻ &lt;p&gt;, &lt;br&gt;, &lt;strong&gt;...).</p>
+              </div>
+
+              <div class="flex flex-wrap gap-2 pt-2">
+                <button type="submit" id="submitBtn" class="btn-primary justify-center flex-1 min-w-[140px]">
+                  <i class="fa-solid fa-paper-plane mr-1.5"></i> Đăng bài
+                </button>
+                <button type="button" id="cancelEdit" class="hidden px-4 py-3 rounded-full font-semibold text-sm border-2 border-brand-border text-brand-text hover:bg-brand-bg transition-colors">
+                  <i class="fa-solid fa-xmark mr-1"></i> Hủy
+                </button>
+              </div>
+
+              <div id="formAlert" class="hidden rounded-lg px-4 py-3 text-sm"></div>
+            </form>
+          </div>
+        </div>
+
+        <div class="lg:col-span-7">
+          <div class="widget">
+            <div class="flex items-center justify-between gap-3 mb-4">
+              <h3 class="widget-title mb-0 border-b-0 pb-0"><i class="fa-solid fa-list text-brand-gold"></i> Bài viết gần đây</h3>
+              <button type="button" id="reloadPosts" class="text-xs font-semibold text-brand-navy hover:text-brand-gold transition-colors">
+                <i class="fa-solid fa-rotate mr-1"></i> Tải lại
+              </button>
+            </div>
+
+            <div id="adminToolbar" class="admin-toolbar">
+              <div class="admin-toolbar-search">
+                <i class="fa-solid fa-magnifying-glass admin-toolbar-search-icon"></i>
+                <input type="text" id="adminSearchInput" class="admin-toolbar-input" placeholder="Tìm kiếm theo tiêu đề..." autocomplete="off" />
+                <button type="button" id="adminSearchClear" class="admin-toolbar-clear hidden" aria-label="Xóa tìm kiếm">
+                  <i class="fa-solid fa-xmark"></i>
+                </button>
+              </div>
+              <div class="admin-toolbar-filter">
+                <label for="adminTypeFilter" class="sr-only">Lọc theo loại</label>
+                <select id="adminTypeFilter" class="admin-toolbar-select">
+                  <option value="all">Tất cả loại bài</option>
+                  <option value="news">Tin tức</option>
+                  <option value="announcement">Thông báo</option>
+                  <option value="timetable">Thời khóa biểu</option>
+                  <option value="exam">Kết quả thi</option>
+                </select>
+              </div>
+            </div>
+
+            <div id="adminResultInfo" class="admin-result-info hidden"></div>
+
+            <div id="postListLoading" class="text-center py-10 text-brand-muted">
+              <i class="fa-solid fa-spinner fa-spin text-2xl text-brand-navy mb-2"></i>
+              <p class="text-sm">Đang tải danh sách...</p>
+            </div>
+
+            <div id="postListEmpty" class="hidden text-center py-10 text-brand-muted">
+              <i class="fa-regular fa-folder-open text-3xl mb-2"></i>
+              <p class="text-sm">Chưa có bài viết nào.</p>
+            </div>
+
+            <div id="postListFilterEmpty" class="hidden text-center py-10 text-brand-muted">
+              <i class="fa-solid fa-magnifying-glass text-3xl mb-2"></i>
+              <p class="text-sm">Không tìm thấy bài viết nào khớp với bộ lọc.</p>
+            </div>
+
+            <div id="postList" class="space-y-3"></div>
+          </div>
+        </div>
+
+      </div>
     </section>
 
   </main>
 
-  <!-- FOOTER -->
-  <footer class="bg-brand-navy-dark text-white/75 mt-8">
-    <div class="max-w-7xl mx-auto px-4 pt-12 pb-6">
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-10">
-        <div class="lg:col-span-1">
-          <div class="flex items-center gap-3 mb-4">
-            <img src="images/logo.png" alt="Logo" class="w-12 h-12 object-contain bg-white rounded-full p-1" onerror="imgFallback(this)" />
-            <div>
-              <p class="text-white font-extrabold text-sm leading-tight">TRƯỜNG THCS-THPT<br />TRẦN TRƯỜNG SINH</p>
-              <p class="text-brand-gold text-[10px] font-bold tracking-wider mt-0.5">ĐOÀN KẾT – TRÁCH NHIỆM – SÁNG TẠO</p>
-            </div>
-          </div>
-          <p class="text-sm leading-relaxed text-white/65 mb-4">
-            Cổng thông tin điện tử chính thức của nhà trường.
-          </p>
-          <div class="flex gap-2">
-            <a href="#" aria-label="Facebook" class="w-9 h-9 inline-flex items-center justify-center rounded-full bg-white/10 hover:bg-brand-gold hover:text-brand-navy-dark transition-all">
-              <i class="fa-brands fa-facebook-f"></i>
-            </a>
-            <a href="#" aria-label="YouTube" class="w-9 h-9 inline-flex items-center justify-center rounded-full bg-white/10 hover:bg-brand-gold hover:text-brand-navy-dark transition-all">
-              <i class="fa-brands fa-youtube"></i>
-            </a>
-            <a href="mailto:c3trantruongsinh@vinhlong.edu.vn" aria-label="Email" class="w-9 h-9 inline-flex items-center justify-center rounded-full bg-white/10 hover:bg-brand-gold hover:text-brand-navy-dark transition-all">
-              <i class="fa-solid fa-envelope"></i>
-            </a>
-          </div>
-        </div>
-
-        <div>
-          <h4 class="footer-heading">Liên kết</h4>
-          <ul class="footer-links">
-            <li><a href="index.html">Trang chủ</a></li>
-            <li><a href="index.html#news">Tin tức</a></li>
-            <li><a href="thoikhoabieu.html">Thời khóa biểu</a></li>
-            <li><a href="ketquathi.html">Kết quả thi</a></li>
-            <li><a href="admin.html">Quản trị</a></li>
-          </ul>
-        </div>
-
-        <div>
-          <h4 class="footer-heading">Chuyên mục</h4>
-          <ul class="footer-links">
-            <li><a href="#">Hoạt động chuyên môn</a></li>
-            <li><a href="#">Hoạt động Đoàn – Đội</a></li>
-            <li><a href="#">Y tế học đường</a></li>
-            <li><a href="#">Văn bản – Biểu mẫu</a></li>
-            <li><a href="#">Thư viện ảnh</a></li>
-          </ul>
-        </div>
-
-        <div>
-          <h4 class="footer-heading">Liên hệ</h4>
-          <ul class="footer-contact">
-            <li>
-              <i class="fa-solid fa-phone"></i>
-              <span>Điện thoại: <a href="tel:02753876235" class="hover:text-brand-gold">02753876235</a></span>
-            </li>
-            <li>
-              <i class="fa-solid fa-envelope"></i>
-              <span>Email: <a href="mailto:c3trantruongsinh@vinhlong.edu.vn" class="hover:text-brand-gold break-all">c3trantruongsinh@vinhlong.edu.vn</a></span>
-            </li>
-          </ul>
-        </div>
-      </div>
-    </div>
-
-    <div class="border-t border-white/10">
-      <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-white/55">
-        <p>© <span id="year">2025</span> Trường THCS-THPT Trần Trường Sinh. Bảo lưu mọi quyền.</p>
-        <p>Thiết kế &amp; phát triển bởi nhà trường.</p>
-      </div>
+  <footer class="bg-brand-navy-dark text-white/70">
+    <div class="max-w-7xl mx-auto px-4 py-6 text-center text-xs">
+      © <span id="year">2025</span> Trường THCS-THPT Trần Trường Sinh · Trang quản trị nội dung
     </div>
   </footer>
 
-  <button id="backToTop" type="button" class="back-to-top" aria-label="Lên đầu trang">
-    <i class="fa-solid fa-arrow-up"></i>
-  </button>
-
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

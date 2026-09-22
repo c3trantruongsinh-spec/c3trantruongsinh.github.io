@@ -1,15 +1,15 @@
 /* =========================================================
    TRƯỜNG THCS-THPT TRẦN TRƯỜNG SINH – PORTAL
-   Vanilla JavaScript + Firebase (compat SDK via CDN)
+   script.js — Firebase Compat + Auth + Load More + Filter
    ========================================================= */
 
 (function () {
   'use strict';
 
-  /* =========================================================
-     CẤU HÌNH FIREBASE
-     ========================================================= */
-  const firebaseConfig = {
+  /* -------------------------------------------------------
+     0. FIREBASE CONFIG & INIT
+     ------------------------------------------------------- */
+  var firebaseConfig = {
     apiKey: "AIzaSyAzzbXw6qYYx-qr0_i1tV3UcOSivU_4dq0",
     authDomain: "tttweb-7c14d.firebaseapp.com",
     projectId: "tttweb-7c14d",
@@ -18,120 +18,113 @@
     appId: "1:762394712272:web:f7a0e1ddc8d0aeb1c1a6d5"
   };
 
-  /* =========================================================
-     KHỞI TẠO FIREBASE
-     ========================================================= */
-  let db = null;
-  let auth = null;
-  let firebaseReady = false;
+  var db = null;
+  var auth = null;
 
   try {
-    if (typeof firebase !== 'undefined' && firebaseConfig && firebaseConfig.projectId) {
-      firebase.initializeApp(firebaseConfig);
+    if (typeof firebase !== 'undefined' && firebase.apps) {
+      if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+      }
       db = firebase.firestore();
-      auth = firebase.auth();
-      firebaseReady = true;
+      if (firebase.auth) auth = firebase.auth();
     }
-  } catch (err) {
-    console.error('[Firebase] Lỗi khởi tạo:', err);
-    firebaseReady = false;
+  } catch (e) {
+    console.warn('Firebase chưa khởi tạo:', e);
   }
 
-  /* =========================================================
-     HELPERS
-     ========================================================= */
-  function escapeHtml(str) {
-    if (str === null || str === undefined) return '';
+  var POSTS_COLLECTION = 'posts';
+  var PAGE_SIZE = 12;
+
+  /* -------------------------------------------------------
+     1. TIỆN ÍCH CHUNG
+     ------------------------------------------------------- */
+
+  function pad2(n) { return String(n).padStart(2, '0'); }
+
+  function formatDateVN(date) {
+    if (!date) return '—';
+    var d = (date instanceof Date) ? date : new Date(date);
+    if (isNaN(d.getTime())) return '—';
+    return pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1) + '/' + d.getFullYear();
+  }
+
+  function formatDateFullVN(date) {
+    if (!date) return '—';
+    var d = (date instanceof Date) ? date : new Date(date);
+    if (isNaN(d.getTime())) return '—';
+    return pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1) + '/' + d.getFullYear() +
+      ' ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+  }
+
+  function escapeHTML(str) {
+    if (str == null) return '';
     return String(str)
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
+      .replace(/'/g, '&#039;');
   }
 
-  function escapeAttr(str) {
-    return escapeHtml(str);
+  function getTimestamp(post) {
+    if (!post) return 0;
+    if (post.createdAt && typeof post.createdAt.toDate === 'function') {
+      return post.createdAt.toDate().getTime();
+    }
+    if (post.createdAt && post.createdAt.seconds) {
+      return post.createdAt.seconds * 1000;
+    }
+    if (post.createdAt) {
+      var t = new Date(post.createdAt).getTime();
+      return isNaN(t) ? 0 : t;
+    }
+    return 0;
   }
 
-  function formatDate(ts) {
-    if (!ts) return '';
-    let date;
-    try {
-      if (typeof ts.toDate === 'function') date = ts.toDate();
-      else if (ts instanceof Date) date = ts;
-      else if (typeof ts === 'number') date = new Date(ts);
-      else if (typeof ts === 'string') date = new Date(ts);
-      else return '';
-    } catch (e) { return ''; }
-    if (!date || isNaN(date.getTime())) return '';
-    const d = String(date.getDate()).padStart(2, '0');
-    const m = String(date.getMonth() + 1).padStart(2, '0');
-    const y = date.getFullYear();
-    return d + '/' + m + '/' + y;
+  function stripHTML(html) {
+    if (!html) return '';
+    var tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    return (tmp.textContent || tmp.innerText || '').trim();
   }
 
-  function formatDateAttr(ts) {
-    if (!ts) return '';
-    let date;
-    try {
-      if (typeof ts.toDate === 'function') date = ts.toDate();
-      else if (ts instanceof Date) date = ts;
-      else if (typeof ts === 'number') date = new Date(ts);
-      else return '';
-    } catch (e) { return ''; }
-    if (!date || isNaN(date.getTime())) return '';
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, '0');
-    const d = String(date.getDate()).padStart(2, '0');
-    return y + '-' + m + '-' + d;
-  }
-
-  function convertDriveUrlToPreview(url) {
+  function toDrivePreview(url) {
     if (!url) return '';
-    var u = String(url).trim();
+    url = String(url).trim();
+    if (url.indexOf('drive.google.com') === -1) return url;
 
-    var docsMatch = u.match(/docs\.google\.com\/(document|spreadsheets|presentation)\/d\/([a-zA-Z0-9_-]+)/);
-    if (docsMatch) {
-      return 'https://docs.google.com/' + docsMatch[1] + '/d/' + docsMatch[2] + '/preview';
-    }
+    var m1 = url.match(/\/file\/d\/([^/]+)/);
+    if (m1 && m1[1]) return 'https://drive.google.com/file/d/' + m1[1] + '/preview';
 
-    var fileMatch = u.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
-    if (fileMatch) {
-      return 'https://drive.google.com/file/d/' + fileMatch[1] + '/preview';
-    }
+    var m2 = url.match(/[?&]id=([^&]+)/);
+    if (m2 && m2[1]) return 'https://drive.google.com/file/d/' + m2[1] + '/preview';
 
-    var openMatch = u.match(/drive\.google\.com\/open\?id=([a-zA-Z0-9_-]+)/);
-    if (openMatch) {
-      return 'https://drive.google.com/file/d/' + openMatch[1] + '/preview';
-    }
+    var m3 = url.match(/\/open\?id=([^&]+)/);
+    if (m3 && m3[1]) return 'https://drive.google.com/file/d/' + m3[1] + '/preview';
 
-    var ucMatch = u.match(/drive\.google\.com\/uc\?[^#]*id=([a-zA-Z0-9_-]+)/);
-    if (ucMatch) {
-      return 'https://drive.google.com/file/d/' + ucMatch[1] + '/preview';
-    }
-
-    var folderMatch = u.match(/drive\.google\.com\/drive\/folders\/([a-zA-Z0-9_-]+)/);
-    if (folderMatch) {
-      return 'https://drive.google.com/embeddedfolderview?id=' + folderMatch[1];
-    }
-
-    return u;
+    return url;
   }
 
-  /* =========================================================
-     NGÀY HIỆN TẠI
-     ========================================================= */
+  function toSheetsEmbed(url) {
+    if (!url) return '';
+    url = String(url).trim();
+    if (url.indexOf('docs.google.com/spreadsheets') === -1) return url;
+    if (url.indexOf('/pubhtml') !== -1 || url.indexOf('/htmlembed') !== -1) return url;
+    var m = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+    if (m && m[1]) return 'https://docs.google.com/spreadsheets/d/' + m[1] + '/preview';
+    return url;
+  }
+
+  /* -------------------------------------------------------
+     2. NGÀY HIỆN TẠI + FOOTER YEAR
+     ------------------------------------------------------- */
   function updateCurrentDate() {
     var el = document.getElementById('currentDate');
     if (!el) return;
     var now = new Date();
     var thu = ['Chủ nhật', 'Thứ hai', 'Thứ ba', 'Thứ tư', 'Thứ năm', 'Thứ sáu', 'Thứ bảy'];
-    var dayName = thu[now.getDay()];
-    var day = String(now.getDate()).padStart(2, '0');
-    var month = String(now.getMonth() + 1).padStart(2, '0');
-    var year = now.getFullYear();
-    el.textContent = dayName + ', ' + day + '/' + month + '/' + year;
+    el.textContent = thu[now.getDay()] + ', ' + formatDateVN(now);
   }
 
   function updateFooterYear() {
@@ -139,9 +132,9 @@
     if (el) el.textContent = new Date().getFullYear();
   }
 
-  /* =========================================================
-     STICKY HEADER SHADOW
-     ========================================================= */
+  /* -------------------------------------------------------
+     3. STICKY HEADER
+     ------------------------------------------------------- */
   function initStickyHeader() {
     var header = document.getElementById('siteHeader');
     if (!header) return;
@@ -153,9 +146,9 @@
     onScroll();
   }
 
-  /* =========================================================
-     MOBILE MENU
-     ========================================================= */
+  /* -------------------------------------------------------
+     4. MOBILE MENU
+     ------------------------------------------------------- */
   function initMobileMenu() {
     var toggle = document.getElementById('mobileToggle');
     var menu = document.getElementById('mobileMenu');
@@ -181,8 +174,7 @@
       setOpen(!isOpen);
     });
 
-    var links = menu.querySelectorAll('a');
-    links.forEach(function (a) {
+    menu.querySelectorAll('a').forEach(function (a) {
       a.addEventListener('click', function () { setOpen(false); });
     });
 
@@ -194,9 +186,9 @@
     });
   }
 
-  /* =========================================================
-     HERO CAROUSEL
-     ========================================================= */
+  /* -------------------------------------------------------
+     5. HERO CAROUSEL
+     ------------------------------------------------------- */
   function initHeroCarousel() {
     var root = document.getElementById('heroCarousel');
     if (!root) return;
@@ -252,61 +244,52 @@
     });
 
     var touchStartX = 0;
-    var touchEndX = 0;
     root.addEventListener('touchstart', function (e) {
       touchStartX = e.changedTouches[0].screenX;
     }, { passive: true });
     root.addEventListener('touchend', function (e) {
-      touchEndX = e.changedTouches[0].screenX;
-      var diff = touchStartX - touchEndX;
-      if (Math.abs(diff) > 50) { if (diff > 0) next(); else prev(); start(); }
+      var diff = touchStartX - e.changedTouches[0].screenX;
+      if (Math.abs(diff) > 50) {
+        if (diff > 0) next(); else prev();
+        start();
+      }
     }, { passive: true });
 
     goTo(0);
     start();
   }
 
-  /* =========================================================
-     AUDIO PLAYER
-     ========================================================= */
+  /* -------------------------------------------------------
+     6. AUDIO PLAYER
+     ------------------------------------------------------- */
   function initAudioPlayer() {
     var audio = document.getElementById('schoolSong');
     var btn = document.getElementById('btnToggleSong');
     if (!audio || !btn) return;
 
-    function renderButton(isPlaying) {
-      if (isPlaying) {
-        btn.innerHTML = '<i class="fa-solid fa-pause mr-1.5"></i> Tạm dừng';
-      } else {
-        btn.innerHTML = '<i class="fa-solid fa-play mr-1.5"></i> Phát nhạc';
-      }
+    function render(isPlaying) {
+      if (isPlaying) btn.innerHTML = '<i class="fa-solid fa-pause mr-1.5"></i> Tạm dừng';
+      else btn.innerHTML = '<i class="fa-solid fa-play mr-1.5"></i> Phát nhạc';
     }
-    renderButton(false);
+    render(false);
 
     btn.addEventListener('click', function () {
       if (audio.paused) {
         var p = audio.play();
         if (p && typeof p.then === 'function') {
-          p.catch(function () {
-            console.warn('Không thể phát audio. Kiểm tra file audio/bai-hat-truyen-thong.mp3');
-          });
+          p.catch(function () { console.warn('Không thể phát audio.'); });
         }
-      } else {
-        audio.pause();
-      }
+      } else audio.pause();
     });
 
-    audio.addEventListener('play', function () { renderButton(true); });
-    audio.addEventListener('pause', function () { renderButton(false); });
-    audio.addEventListener('ended', function () {
-      renderButton(false);
-      audio.currentTime = 0;
-    });
+    audio.addEventListener('play', function () { render(true); });
+    audio.addEventListener('pause', function () { render(false); });
+    audio.addEventListener('ended', function () { render(false); audio.currentTime = 0; });
   }
 
-  /* =========================================================
-     BACK TO TOP
-     ========================================================= */
+  /* -------------------------------------------------------
+     7. BACK TO TOP
+     ------------------------------------------------------- */
   function initBackToTop() {
     var btn = document.getElementById('backToTop');
     if (!btn) return;
@@ -321,12 +304,11 @@
     });
   }
 
-  /* =========================================================
-     SMOOTH ANCHOR SCROLL
-     ========================================================= */
+  /* -------------------------------------------------------
+     8. SMOOTH ANCHOR
+     ------------------------------------------------------- */
   function initSmoothAnchorScroll() {
     var anchors = document.querySelectorAll('a[href^="#"]');
-    if (!anchors.length) return;
     anchors.forEach(function (a) {
       a.addEventListener('click', function (e) {
         var href = a.getAttribute('href');
@@ -334,610 +316,919 @@
         var target = document.querySelector(href);
         if (!target) return;
         e.preventDefault();
-        var headerOffset = 90;
-        var top = target.getBoundingClientRect().top + window.pageYOffset - headerOffset;
+        var top = target.getBoundingClientRect().top + window.pageYOffset - 90;
         window.scrollTo({ top: top, behavior: 'smooth' });
       });
     });
   }
 
-  /* =========================================================
-     MODAL XEM VĂN BẢN (dùng chung index.html)
-     ========================================================= */
-  function openDocModal(rawUrl, title) {
-    var modal = document.getElementById('docModal');
-    var frame = document.getElementById('docModalFrame');
-    var titleEl = document.getElementById('docModalTitle');
-    var openTab = document.getElementById('docModalOpenTab');
-    if (!modal || !frame) return;
+  /* -------------------------------------------------------
+     9. MODAL XEM VĂN BẢN
+     ------------------------------------------------------- */
+  function openViewModal(opts) {
+    var modal = document.getElementById('viewModal');
+    if (!modal) return;
+    var titleEl = document.getElementById('viewModalTitle');
+    var bodyEl = document.getElementById('viewModalBody');
+    var openNew = document.getElementById('viewModalOpenNew');
 
-    var previewUrl = convertDriveUrlToPreview(rawUrl);
-    frame.src = previewUrl || 'about:blank';
-    if (titleEl) titleEl.textContent = title || 'Xem văn bản';
-    if (openTab) openTab.href = rawUrl || '#';
+    if (titleEl) titleEl.textContent = opts.title || 'Xem văn bản';
+    if (openNew) openNew.href = opts.originalUrl || opts.url || '#';
 
+    if (bodyEl) {
+      bodyEl.innerHTML =
+        '<iframe src="' + escapeHTML(opts.url) + '" ' +
+        'title="' + escapeHTML(opts.title || 'Văn bản') + '" ' +
+        'class="view-modal-iframe" ' +
+        'loading="lazy" referrerpolicy="no-referrer" allowfullscreen></iframe>';
+    }
     modal.classList.remove('hidden');
-    modal.classList.add('flex');
     document.body.style.overflow = 'hidden';
+    var closeBtn = modal.querySelector('[data-modal-close]');
+    if (closeBtn) closeBtn.focus();
   }
 
-  function closeDocModal() {
-    var modal = document.getElementById('docModal');
-    var frame = document.getElementById('docModalFrame');
+  function closeViewModal() {
+    var modal = document.getElementById('viewModal');
     if (!modal) return;
+    var bodyEl = document.getElementById('viewModalBody');
+    if (bodyEl) bodyEl.innerHTML = '';
     modal.classList.add('hidden');
-    modal.classList.remove('flex');
-    if (frame) frame.src = 'about:blank';
     document.body.style.overflow = '';
   }
 
-  function initDocModal() {
-    var modal = document.getElementById('docModal');
+  function initModalEvents() {
+    var modal = document.getElementById('viewModal');
     if (!modal) return;
-
-    var closeBtn = document.getElementById('docModalClose');
-    if (closeBtn) closeBtn.addEventListener('click', closeDocModal);
-
     modal.addEventListener('click', function (e) {
-      if (e.target === modal) closeDocModal();
+      if (e.target && e.target.closest && e.target.closest('[data-modal-close]')) {
+        closeViewModal();
+      }
     });
-
     document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeDocModal();
+      if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeViewModal();
     });
   }
 
-  /* =========================================================
-     RENDER TIN TỨC + THÔNG BÁO (trang chủ)
-     ========================================================= */
-  function newsCardHTML(post) {
-    var date = formatDate(post.createdAt);
-    var dateAttr = formatDateAttr(post.createdAt);
-    var img = post.imageUrl || 'images/banner-1.jpg';
-    var title = escapeHtml(post.title || '');
-    var desc = escapeHtml(post.description || '');
+  function initDocModalDelegate() {
+    document.addEventListener('click', function (e) {
+      var trigger = e.target.closest('[data-doc-action="open-modal"]');
+      if (!trigger) return;
+      e.preventDefault();
+      var url = trigger.getAttribute('data-doc-url');
+      var title = trigger.getAttribute('data-doc-title') || 'Xem văn bản';
+      if (!url) return;
+      openViewModal({ title: title, url: toDrivePreview(url), originalUrl: url });
+    });
+  }
+
+  /* -------------------------------------------------------
+     10. CARD TIN TỨC (dùng chung)
+     ------------------------------------------------------- */
+  function renderNewsCard(post) {
+    var title = escapeHTML(post.title || '(Không có tiêu đề)');
+    var image = post.image || 'images/banner-1.jpg';
+    var excerpt = post.excerpt || '';
+    if (!excerpt && post.content) excerpt = stripHTML(post.content).slice(0, 160);
+    excerpt = escapeHTML(excerpt);
+    var dateStr = formatDateVN(
+      post.createdAt && post.createdAt.toDate ? post.createdAt.toDate() : post.createdAt
+    );
+
+    var href = '#';
+    var extraAttrs = '';
+    if (post.type === 'announcement' && post.link) {
+      extraAttrs = ' data-doc-url="' + escapeHTML(post.link) + '" data-doc-title="' + title + '" data-doc-action="open-modal"';
+    } else if ((post.type === 'timetable' || post.type === 'exam') && post.sheetLink) {
+      href = post.type === 'timetable' ? 'thoikhoabieu.html' : 'ketquathi.html';
+    }
 
     return '' +
       '<article class="news-card">' +
-        '<a href="#" class="news-card-img-wrap" aria-label="Đọc tiếp: ' + title + '" onclick="return false;">' +
-          '<img src="' + escapeAttr(img) + '" alt="" class="news-card-img" onerror="imgFallback(this)" />' +
+        '<a href="' + href + '" class="news-card-img-wrap" aria-label="Đọc tiếp: ' + title + '"' + extraAttrs + '>' +
+          '<img src="' + escapeHTML(image) + '" alt="" class="news-card-img" loading="lazy" onerror="imgFallback(this)" />' +
           '<span class="news-card-category">Tin tức</span>' +
         '</a>' +
         '<div class="news-card-body">' +
-          '<time class="news-card-date" datetime="' + dateAttr + '">' +
-            '<i class="fa-regular fa-calendar mr-1"></i>' + date +
+          '<time class="news-card-date" datetime="">' +
+            '<i class="fa-regular fa-calendar mr-1"></i>' + escapeHTML(dateStr) +
           '</time>' +
-          '<h3 class="news-card-title">' +
-            '<a href="#" onclick="return false;">' + title + '</a>' +
-          '</h3>' +
-          '<p class="news-card-excerpt">' + desc + '</p>' +
+          '<h3 class="news-card-title"><a href="' + href + '"' + extraAttrs + '>' + title + '</a></h3>' +
+          '<p class="news-card-excerpt">' + excerpt + '</p>' +
+          '<a href="' + href + '" class="news-card-more"' + extraAttrs + '>Đọc tiếp <i class="fa-solid fa-arrow-right"></i></a>' +
         '</div>' +
       '</article>';
   }
 
-  function noticeItemHTML(post) {
-    var date = formatDate(post.createdAt);
-    var title = escapeHtml(post.title || '');
-    var driveLink = post.driveLink || '';
-    var hasLink = !!driveLink;
+  /* -------------------------------------------------------
+     11. ITEM THÔNG BÁO
+     ------------------------------------------------------- */
+  function renderAnnouncementItem(post) {
+    var title = escapeHTML(post.title || '(Không có tiêu đề)');
+    var dateStr = formatDateVN(
+      post.createdAt && post.createdAt.toDate ? post.createdAt.toDate() : post.createdAt
+    );
+    var hasDoc = post.link ? true : false;
+    var dataAttrs = hasDoc
+      ? ' data-doc-url="' + escapeHTML(post.link) + '" data-doc-title="' + title + '" data-doc-action="open-modal"'
+      : '';
 
     return '' +
-      '<li>' +
-        '<a href="#" data-drive="' + escapeAttr(driveLink) + '" data-title="' + escapeAttr(title) + '"' +
-          ' class="notice-link' + (hasLink ? '' : ' opacity-60 pointer-events-none') + '">' +
-          '<i class="fa-solid fa-file-lines"></i>' +
-          '<span>' + title +
-            '<span class="ml-2 text-[11px] text-brand-muted">' + date + '</span>' +
+      '<li class="widget-item">' +
+        '<a href="' + (hasDoc ? '#' : '#') + '" class="widget-item-link"' + dataAttrs + '>' +
+          '<span class="widget-item-icon"><i class="fa-regular fa-file-pdf"></i></span>' +
+          '<span class="widget-item-body">' +
+            '<span class="widget-item-title">' + title + '</span>' +
+            '<span class="widget-item-meta"><i class="fa-regular fa-clock mr-1"></i>' + escapeHTML(dateStr) + '</span>' +
           '</span>' +
+          (hasDoc ? '<span class="widget-item-cta"><i class="fa-solid fa-eye"></i></span>' : '') +
         '</a>' +
       '</li>';
   }
 
-  function sortByCreatedAtDesc(arr) {
-    return arr.sort(function (a, b) {
-      var ta = a.createdAt && typeof a.createdAt.toMillis === 'function' ? a.createdAt.toMillis() : 0;
-      var tb = b.createdAt && typeof b.createdAt.toMillis === 'function' ? b.createdAt.toMillis() : 0;
-      return tb - ta;
-    });
-  }
+  /* -------------------------------------------------------
+     12. TRANG CHỦ — TIN TỨC + THÔNG BÁO
+     ------------------------------------------------------- */
+  function loadHomeNews() {
+    var grid = document.getElementById('newsGrid');
+    if (!grid || !db) return;
+    var loading = document.getElementById('newsLoading');
+    var empty = document.getElementById('newsEmpty');
 
-  async function loadHomePosts() {
-    var newsGrid = document.getElementById('newsGrid');
-    var noticesList = document.getElementById('noticesList');
-    var newsLoading = document.getElementById('newsLoading');
-    var newsEmpty = document.getElementById('newsEmpty');
-    var noticesLoading = document.getElementById('noticesLoading');
-    var noticesEmpty = document.getElementById('noticesEmpty');
-
-    if (!newsGrid && !noticesList) return;
-
-    if (!firebaseReady || !db) {
-      if (newsLoading) newsLoading.classList.add('hidden');
-      if (newsEmpty) newsEmpty.classList.remove('hidden');
-      if (noticesLoading) noticesLoading.classList.add('hidden');
-      if (noticesEmpty) noticesEmpty.classList.remove('hidden');
-      return;
-    }
-
-    try {
-      var snap = await db.collection('posts').get();
-      var news = [];
-      var notices = [];
-
-      snap.forEach(function (doc) {
-        var data = doc.data() || {};
-        var item = {
-          id: doc.id,
-          type: data.type || '',
-          title: data.title || '',
-          description: data.description || '',
-          imageUrl: data.imageUrl || '',
-          driveLink: data.driveLink || '',
-          createdAt: data.createdAt || null
-        };
-        if (item.type === 'news') news.push(item);
-        else if (item.type === 'notice') notices.push(item);
-      });
-
-      sortByCreatedAtDesc(news);
-      sortByCreatedAtDesc(notices);
-
-      // Tin tức
-      if (newsLoading) newsLoading.classList.add('hidden');
-      if (newsGrid) {
-        if (news.length > 0) {
-          newsGrid.innerHTML = news.slice(0, 9).map(newsCardHTML).join('');
-          if (newsEmpty) newsEmpty.classList.add('hidden');
-        } else {
-          newsGrid.innerHTML = '';
-          if (newsEmpty) newsEmpty.classList.remove('hidden');
-        }
-      }
-
-      // Thông báo
-      if (noticesLoading) noticesLoading.classList.add('hidden');
-      if (noticesList) {
-        if (notices.length > 0) {
-          noticesList.innerHTML = notices.slice(0, 10).map(noticeItemHTML).join('');
-          if (noticesEmpty) noticesEmpty.classList.add('hidden');
-
-          noticesList.addEventListener('click', function (e) {
-            var link = e.target.closest('.notice-link');
-            if (!link) return;
-            e.preventDefault();
-            var drive = link.getAttribute('data-drive');
-            var title = link.getAttribute('data-title');
-            if (!drive) return;
-            openDocModal(drive, title);
-          });
-        } else {
-          noticesList.innerHTML = '';
-          if (noticesEmpty) noticesEmpty.classList.remove('hidden');
-        }
-      }
-    } catch (err) {
-      console.error('[Firestore] Lỗi tải bài viết:', err);
-      if (newsLoading) newsLoading.classList.add('hidden');
-      if (noticesLoading) noticesLoading.classList.add('hidden');
-      if (newsGrid) newsGrid.innerHTML = '';
-      if (noticesList) noticesList.innerHTML = '';
-      if (newsEmpty) {
-        newsEmpty.classList.remove('hidden');
-        newsEmpty.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-4xl mb-3 text-red-300"></i><p class="text-sm">Không tải được tin tức.</p>';
-      }
-    }
-  }
-
-  /* =========================================================
-     TRANG QUẢN TRỊ
-     ========================================================= */
-  function initAdminPage() {
-    var loginSection = document.getElementById('loginSection');
-    var adminSection = document.getElementById('adminSection');
-    var loginForm = document.getElementById('loginForm');
-    var postForm = document.getElementById('postForm');
-    var currentUserEmail = document.getElementById('currentUserEmail');
-    var logoutBtn = document.getElementById('logoutBtn');
-    var configWarning = document.getElementById('configWarning');
-    var postType = document.getElementById('postType');
-    var imageField = document.getElementById('imageField');
-    var driveField = document.getElementById('driveField');
-    var postImage = document.getElementById('postImage');
-    var postDrive = document.getElementById('postDrive');
-    var postMessage = document.getElementById('postMessage');
-    var recentPostsList = document.getElementById('recentPostsList');
-    var postFormHeading = document.getElementById('postFormHeading');
-    var editingBadge = document.getElementById('editingBadge');
-    var postSubmitLabel = document.getElementById('postSubmitLabel');
-    var cancelEditBtn = document.getElementById('cancelEditBtn');
-    var resetFormBtn = document.getElementById('resetFormBtn');
-
-    if (!loginSection && !adminSection) return;
-
-    if (!firebaseReady) {
-      if (configWarning) configWarning.classList.remove('hidden');
-      if (loginForm) {
-        loginForm.addEventListener('submit', function (e) {
-          e.preventDefault();
-          showLoginError('Chưa cấu hình Firebase. Vui lòng điền firebaseConfig trong script.js.');
+    db.collection(POSTS_COLLECTION).where('type', '==', 'news').get()
+      .then(function (snap) {
+        var posts = [];
+        snap.forEach(function (doc) {
+          var d = doc.data(); d.id = doc.id; posts.push(d);
         });
+        posts.sort(function (a, b) { return getTimestamp(b) - getTimestamp(a); });
+        posts = posts.slice(0, 9);
+
+        if (loading) loading.classList.add('hidden');
+        if (!posts.length) { if (empty) empty.classList.remove('hidden'); return; }
+        var html = '';
+        posts.forEach(function (p) { html += renderNewsCard(p); });
+        grid.innerHTML = html;
+      })
+      .catch(function (err) {
+        console.error('Lỗi tải tin tức:', err);
+        if (loading) loading.classList.add('hidden');
+        if (empty) empty.classList.remove('hidden');
+      });
+  }
+
+  function loadHomeAnnouncements() {
+    var list = document.getElementById('announcementList');
+    if (!list || !db) return;
+    var loading = document.getElementById('annLoading');
+    var empty = document.getElementById('annEmpty');
+
+    db.collection(POSTS_COLLECTION).where('type', '==', 'announcement').get()
+      .then(function (snap) {
+        var posts = [];
+        snap.forEach(function (doc) {
+          var d = doc.data(); d.id = doc.id; posts.push(d);
+        });
+        posts.sort(function (a, b) { return getTimestamp(b) - getTimestamp(a); });
+        posts = posts.slice(0, 6);
+
+        if (loading) loading.classList.add('hidden');
+        if (!posts.length) { if (empty) empty.classList.remove('hidden'); return; }
+        var html = '';
+        posts.forEach(function (p) { html += renderAnnouncementItem(p); });
+        list.innerHTML = html;
+      })
+      .catch(function (err) {
+        console.error('Lỗi tải thông báo:', err);
+        if (loading) loading.classList.add('hidden');
+        if (empty) empty.classList.remove('hidden');
+      });
+  }
+
+  /* -------------------------------------------------------
+     13. TRANG TIN TỨC — LOAD MORE
+     ------------------------------------------------------- */
+  function initArchiveNewsPage() {
+    var grid = document.getElementById('archiveNewsGrid');
+    if (!grid || !db) return;
+
+    var loadingEl = document.getElementById('archiveNewsLoading');
+    var emptyEl = document.getElementById('archiveNewsEmpty');
+    var contentEl = document.getElementById('archiveNewsContent');
+    var loadMoreWrap = document.getElementById('archiveNewsLoadMoreWrap');
+    var loadMoreBtn = document.getElementById('archiveNewsLoadMore');
+    var counterEl = document.getElementById('archiveNewsCounter');
+    var endEl = document.getElementById('archiveNewsEnd');
+
+    var allPosts = [];
+    var shown = 0;
+
+    function renderChunk() {
+      var next = allPosts.slice(shown, shown + PAGE_SIZE);
+      var html = '';
+      next.forEach(function (p) { html += renderNewsCard(p); });
+      grid.insertAdjacentHTML('beforeend', html);
+      shown += next.length;
+
+      if (counterEl) {
+        counterEl.textContent = 'Đang hiển thị ' + shown + ' / ' + allPosts.length + ' tin tức';
       }
-      return;
+      if (shown >= allPosts.length) {
+        if (loadMoreWrap) loadMoreWrap.classList.add('hidden');
+        if (endEl) endEl.classList.remove('hidden');
+      } else {
+        if (loadMoreWrap) loadMoreWrap.classList.remove('hidden');
+        if (endEl) endEl.classList.add('hidden');
+      }
     }
 
-    var editingPostId = null;
-    var postsCache = {};
-
-    function showLoginError(msg) {
-      var errBox = document.getElementById('loginError');
-      if (!errBox) return;
-      errBox.textContent = msg;
-      errBox.classList.remove('hidden');
-    }
-    function hideLoginError() {
-      var errBox = document.getElementById('loginError');
-      if (!errBox) return;
-      errBox.textContent = '';
-      errBox.classList.add('hidden');
-    }
-    function showPostMessage(type, msg) {
-      if (!postMessage) return;
-      var cls = type === 'success'
-        ? 'bg-green-50 text-green-700 border border-green-200'
-        : 'bg-red-50 text-red-700 border border-red-200';
-      postMessage.className = 'text-sm rounded-lg p-3 ' + cls;
-      postMessage.textContent = msg;
-      postMessage.classList.remove('hidden');
-    }
-    function hidePostMessage() {
-      if (!postMessage) return;
-      postMessage.classList.add('hidden');
-      postMessage.textContent = '';
-    }
-
-    function updateFormByType() {
-      if (!postType) return;
-      var isNews = postType.value === 'news';
-      if (imageField) imageField.classList.toggle('hidden', !isNews);
-      if (driveField) driveField.classList.toggle('hidden', isNews);
-      if (postImage) postImage.required = isNews;
-      if (postDrive) postDrive.required = !isNews;
-    }
-
-    if (postType) {
-      postType.addEventListener('change', updateFormByType);
-      updateFormByType();
-    }
-
-    function resetFormState() {
-      editingPostId = null;
-      if (postFormHeading) postFormHeading.textContent = 'Đăng bài viết mới';
-      if (editingBadge) editingBadge.classList.add('hidden');
-      if (postSubmitLabel) postSubmitLabel.textContent = 'Đăng bài';
-      if (cancelEditBtn) cancelEditBtn.classList.add('hidden');
-      hidePostMessage();
-    }
-
-    function fillFormWithPost(post) {
-      editingPostId = post.id;
-      if (postType) postType.value = post.type || 'news';
-      updateFormByType();
-
-      document.getElementById('postTitle').value = post.title || '';
-      document.getElementById('postDesc').value = post.description || '';
-      if (postImage) postImage.value = post.imageUrl || '';
-      if (postDrive) postDrive.value = post.driveLink || '';
-
-      if (postFormHeading) postFormHeading.textContent = 'Cập nhật bài viết';
-      if (editingBadge) editingBadge.classList.remove('hidden');
-      if (postSubmitLabel) postSubmitLabel.textContent = 'Cập nhật';
-      if (cancelEditBtn) cancelEditBtn.classList.remove('hidden');
-      hidePostMessage();
-
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-
-    if (cancelEditBtn) {
-      cancelEditBtn.addEventListener('click', function () {
-        if (postForm) postForm.reset();
-        resetFormState();
-        updateFormByType();
-      });
-    }
-    if (resetFormBtn) {
-      resetFormBtn.addEventListener('click', function () {
+    if (loadMoreBtn) {
+      loadMoreBtn.addEventListener('click', function () {
+        loadMoreBtn.disabled = true;
+        loadMoreBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1.5"></i> Đang tải...';
         setTimeout(function () {
-          resetFormState();
-          updateFormByType();
-        }, 0);
+          renderChunk();
+          loadMoreBtn.disabled = false;
+          loadMoreBtn.innerHTML = '<i class="fa-solid fa-circle-plus mr-1.5"></i> Tải thêm tin tức';
+        }, 150);
       });
     }
 
-    function showLoggedIn(user) {
-      if (loginSection) loginSection.classList.add('hidden');
-      if (adminSection) adminSection.classList.remove('hidden');
-      if (currentUserEmail) currentUserEmail.textContent = user.email || '(không có email)';
-      loadRecentPosts();
-    }
-    function showLoggedOut() {
-      if (loginSection) loginSection.classList.remove('hidden');
-      if (adminSection) adminSection.classList.add('hidden');
-      if (currentUserEmail) currentUserEmail.textContent = '—';
-      hideLoginError();
-      resetFormState();
+    db.collection(POSTS_COLLECTION).where('type', '==', 'news').get()
+      .then(function (snap) {
+        snap.forEach(function (doc) {
+          var d = doc.data(); d.id = doc.id; allPosts.push(d);
+        });
+        allPosts.sort(function (a, b) { return getTimestamp(b) - getTimestamp(a); });
+
+        if (loadingEl) loadingEl.classList.add('hidden');
+        if (!allPosts.length) {
+          if (emptyEl) emptyEl.classList.remove('hidden');
+          return;
+        }
+        if (contentEl) contentEl.classList.remove('hidden');
+        renderChunk();
+      })
+      .catch(function (err) {
+        console.error('Lỗi tải tin tức:', err);
+        if (loadingEl) loadingEl.classList.add('hidden');
+        if (emptyEl) emptyEl.classList.remove('hidden');
+      });
+  }
+
+  /* -------------------------------------------------------
+     14. TRANG THÔNG BÁO — LOAD MORE
+     ------------------------------------------------------- */
+  function initArchiveAnnPage() {
+    var list = document.getElementById('archiveAnnList');
+    if (!list || !db) return;
+
+    var loadingEl = document.getElementById('archiveAnnLoading');
+    var emptyEl = document.getElementById('archiveAnnEmpty');
+    var contentEl = document.getElementById('archiveAnnContent');
+    var loadMoreWrap = document.getElementById('archiveAnnLoadMoreWrap');
+    var loadMoreBtn = document.getElementById('archiveAnnLoadMore');
+    var counterEl = document.getElementById('archiveAnnCounter');
+    var endEl = document.getElementById('archiveAnnEnd');
+
+    var allPosts = [];
+    var shown = 0;
+
+    function renderChunk() {
+      var next = allPosts.slice(shown, shown + PAGE_SIZE);
+      var html = '';
+      next.forEach(function (p) { html += renderAnnouncementItem(p); });
+      list.insertAdjacentHTML('beforeend', html);
+      shown += next.length;
+
+      if (counterEl) {
+        counterEl.textContent = 'Đang hiển thị ' + shown + ' / ' + allPosts.length + ' văn bản – thông báo';
+      }
+      if (shown >= allPosts.length) {
+        if (loadMoreWrap) loadMoreWrap.classList.add('hidden');
+        if (endEl) endEl.classList.remove('hidden');
+      } else {
+        if (loadMoreWrap) loadMoreWrap.classList.remove('hidden');
+        if (endEl) endEl.classList.add('hidden');
+      }
     }
 
-    auth.onAuthStateChanged(function (user) {
-      if (user) showLoggedIn(user);
-      else showLoggedOut();
-    });
+    if (loadMoreBtn) {
+      loadMoreBtn.addEventListener('click', function () {
+        loadMoreBtn.disabled = true;
+        loadMoreBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1.5"></i> Đang tải...';
+        setTimeout(function () {
+          renderChunk();
+          loadMoreBtn.disabled = false;
+          loadMoreBtn.innerHTML = '<i class="fa-solid fa-circle-plus mr-1.5"></i> Tải thêm văn bản – thông báo';
+        }, 150);
+      });
+    }
+
+    db.collection(POSTS_COLLECTION).where('type', '==', 'announcement').get()
+      .then(function (snap) {
+        snap.forEach(function (doc) {
+          var d = doc.data(); d.id = doc.id; allPosts.push(d);
+        });
+        allPosts.sort(function (a, b) { return getTimestamp(b) - getTimestamp(a); });
+
+        if (loadingEl) loadingEl.classList.add('hidden');
+        if (!allPosts.length) {
+          if (emptyEl) emptyEl.classList.remove('hidden');
+          return;
+        }
+        if (contentEl) contentEl.classList.remove('hidden');
+        renderChunk();
+      })
+      .catch(function (err) {
+        console.error('Lỗi tải thông báo:', err);
+        if (loadingEl) loadingEl.classList.add('hidden');
+        if (emptyEl) emptyEl.classList.remove('hidden');
+      });
+  }
+
+  /* -------------------------------------------------------
+     15. ADMIN — AUTH + FORM + FILTER + SỬA/XÓA
+     ------------------------------------------------------- */
+  function initAdminPage() {
+    var loginView = document.getElementById('loginView');
+    var adminView = document.getElementById('adminView');
+    var adminUserBox = document.getElementById('adminUserBox');
+    var adminUserEmail = document.getElementById('adminUserEmail');
+    var logoutBtn = document.getElementById('logoutBtn');
+
+    var loginForm = document.getElementById('loginForm');
+    var loginEmail = document.getElementById('loginEmail');
+    var loginPassword = document.getElementById('loginPassword');
+    var loginBtn = document.getElementById('loginBtn');
+    var loginAlert = document.getElementById('loginAlert');
+    var togglePwBtn = document.getElementById('togglePwBtn');
+    var togglePwIcon = document.getElementById('togglePwIcon');
+
+    var form = document.getElementById('postForm');
+    var postIdEl = document.getElementById('postId');
+    var typeEl = document.getElementById('postType');
+    var titleEl = document.getElementById('postTitle');
+    var imageEl = document.getElementById('postImage');
+    var linkEl = document.getElementById('postLink');
+    var sheetEl = document.getElementById('postSheet');
+    var contentEl = document.getElementById('postContent');
+
+    var fieldImage = document.getElementById('fieldImage');
+    var fieldLink = document.getElementById('fieldLink');
+    var fieldSheet = document.getElementById('fieldSheet');
+    var fieldContent = document.getElementById('fieldContent');
+
+    var formTitle = document.getElementById('formTitle');
+    var submitBtn = document.getElementById('submitBtn');
+    var cancelEdit = document.getElementById('cancelEdit');
+    var formAlert = document.getElementById('formAlert');
+
+    var postList = document.getElementById('postList');
+    var postListLoading = document.getElementById('postListLoading');
+    var postListEmpty = document.getElementById('postListEmpty');
+    var postListFilterEmpty = document.getElementById('postListFilterEmpty');
+    var reloadBtn = document.getElementById('reloadPosts');
+
+    /* --- Toolbar --- */
+    var searchInput = document.getElementById('adminSearchInput');
+    var searchClear = document.getElementById('adminSearchClear');
+    var typeFilter = document.getElementById('adminTypeFilter');
+    var resultInfo = document.getElementById('adminResultInfo');
+
+    /* Cache */
+    postList._allPosts = [];
+
+    /* --- Helpers hiển thị --- */
+    function showLoginView() {
+      if (loginView) loginView.classList.remove('hidden');
+      if (adminView) adminView.classList.add('hidden');
+      if (adminUserBox) {
+        adminUserBox.classList.add('hidden');
+        adminUserBox.classList.remove('flex');
+      }
+    }
+    function showAdminView(user) {
+      if (loginView) loginView.classList.add('hidden');
+      if (adminView) adminView.classList.remove('hidden');
+      if (adminUserBox) {
+        adminUserBox.classList.remove('hidden');
+        adminUserBox.classList.add('flex');
+      }
+      if (adminUserEmail && user) adminUserEmail.textContent = user.email || '—';
+    }
+
+    function showAlert(el, type, message) {
+      if (!el) return;
+      el.classList.remove(
+        'hidden',
+        'bg-red-50', 'text-red-700', 'border', 'border-red-200',
+        'bg-green-50', 'text-green-700', 'border', 'border-green-200'
+      );
+      if (type === 'success') {
+        el.classList.add('bg-green-50', 'text-green-700', 'border', 'border-green-200');
+      } else {
+        el.classList.add('bg-red-50', 'text-red-700', 'border', 'border-red-200');
+      }
+      el.textContent = message;
+      setTimeout(function () { el.classList.add('hidden'); }, 5000);
+    }
+
+    /* --- Login --- */
+    if (togglePwBtn && loginPassword && togglePwIcon) {
+      togglePwBtn.addEventListener('click', function () {
+        var isPw = loginPassword.type === 'password';
+        loginPassword.type = isPw ? 'text' : 'password';
+        togglePwIcon.className = isPw ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye';
+      });
+    }
 
     if (loginForm) {
       loginForm.addEventListener('submit', function (e) {
         e.preventDefault();
-        hideLoginError();
+        if (!auth) { showAlert(loginAlert, 'error', 'Firebase Auth chưa sẵn sàng.'); return; }
 
-        var email = document.getElementById('loginEmail').value.trim();
-        var password = document.getElementById('loginPassword').value;
-        var btn = document.getElementById('loginBtn');
-
+        var email = (loginEmail.value || '').trim();
+        var password = loginPassword.value || '';
         if (!email || !password) {
-          showLoginError('Vui lòng nhập đầy đủ email và mật khẩu.');
+          showAlert(loginAlert, 'error', 'Vui lòng nhập đầy đủ email và mật khẩu.');
           return;
         }
 
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1.5"></i> Đang đăng nhập...';
+        if (loginBtn) {
+          loginBtn.disabled = true;
+          loginBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1.5"></i> Đang đăng nhập...';
+        }
 
         auth.signInWithEmailAndPassword(email, password)
-          .then(function () { loginForm.reset(); })
+          .then(function () {
+            if (loginForm) loginForm.reset();
+          })
           .catch(function (err) {
+            console.error('Lỗi đăng nhập:', err);
             var msg = 'Đăng nhập thất bại.';
-            if (err && err.code === 'auth/invalid-credential') msg = 'Email hoặc mật khẩu không đúng.';
-            else if (err && err.code === 'auth/user-not-found') msg = 'Tài khoản không tồn tại.';
-            else if (err && err.code === 'auth/wrong-password') msg = 'Mật khẩu không đúng.';
-            else if (err && err.code === 'auth/invalid-email') msg = 'Email không hợp lệ.';
-            else if (err && err.code === 'auth/too-many-requests') msg = 'Quá nhiều lần thử. Vui lòng thử lại sau.';
+            var code = err && err.code ? err.code : '';
+            if (code === 'auth/invalid-email') msg = 'Email không hợp lệ.';
+            else if (code === 'auth/user-not-found') msg = 'Không tìm thấy tài khoản với email này.';
+            else if (code === 'auth/wrong-password') msg = 'Mật khẩu không đúng.';
+            else if (code === 'auth/invalid-credential') msg = 'Email hoặc mật khẩu không đúng.';
+            else if (code === 'auth/too-many-requests') msg = 'Quá nhiều lần thử. Vui lòng thử lại sau.';
+            else if (code === 'auth/network-request-failed') msg = 'Lỗi kết nối mạng. Vui lòng kiểm tra Internet.';
             else if (err && err.message) msg = err.message;
-            showLoginError(msg);
+            showAlert(loginAlert, 'error', msg);
           })
           .finally(function () {
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fa-solid fa-right-to-bracket mr-1.5"></i> Đăng nhập';
+            if (loginBtn) {
+              loginBtn.disabled = false;
+              loginBtn.innerHTML = '<i class="fa-solid fa-right-to-bracket mr-1.5"></i> Đăng nhập';
+            }
           });
       });
     }
 
+    /* --- Logout --- */
     if (logoutBtn) {
       logoutBtn.addEventListener('click', function () {
-        auth.signOut().catch(function (err) {
-          console.error('[Auth] Lỗi đăng xuất:', err);
-        });
+        if (!auth) return;
+        var ok = window.confirm('Bạn có chắc chắn muốn đăng xuất?');
+        if (!ok) return;
+        auth.signOut()
+          .then(function () { window.scrollTo({ top: 0, behavior: 'smooth' }); })
+          .catch(function (err) {
+            console.error('Lỗi đăng xuất:', err);
+            window.alert('Không thể đăng xuất: ' + (err.message || 'Lỗi không xác định'));
+          });
       });
     }
 
-    if (postForm) {
-      postForm.addEventListener('submit', function (e) {
-        e.preventDefault();
-        hidePostMessage();
+    if (!form) return;
 
-        var user = auth.currentUser;
-        if (!user) {
-          showPostMessage('error', 'Bạn cần đăng nhập để đăng bài.');
-          return;
-        }
+    /* --- Fields visibility --- */
+    function updateFieldsVisibility() {
+      var type = typeEl.value;
+      if (type === 'announcement') {
+        fieldImage.classList.add('hidden');
+        fieldLink.classList.remove('hidden');
+        fieldSheet.classList.add('hidden');
+        fieldContent.classList.remove('hidden');
+        linkEl.setAttribute('required', 'required');
+        sheetEl.removeAttribute('required');
+        imageEl.removeAttribute('required');
+        contentEl.removeAttribute('required');
+      } else if (type === 'timetable' || type === 'exam') {
+        fieldImage.classList.add('hidden');
+        fieldLink.classList.add('hidden');
+        fieldSheet.classList.remove('hidden');
+        fieldContent.classList.add('hidden');
+        sheetEl.setAttribute('required', 'required');
+        linkEl.removeAttribute('required');
+        imageEl.removeAttribute('required');
+        contentEl.removeAttribute('required');
+      } else {
+        fieldImage.classList.remove('hidden');
+        fieldLink.classList.add('hidden');
+        fieldSheet.classList.add('hidden');
+        fieldContent.classList.remove('hidden');
+        linkEl.removeAttribute('required');
+        sheetEl.removeAttribute('required');
+        imageEl.removeAttribute('required');
+        contentEl.removeAttribute('required');
+      }
+    }
 
-        var type = postType.value;
-        var title = document.getElementById('postTitle').value.trim();
-        var description = document.getElementById('postDesc').value.trim();
-        var imageUrl = postImage ? postImage.value.trim() : '';
-        var driveLink = postDrive ? postDrive.value.trim() : '';
+    function resetForm() {
+      form.reset();
+      if (postIdEl) postIdEl.value = '';
+      if (formTitle) formTitle.innerHTML = '<i class="fa-solid fa-pen-to-square text-brand-gold"></i> Đăng bài mới';
+      if (submitBtn) submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane mr-1.5"></i> Đăng bài';
+      if (cancelEdit) cancelEdit.classList.add('hidden');
+      updateFieldsVisibility();
+    }
 
-        if (!title || !description) {
-          showPostMessage('error', 'Vui lòng nhập tiêu đề và mô tả ngắn.');
-          return;
-        }
-        if (type === 'news' && !imageUrl) {
-          showPostMessage('error', 'Vui lòng nhập link ảnh cho bài Tin tức.');
-          return;
-        }
-        if (type === 'notice' && !driveLink) {
-          showPostMessage('error', 'Vui lòng nhập link Google Drive cho bài Thông báo.');
-          return;
-        }
+    typeEl.addEventListener('change', updateFieldsVisibility);
+    updateFieldsVisibility();
 
-        var payload = {
-          type: type,
-          title: title,
-          description: description,
-          imageUrl: type === 'news' ? imageUrl : '',
-          driveLink: type === 'notice' ? driveLink : '',
-          authorEmail: user.email || ''
-        };
+    if (cancelEdit) cancelEdit.addEventListener('click', function () { resetForm(); });
 
-        var submitBtn = document.getElementById('postSubmitBtn');
+    /* --- Submit --- */
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+
+      if (!auth || !auth.currentUser) {
+        showAlert(formAlert, 'error', 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+        return;
+      }
+      if (!db) { showAlert(formAlert, 'error', 'Firebase chưa sẵn sàng.'); return; }
+
+      var id = (postIdEl.value || '').trim();
+      var type = typeEl.value;
+      var title = (titleEl.value || '').trim();
+      if (!title) {
+        showAlert(formAlert, 'error', 'Vui lòng nhập tiêu đề.');
+        titleEl.focus();
+        return;
+      }
+
+      var data = {
+        type: type,
+        title: title,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
+
+      if (type === 'announcement') {
+        var link = (linkEl.value || '').trim();
+        if (!link) { showAlert(formAlert, 'error', 'Vui lòng nhập link Google Drive văn bản.'); linkEl.focus(); return; }
+        data.link = link;
+        data.content = (contentEl.value || '').trim();
+        data.image = ''; data.sheetLink = ''; data.excerpt = '';
+      } else if (type === 'timetable' || type === 'exam') {
+        var sheet = (sheetEl.value || '').trim();
+        if (!sheet) { showAlert(formAlert, 'error', 'Vui lòng nhập link Google Sheets.'); sheetEl.focus(); return; }
+        data.sheetLink = sheet;
+        data.link = ''; data.content = ''; data.image = ''; data.excerpt = '';
+      } else {
+        data.image = (imageEl.value || '').trim();
+        data.content = (contentEl.value || '').trim();
+        data.excerpt = stripHTML(data.content).slice(0, 200);
+        data.link = ''; data.sheetLink = '';
+      }
+
+      var p;
+      if (id) {
+        p = db.collection(POSTS_COLLECTION).doc(id).update(data);
+      } else {
+        data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+        p = db.collection(POSTS_COLLECTION).add(data);
+      }
+
+      if (submitBtn) {
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1.5"></i> Đang lưu...';
+      }
 
-        var promise;
-        if (editingPostId) {
-          payload.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
-          promise = db.collection('posts').doc(editingPostId).update(payload);
-        } else {
-          payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-          promise = db.collection('posts').add(payload);
+      p.then(function () {
+        showAlert(formAlert, 'success', id ? 'Cập nhật bài viết thành công!' : 'Đăng bài thành công!');
+        resetForm();
+        loadAdminPosts();
+      }).catch(function (err) {
+        console.error('Lỗi lưu bài:', err);
+        var msg = 'Lỗi: ' + (err.message || 'Không thể lưu.');
+        if (err && err.code === 'permission-denied') msg = 'Không có quyền ghi dữ liệu. Vui lòng kiểm tra đăng nhập.';
+        showAlert(formAlert, 'error', msg);
+      }).finally(function () {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = id
+            ? '<i class="fa-solid fa-paper-plane mr-1.5"></i> Cập nhật'
+            : '<i class="fa-solid fa-paper-plane mr-1.5"></i> Đăng bài';
         }
-
-        promise
-          .then(function () {
-            showPostMessage('success', editingPostId ? 'Đã cập nhật bài viết thành công!' : 'Đã đăng bài thành công!');
-            postForm.reset();
-            resetFormState();
-            updateFormByType();
-            loadRecentPosts();
-          })
-          .catch(function (err) {
-            console.error('[Firestore] Lỗi lưu bài viết:', err);
-            showPostMessage('error', 'Không thể lưu bài viết. Vui lòng kiểm tra quyền Firestore. (' + (err.message || '') + ')');
-          })
-          .finally(function () {
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane mr-1.5"></i> <span id="postSubmitLabel">' +
-              (editingPostId ? 'Cập nhật' : 'Đăng bài') + '</span>';
-          });
       });
+    });
+
+    /* --- Helpers badge --- */
+    function typeLabel(t) {
+      if (t === 'announcement') return 'Thông báo';
+      if (t === 'timetable') return 'Thời khóa biểu';
+      if (t === 'exam') return 'Kết quả thi';
+      return 'Tin tức';
+    }
+    function typeClass(t) {
+      if (t === 'announcement') return 'badge-ann';
+      if (t === 'timetable') return 'badge-tkb';
+      if (t === 'exam') return 'badge-exam';
+      return 'badge-news';
     }
 
-    async function deletePost(postId) {
-      if (!confirm('Bạn có chắc chắn muốn xóa bài viết này? Hành động này không thể hoàn tác.')) return;
-      try {
-        await db.collection('posts').doc(postId).delete();
-        if (editingPostId === postId) {
-          if (postForm) postForm.reset();
-          resetFormState();
-          updateFormByType();
+    function renderAdminItem(post) {
+      var id = post.id;
+      var title = escapeHTML(post.title || '(Không có tiêu đề)');
+      var dateStr = formatDateFullVN(
+        post.createdAt && post.createdAt.toDate ? post.createdAt.toDate() : post.createdAt
+      );
+      var t = post.type || 'news';
+
+      return '' +
+        '<div class="admin-item" data-id="' + escapeHTML(id) + '">' +
+          '<div class="admin-item-main">' +
+            '<span class="admin-badge ' + typeClass(t) + '">' + escapeHTML(typeLabel(t)) + '</span>' +
+            '<h4 class="admin-item-title">' + title + '</h4>' +
+            '<p class="admin-item-meta"><i class="fa-regular fa-clock mr-1"></i>' + escapeHTML(dateStr) + '</p>' +
+          '</div>' +
+          '<div class="admin-item-actions">' +
+            '<button type="button" class="admin-btn admin-btn-edit" data-action="edit" data-id="' + escapeHTML(id) + '" title="Sửa">' +
+              '<i class="fa-solid fa-pen"></i><span class="hidden sm:inline ml-1">Sửa</span>' +
+            '</button>' +
+            '<button type="button" class="admin-btn admin-btn-del" data-action="delete" data-id="' + escapeHTML(id) + '" title="Xóa">' +
+              '<i class="fa-solid fa-trash"></i><span class="hidden sm:inline ml-1">Xóa</span>' +
+            '</button>' +
+          '</div>' +
+        '</div>';
+    }
+
+    /* --- Filter + Render --- */
+    function applyFiltersAndRender() {
+      var all = postList._allPosts || [];
+      var keyword = (searchInput && searchInput.value ? searchInput.value : '').toLowerCase().trim();
+      var typeVal = (typeFilter && typeFilter.value) ? typeFilter.value : 'all';
+
+      var filtered = all.filter(function (p) {
+        var matchType = (typeVal === 'all') || (p.type === typeVal);
+        var matchKeyword = !keyword || ((p.title || '').toLowerCase().indexOf(keyword) !== -1);
+        return matchType && matchKeyword;
+      });
+
+      // Ẩn / hiện các khối trạng thái
+      if (postListLoading) postListLoading.classList.add('hidden');
+      if (postListEmpty) postListEmpty.classList.add('hidden');
+      if (postListFilterEmpty) postListFilterEmpty.classList.add('hidden');
+
+      if (!all.length) {
+        if (postListEmpty) postListEmpty.classList.remove('hidden');
+        postList.innerHTML = '';
+        if (resultInfo) resultInfo.classList.add('hidden');
+        return;
+      }
+
+      if (!filtered.length) {
+        if (postListFilterEmpty) postListFilterEmpty.classList.remove('hidden');
+        postList.innerHTML = '';
+        if (resultInfo) {
+          resultInfo.classList.remove('hidden');
+          resultInfo.textContent = 'Kết quả: 0 / ' + all.length + ' bài viết';
         }
-        loadRecentPosts();
-      } catch (err) {
-        console.error('[Firestore] Lỗi xóa bài viết:', err);
-        alert('Không thể xóa bài viết. Vui lòng thử lại.');
+        return;
+      }
+
+      var html = '';
+      filtered.forEach(function (p) { html += renderAdminItem(p); });
+      postList.innerHTML = html;
+
+      if (resultInfo) {
+        resultInfo.classList.remove('hidden');
+        var isFiltered = (keyword || typeVal !== 'all');
+        resultInfo.textContent = isFiltered
+          ? 'Kết quả: ' + filtered.length + ' / ' + all.length + ' bài viết'
+          : 'Tổng cộng: ' + all.length + ' bài viết';
       }
     }
 
-    async function editPost(postId) {
-      try {
-        var docRef = db.collection('posts').doc(postId);
-        var docSnap = await docRef.get();
-        if (!docSnap.exists) {
-          alert('Bài viết không tồn tại hoặc đã bị xóa.');
-          loadRecentPosts();
-          return;
-        }
-        var data = docSnap.data() || {};
-        fillFormWithPost({
-          id: docSnap.id,
-          type: data.type || 'news',
-          title: data.title || '',
-          description: data.description || '',
-          imageUrl: data.imageUrl || '',
-          driveLink: data.driveLink || ''
-        });
-      } catch (err) {
-        console.error('[Firestore] Lỗi tải bài viết:', err);
-        alert('Không thể tải bài viết để sửa.');
-      }
-    }
+    /* --- Load all posts (1 lần) --- */
+    window.loadAdminPosts = function () {
+      if (!db) return;
+      if (postListLoading) postListLoading.classList.remove('hidden');
+      if (postListEmpty) postListEmpty.classList.add('hidden');
+      if (postListFilterEmpty) postListFilterEmpty.classList.add('hidden');
+      if (resultInfo) resultInfo.classList.add('hidden');
+      postList.innerHTML = '';
 
-    async function loadRecentPosts() {
-      if (!recentPostsList) return;
-      recentPostsList.innerHTML =
-        '<li class="text-sm text-brand-muted py-3 text-center">' +
-          '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Đang tải...' +
-        '</li>';
-
-      try {
-        var snap = await db.collection('posts').get();
-        var all = [];
-        snap.forEach(function (doc) {
-          var d = doc.data() || {};
-          all.push({
-            id: doc.id,
-            type: d.type || '',
-            title: d.title || '',
-            createdAt: d.createdAt || null
+      db.collection(POSTS_COLLECTION).get()
+        .then(function (snap) {
+          var posts = [];
+          snap.forEach(function (doc) {
+            var d = doc.data(); d.id = doc.id; posts.push(d);
           });
+          posts.sort(function (a, b) { return getTimestamp(b) - getTimestamp(a); });
+          postList._allPosts = posts;
+
+          if (postListLoading) postListLoading.classList.add('hidden');
+
+          if (!posts.length) {
+            if (postListEmpty) postListEmpty.classList.remove('hidden');
+            if (resultInfo) resultInfo.classList.add('hidden');
+            return;
+          }
+          applyFiltersAndRender();
+        })
+        .catch(function (err) {
+          console.error('Lỗi tải danh sách:', err);
+          if (postListLoading) postListLoading.classList.add('hidden');
+          if (postListEmpty) postListEmpty.classList.remove('hidden');
+          showAlert(formAlert, 'error', 'Không thể tải danh sách: ' + (err.message || 'Lỗi không xác định'));
         });
-
-        all.sort(function (a, b) {
-          var ta = a.createdAt && typeof a.createdAt.toMillis === 'function' ? a.createdAt.toMillis() : 0;
-          var tb = b.createdAt && typeof b.createdAt.toMillis === 'function' ? b.createdAt.toMillis() : 0;
-          return tb - ta;
-        });
-
-        if (all.length === 0) {
-          recentPostsList.innerHTML =
-            '<li class="text-sm text-brand-muted py-3 text-center">' +
-              '<i class="fa-regular fa-folder-open mr-2"></i>Chưa có bài viết nào.' +
-            '</li>';
-          return;
-        }
-
-        recentPostsList.innerHTML = all.slice(0, 20).map(function (p) {
-          var isNews = p.type === 'news';
-          var icon = isNews ? 'fa-newspaper' : 'fa-file-lines';
-          var label = isNews ? 'Tin tức' : 'Thông báo';
-          var labelCls = isNews ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700';
-          var date = formatDate(p.createdAt);
-
-          return '' +
-            '<li class="py-3 border-b border-brand-border last:border-b-0">' +
-              '<div class="flex items-start gap-3">' +
-                '<div class="flex-1 min-w-0">' +
-                  '<p class="text-sm font-semibold text-brand-navy leading-snug break-words">' +
-                    escapeHtml(p.title) +
-                  '</p>' +
-                  '<p class="text-xs text-brand-muted mt-1 flex flex-wrap items-center gap-2">' +
-                    '<span class="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ' + labelCls + '">' +
-                      '<i class="fa-solid ' + icon + '"></i> ' + label +
-                    '</span>' +
-                    '<span><i class="fa-regular fa-calendar mr-1"></i>' + date + '</span>' +
-                  '</p>' +
-                '</div>' +
-                '<div class="flex gap-1.5 shrink-0">' +
-                  '<button type="button" class="edit-btn w-9 h-9 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white flex items-center justify-center transition" data-id="' + escapeAttr(p.id) + '" title="Sửa bài viết" aria-label="Sửa">' +
-                    '<i class="fa-solid fa-pen text-xs"></i>' +
-                  '</button>' +
-                  '<button type="button" class="delete-btn w-9 h-9 rounded-lg bg-red-50 text-red-600 hover:bg-red-600 hover:text-white flex items-center justify-center transition" data-id="' + escapeAttr(p.id) + '" title="Xóa bài viết" aria-label="Xóa">' +
-                    '<i class="fa-solid fa-trash text-xs"></i>' +
-                  '</button>' +
-                '</div>' +
-              '</div>' +
-            '</li>';
-        }).join('');
-
-        recentPostsList.querySelectorAll('.edit-btn').forEach(function (btn) {
-          btn.addEventListener('click', function () {
-            editPost(btn.getAttribute('data-id'));
-          });
-        });
-        recentPostsList.querySelectorAll('.delete-btn').forEach(function (btn) {
-          btn.addEventListener('click', function () {
-            deletePost(btn.getAttribute('data-id'));
-          });
-        });
-
-      } catch (err) {
-        console.error('[Firestore] Lỗi tải bài viết gần đây:', err);
-        recentPostsList.innerHTML =
-          '<li class="text-sm text-red-600 py-3 text-center">' +
-            '<i class="fa-solid fa-triangle-exclamation mr-2"></i>Không tải được danh sách.' +
-          '</li>';
-      }
-    }
-
-    updateFormByType();
-  }
-
-  /* =========================================================
-     TRANG THỜI KHÓA BIỂU & KẾT QUẢ THI
-     ========================================================= */
-  function initIframePage(frameId, reloadBtnId) {
-    var frame = document.getElementById(frameId);
-    var reloadBtn = document.getElementById(reloadBtnId);
-    if (!frame) return;
+    };
 
     if (reloadBtn) {
       reloadBtn.addEventListener('click', function () {
-        var currentSrc = frame.src;
-        frame.src = 'about:blank';
-        setTimeout(function () { frame.src = currentSrc; }, 120);
+        if (searchInput) searchInput.value = '';
+        if (searchClear) searchClear.classList.add('hidden');
+        if (typeFilter) typeFilter.value = 'all';
+        window.loadAdminPosts();
       });
     }
+
+    /* --- Toolbar events --- */
+    if (searchInput) {
+      searchInput.addEventListener('input', function () {
+        if (searchClear) {
+          if (searchInput.value.trim()) searchClear.classList.remove('hidden');
+          else searchClear.classList.add('hidden');
+        }
+        applyFiltersAndRender();
+      });
+    }
+    if (searchClear) {
+      searchClear.addEventListener('click', function () {
+        if (searchInput) { searchInput.value = ''; searchInput.focus(); }
+        searchClear.classList.add('hidden');
+        applyFiltersAndRender();
+      });
+    }
+    if (typeFilter) {
+      typeFilter.addEventListener('change', function () {
+        applyFiltersAndRender();
+      });
+    }
+
+    /* --- Delegate: Sửa / Xóa --- */
+    if (postList) {
+      postList.addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-action]');
+        if (!btn) return;
+        var action = btn.getAttribute('data-action');
+        var id = btn.getAttribute('data-id');
+        if (!id) return;
+
+        var posts = postList._allPosts || [];
+        var post = null;
+        for (var i = 0; i < posts.length; i++) {
+          if (posts[i].id === id) { post = posts[i]; break; }
+        }
+        if (!post) return;
+
+        if (action === 'edit') {
+          if (postIdEl) postIdEl.value = id;
+          typeEl.value = post.type || 'news';
+          titleEl.value = post.title || '';
+          imageEl.value = post.image || '';
+          linkEl.value = post.link || '';
+          sheetEl.value = post.sheetLink || '';
+          contentEl.value = post.content || '';
+          updateFieldsVisibility();
+
+          if (formTitle) formTitle.innerHTML = '<i class="fa-solid fa-pen-to-square text-brand-gold"></i> Cập nhật bài viết';
+          if (submitBtn) submitBtn.innerHTML = '<i class="fa-solid fa-floppy-disk mr-1.5"></i> Cập nhật';
+          if (cancelEdit) cancelEdit.classList.remove('hidden');
+
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        } else if (action === 'delete') {
+          var ok = window.confirm('Bạn có chắc chắn muốn xóa bài viết "' + (post.title || '(không tiêu đề)') + '"?\nHành động này không thể hoàn tác.');
+          if (!ok) return;
+
+          db.collection(POSTS_COLLECTION).doc(id).delete()
+            .then(function () {
+              showAlert(formAlert, 'success', 'Đã xóa bài viết.');
+              if (postIdEl && postIdEl.value === id) resetForm();
+              window.loadAdminPosts();
+            })
+            .catch(function (err) {
+              console.error('Lỗi xóa:', err);
+              var msg = 'Lỗi xóa: ' + (err.message || 'Không thể xóa.');
+              if (err && err.code === 'permission-denied') msg = 'Không có quyền xóa. Vui lòng kiểm tra đăng nhập.';
+              showAlert(formAlert, 'error', msg);
+            });
+        }
+      });
+    }
+
+    /* --- Auth state --- */
+    if (!auth) {
+      showLoginView();
+      showAlert(loginAlert, 'error', 'Firebase Authentication chưa sẵn sàng. Vui lòng tải lại trang.');
+      return;
+    }
+
+    auth.onAuthStateChanged(function (user) {
+      if (user) {
+        showAdminView(user);
+        window.loadAdminPosts();
+      } else {
+        showLoginView();
+        postList.innerHTML = '';
+        postList._allPosts = [];
+        if (postListEmpty) postListEmpty.classList.add('hidden');
+        if (postListFilterEmpty) postListFilterEmpty.classList.add('hidden');
+        if (postListLoading) postListLoading.classList.add('hidden');
+        if (resultInfo) resultInfo.classList.add('hidden');
+        if (searchInput) searchInput.value = '';
+        if (searchClear) searchClear.classList.add('hidden');
+        if (typeFilter) typeFilter.value = 'all';
+        resetForm();
+      }
+    });
   }
 
-  /* =========================================================
-     INIT
-     ========================================================= */
+  /* -------------------------------------------------------
+     16. TRANG TKB / KẾT QUẢ THI — LỊCH SỬ
+     ------------------------------------------------------- */
+  function initSheetHistoryPage(opts) {
+    var container = document.getElementById(opts.contentId);
+    if (!container || !db) return;
+
+    var loadingEl = document.getElementById(opts.loadingId);
+    var emptyEl = document.getElementById(opts.emptyId);
+    var selectEl = document.getElementById(opts.selectId);
+    var iframeEl = document.getElementById(opts.iframeId);
+    var titleEl = document.getElementById(opts.titleId);
+    var dateEl = document.getElementById(opts.dateId);
+    var openNewEl = document.getElementById(opts.openNewId);
+
+    var posts = [];
+
+    function renderCurrent(index) {
+      var post = posts[index];
+      if (!post) return;
+      var url = post.sheetLink || '';
+      if (iframeEl) iframeEl.src = toSheetsEmbed(url);
+      if (titleEl) titleEl.textContent = post.title || '—';
+      if (dateEl) {
+        dateEl.textContent = formatDateVN(
+          post.createdAt && post.createdAt.toDate ? post.createdAt.toDate() : post.createdAt
+        );
+      }
+      if (openNewEl) openNewEl.href = url || '#';
+    }
+
+    db.collection(POSTS_COLLECTION).where('type', '==', opts.type).get()
+      .then(function (snap) {
+        snap.forEach(function (doc) {
+          var d = doc.data(); d.id = doc.id; posts.push(d);
+        });
+        posts.sort(function (a, b) { return getTimestamp(b) - getTimestamp(a); });
+        if (loadingEl) loadingEl.classList.add('hidden');
+
+        if (!posts.length) {
+          if (emptyEl) emptyEl.classList.remove('hidden');
+          return;
+        }
+
+        var optionsHtml = '';
+        posts.forEach(function (p, i) {
+          var d = formatDateVN(p.createdAt && p.createdAt.toDate ? p.createdAt.toDate() : p.createdAt);
+          optionsHtml += '<option value="' + i + '">' +
+            escapeHTML((p.title || '(Không tiêu đề)') + ' — ' + d) +
+            '</option>';
+        });
+        if (selectEl) {
+          selectEl.innerHTML = optionsHtml;
+          selectEl.value = '0';
+          selectEl.addEventListener('change', function () {
+            var idx = parseInt(selectEl.value, 10) || 0;
+            renderCurrent(idx);
+          });
+        }
+        container.classList.remove('hidden');
+        renderCurrent(0);
+      })
+      .catch(function (err) {
+        console.error('Lỗi tải dữ liệu:', err);
+        if (loadingEl) loadingEl.classList.add('hidden');
+        if (emptyEl) emptyEl.classList.remove('hidden');
+      });
+  }
+
+  /* -------------------------------------------------------
+     17. INIT
+     ------------------------------------------------------- */
   document.addEventListener('DOMContentLoaded', function () {
     updateCurrentDate();
     updateFooterYear();
@@ -947,11 +1238,40 @@
     initAudioPlayer();
     initBackToTop();
     initSmoothAnchorScroll();
-    initDocModal();
-    loadHomePosts();
-    initAdminPage();
-    initIframePage('tkbFrame', 'reloadTkbBtn');
-    initIframePage('kqtFrame', 'reloadKqtBtn');
+    initModalEvents();
+    initDocModalDelegate();
+
+    var path = window.location.pathname.split('/').pop() || 'index.html';
+
+    if (path === '' || path === 'index.html') {
+      loadHomeNews();
+      loadHomeAnnouncements();
+    }
+    if (path === 'tintuc.html') {
+      initArchiveNewsPage();
+    }
+    if (path === 'thongbao.html') {
+      initArchiveAnnPage();
+    }
+    if (path === 'admin.html') {
+      initAdminPage();
+    }
+    if (path === 'thoikhoabieu.html') {
+      initSheetHistoryPage({
+        type: 'timetable',
+        contentId: 'tkbContent', loadingId: 'tkbLoading', emptyId: 'tkbEmpty',
+        selectId: 'tkbSelect', iframeId: 'tkbFrame',
+        titleId: 'tkbTitle', dateId: 'tkbDate', openNewId: 'tkbOpenNew'
+      });
+    }
+    if (path === 'ketquathi.html') {
+      initSheetHistoryPage({
+        type: 'exam',
+        contentId: 'examContent', loadingId: 'examLoading', emptyId: 'examEmpty',
+        selectId: 'examSelect', iframeId: 'examFrame',
+        titleId: 'examTitle', dateId: 'examDate', openNewId: 'examOpenNew'
+      });
+    }
   });
 
 })();
