@@ -740,17 +740,23 @@
                     </div>
                     <div class="form-group">
                         <label>Tổ chuyên môn</label>
-                       <select id="teamId" class="form-control">
-                        <option value="">-- Chọn tổ chuyên môn --</option>
-                        <option value="toan_tin">Toán - Tin học</option>
-                        <option value="van">Văn</option>
-                        <option value="anh">Tiếng Anh</option>
-                        <option value="khtn">KHTN</option>
-                        <option value="khxh">KHXH</option>
-                        <option value="gdtc_nt">GDTC-NT</option>
-                        <option value="van_phong">Văn Phòng</option>
-                        <option value="demo">Tổ Demo (Test)</option>
-                    </select>
+                        <select id="teamId">
+                            <option value="">-- Không chọn --</option>
+                            <option value="toan">Toán</option>
+                            <option value="van">Văn</option>
+                            <option value="anh">Tiếng Anh</option>
+                            <option value="ly">Vật lý</option>
+                            <option value="hoa">Hóa học</option>
+                            <option value="sinh">Sinh học</option>
+                            <option value="su">Lịch sử</option>
+                            <option value="dia">Địa lý</option>
+                            <option value="gdcd">GDCD</option>
+                            <option value="theduc">Thể dục</option>
+                            <option value="congnghe">Công nghệ</option>
+                            <option value="tin">Tin học</option>
+                            <option value="khtn">KHTN</option>
+                            <option value="khxh">KHXH</option>
+                        </select>
                     </div>
                 </div>
 
@@ -982,48 +988,7 @@
                 messagingSenderId: "587548729744",
                 appId: "1:587548729744:web:0e8479fbf7305810e1d315"
             };
-            // ============================================================
-            // DANH SÁCH GIÁ TRỊ CHUẨN (VALID VALUES)
-            // Dùng cho cả việc tạo file Excel mẫu lẫn kiểm tra dữ liệu đầu vào
-            // Áp dụng cho Trường THCS-THPT Trần Trường Sinh
-            // ============================================================
 
-            // --- 5 PHÂN QUYỀN CHUẨN CỦA NHÀ TRƯỜNG ---
-            const VALID_ROLES = [
-                { code: 'admin',        label: 'Quản trị viên',  note: 'Toàn quyền hệ thống, quản lý tài khoản, cấu hình trường' },
-                { code: 'truong_to',    label: 'Tổ trưởng',      note: 'Tạo cuộc họp, giao việc, kết luận, chốt hồ sơ tổ mình' },
-                { code: 'to_pho',       label: 'Tổ phó',         note: 'Đặc quyền tương đương Tổ trưởng, hỗ trợ quản lý tổ' },
-                { code: 'nhom_truong',  label: 'Nhóm trưởng',    note: 'Đặc quyền tương đương Tổ trưởng trong phạm vi nhóm nhỏ' },
-                { code: 'giao_vien',    label: 'Giáo viên',      note: 'Xem cuộc họp tổ mình + được mời, thảo luận, xác nhận tham gia' }
-            ];
-
-            // --- 7 TỔ CHUYÊN MÔN CHUẨN CỦA NHÀ TRƯỜNG + 1 MÃ DEMO ---
-            const VALID_TEAM_IDS = [
-                { code: 'toan_tin',    label: 'Toán - Tin học',      note: 'Tổ Toán và Tin học' },
-                { code: 'van',         label: 'Văn',                 note: 'Tổ Ngữ văn' },
-                { code: 'anh',         label: 'Tiếng Anh',           note: 'Tổ Ngoại ngữ - Tiếng Anh' },
-                { code: 'khtn',        label: 'KHTN',                note: 'Khoa học Tự nhiên: Lý - Hóa - Sinh' },
-                { code: 'khxh',        label: 'KHXH',                note: 'Khoa học Xã hội: Sử - Địa - GDCD' },
-                { code: 'gdtc_nt',     label: 'GDTC-NT',             note: 'Giáo dục Thể chất - Nghệ thuật (Nhạc, Họa)' },
-                { code: 'van_phong',   label: 'Văn Phòng',           note: 'Tổ Văn phòng: Kế toán, Y tế, Thư viện, Thiết bị' },
-                { code: 'demo',        label: 'Tổ Demo (Test)',      note: 'Mã tổ dùng cho mục đích kiểm thử, không dùng chính thức' }
-            ];
-
-            /**
-             * Lấy Set các mã role hợp lệ (tra cứu O(1))
-             * @returns {Set<string>}
-             */
-            function getValidRoleCodes() {
-                return new Set(VALID_ROLES.map(r => r.code));
-            }
-
-            /**
-             * Lấy Set các mã teamId hợp lệ (tra cứu O(1))
-             * @returns {Set<string>}
-             */
-            function getValidTeamCodes() {
-                return new Set(VALID_TEAM_IDS.map(t => t.code));
-            }
             // ---- DOM refs ----
             const initStatus = document.getElementById('initStatus');
             const loginSection = document.getElementById('loginSection');
@@ -1654,11 +1619,7 @@
                 bulkProgressLabel.textContent = '';
                 bulkProgressText.textContent = '0/0';
             }
-            /**
-             * TẢI FILE EXCEL MẪU (2 sheet)
-             * Sheet 1 "Nhập liệu": cột email, password, name, role, teamId + 2 dòng ví dụ
-             * Sheet 2 "Hướng dẫn & Mã chuẩn": 5 role + 7 tổ + 1 demo + lưu ý
-             */
+
             async function downloadExcelTemplate() {
                 if (!app) {
                     showToast('Vui lòng đăng nhập trước khi tải file mẫu.', 'error');
@@ -1670,128 +1631,52 @@
                     const oldHtml = btnDownloadTemplate.innerHTML;
                     btnDownloadTemplate.innerHTML = '<span class="spinner"></span> Đang tạo...';
 
-                    // ============================================================
-                    // SHEET 1: NHẬP LIỆU
-                    // ============================================================
                     const sheet1Data = [
                         ['email', 'password', 'name', 'role', 'teamId'],
-                        ['gv.nguyenvana@truong.edu.vn', 'matkhau123', 'Nguyễn Văn A', 'giao_vien', 'toan_tin'],
+                        ['gv.nguyenvana@truong.edu.vn', 'matkhau123', 'Nguyễn Văn A', 'giao_vien', 'toan'],
                         ['gv.tranthib@truong.edu.vn', 'matkhau456', 'Trần Thị B', 'truong_to', 'van']
                     ];
                     const sheet1 = XLSX.utils.aoa_to_sheet(sheet1Data);
-
-                    // Độ rộng cột cho Sheet 1
                     sheet1['!cols'] = [
-                        { wch: 34 }, // email
-                        { wch: 16 }, // password
-                        { wch: 26 }, // name
-                        { wch: 16 }, // role
-                        { wch: 16 }  // teamId
+                        { wch: 32 },
+                        { wch: 16 },
+                        { wch: 24 },
+                        { wch: 14 },
+                        { wch: 14 }
                     ];
 
-                    // ============================================================
-                    // SHEET 2: HƯỚNG DẪN & MÃ CHUẨN
-                    // ============================================================
-                    const sheet2Data = [];
-                    const rowIdx = { current: 0 };
-
-                    // --- TIÊU ĐỀ CHÍNH ---
-                    sheet2Data.push(['HƯỚNG DẪN SỬ DỤNG FILE MẪU TẠO TÀI KHOẢN HÀNG LOẠT', '', '']);
-                    rowIdx.current++;
-                    sheet2Data.push(['Hệ thống Quản lý Sinh hoạt Tổ chuyên môn — Trường THCS-THPT Trần Trường Sinh', '', '']);
-                    rowIdx.current++;
-                    sheet2Data.push(['', '', '']);
-                    rowIdx.current++;
-
-                    // --- PHẦN 1: BẢNG PHÂN QUYỀN ---
-                    const part1HeaderRow = rowIdx.current;
-                    sheet2Data.push(['PHẦN 1: BẢNG PHÂN QUYỀN (Cột "role" trong Sheet "Nhập liệu")', '', '']);
-                    rowIdx.current++;
-                    sheet2Data.push(['Mã vai trò (role)', 'Tên vai trò', 'Ghi chú']);
-                    rowIdx.current++;
-                    const part1DataStartRow = rowIdx.current;
-                    VALID_ROLES.forEach(r => {
-                        sheet2Data.push([r.code, r.label, r.note]);
-                        rowIdx.current++;
-                    });
-                    sheet2Data.push(['', '', '']);
-                    rowIdx.current++;
-                    sheet2Data.push(['💡 Lưu ý:', 'Nếu để trống cột role thì mặc định là "giao_vien"', '']);
-                    rowIdx.current++;
-                    sheet2Data.push(['', '', '']);
-                    rowIdx.current++;
-
-                    // --- PHẦN 2: BẢNG MÃ TỔ ---
-                    const part2HeaderRow = rowIdx.current;
-                    sheet2Data.push(['PHẦN 2: BẢNG MÃ TỔ CHUYÊN MÔN (Cột "teamId" trong Sheet "Nhập liệu")', '', '']);
-                    rowIdx.current++;
-                    sheet2Data.push(['Mã tổ (teamId)', 'Tên tổ chuyên môn', 'Ghi chú']);
-                    rowIdx.current++;
-                    const part2DataStartRow = rowIdx.current;
-                    VALID_TEAM_IDS.forEach(t => {
-                        sheet2Data.push([t.code, t.label, t.note]);
-                        rowIdx.current++;
-                    });
-                    sheet2Data.push(['', '', '']);
-                    rowIdx.current++;
-                    sheet2Data.push(['💡 Lưu ý:', 'Nếu để trống cột teamId thì tài khoản chưa được gán vào tổ nào', '']);
-                    rowIdx.current++;
-                    sheet2Data.push(['', '', '']);
-                    rowIdx.current++;
-
-                    // --- PHẦN 3: LƯU Ý QUAN TRỌNG ---
-                    const part3HeaderRow = rowIdx.current;
-                    sheet2Data.push(['PHẦN 3: LƯU Ý KHI ĐIỀN FILE', '', '']);
-                    rowIdx.current++;
-                    sheet2Data.push(['1. Cột email (BẮT BUỘC)', 'Phải đúng định dạng: ten@domain.com. Không trùng với user đã có.', '']);
-                    rowIdx.current++;
-                    sheet2Data.push(['2. Cột password (BẮT BUỘC)', 'Tối thiểu 6 ký tự. Nên dùng mật khẩu mạnh có chữ + số.', '']);
-                    rowIdx.current++;
-                    sheet2Data.push(['3. Cột name', 'Họ và tên đầy đủ, có dấu tiếng Việt (VD: Nguyễn Văn A).', '']);
-                    rowIdx.current++;
-                    sheet2Data.push(['4. Cột role', 'Chỉ điền 1 trong 5 mã ở PHẦN 1. Sai mã sẽ bị báo lỗi đỏ.', '']);
-                    rowIdx.current++;
-                    sheet2Data.push(['5. Cột teamId', 'Chỉ điền 1 trong các mã ở PHẦN 2. Sai mã sẽ bị báo lỗi đỏ.', '']);
-                    rowIdx.current++;
-                    sheet2Data.push(['', '', '']);
-                    rowIdx.current++;
-                    sheet2Data.push(['⚠️ CẢNH BÁO', 'Nếu điền sai role hoặc teamId, dòng đó sẽ bị BÁO LỖI ĐỎ và KHÔNG được tạo tài khoản.', '']);
-                    rowIdx.current++;
-                    sheet2Data.push(['', '', '']);
-                    rowIdx.current++;
-                    sheet2Data.push(['📧 Hỗ trợ', 'Liên hệ Ban Giám hiệu hoặc Quản trị viên hệ thống nếu cần trợ giúp.', '']);
-                    rowIdx.current++;
-
+                    const sheet2Data = [['Mã tổ (teamId)', 'Tên tổ chuyên môn']];
+                    try {
+                        const teamSnap = await firebase.database(app).ref('teams').once('value');
+                        const teamData = teamSnap.val() || {};
+                        const teamIds = Object.keys(teamData);
+                        if (teamIds.length === 0) {
+                            sheet2Data.push(['(Chưa có tổ nào trong hệ thống)', '']);
+                        } else {
+                            teamIds.sort();
+                            teamIds.forEach(tid => {
+                                sheet2Data.push([tid, teamData[tid].name || tid]);
+                            });
+                        }
+                    } catch (err) {
+                        console.error('Lỗi tải danh sách tổ:', err);
+                        sheet2Data.push(['(Lỗi kết nối Firebase)', err.message]);
+                    }
                     const sheet2 = XLSX.utils.aoa_to_sheet(sheet2Data);
-
-                    // Độ rộng cột cho Sheet 2
                     sheet2['!cols'] = [
-                        { wch: 30 }, // Cột 1: Mã
-                        { wch: 60 }, // Cột 2: Mô tả
-                        { wch: 50 }  // Cột 3: Ghi chú
+                        { wch: 22 },
+                        { wch: 36 }
                     ];
 
-                    // Merge cells cho các tiêu đề chính
-                    sheet2['!merges'] = [
-                        { s: { r: 0, c: 0 }, e: { r: 0, c: 2 } },                        // Tiêu đề chính
-                        { s: { r: 1, c: 0 }, e: { r: 1, c: 2 } },                        // Tên trường
-                        { s: { r: part1HeaderRow, c: 0 }, e: { r: part1HeaderRow, c: 2 } }, // Tiêu đề phần 1
-                        { s: { r: part2HeaderRow, c: 0 }, e: { r: part2HeaderRow, c: 2 } }, // Tiêu đề phần 2
-                        { s: { r: part3HeaderRow, c: 0 }, e: { r: part3HeaderRow, c: 2 } }  // Tiêu đề phần 3
-                    ];
-
-                    // ============================================================
-                    // TẠO WORKBOOK VÀ TẢI FILE
-                    // ============================================================
                     const wb = XLSX.utils.book_new();
                     XLSX.utils.book_append_sheet(wb, sheet1, 'Nhập liệu');
-                    XLSX.utils.book_append_sheet(wb, sheet2, 'Hướng dẫn & Mã chuẩn');
+                    XLSX.utils.book_append_sheet(wb, sheet2, 'Danh sách Mã Tổ');
 
                     const now = new Date();
-                    const fname = `mau-tao-tai-khoan_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}.xlsx`;
+                    const fname = `mau-tao-tai-khoan_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}.xlsx`;
                     XLSX.writeFile(wb, fname);
 
-                    showToast('✅ Đã tải file Excel mẫu (2 sheet).', 'success');
+                    showToast('✅ Đã tải file Excel mẫu.', 'success');
 
                     btnDownloadTemplate.disabled = false;
                     btnDownloadTemplate.innerHTML = oldHtml;
@@ -1802,15 +1687,10 @@
                     btnDownloadTemplate.innerHTML = '<i class="fas fa-download"></i> Tải file Excel mẫu (.xlsx)';
                 }
             }
-                        /**
-             * Đọc file Excel người dùng chọn + kiểm tra dữ liệu (validation)
-             * Validate chặt 2 cột: role (5 mã) + teamId (7 tổ + demo)
-             * @param {File} file
-             */
+
             function handleExcelFile(file) {
                 if (!file) return;
 
-                // Kiểm tra đuôi file
                 const lower = file.name.toLowerCase();
                 if (!lower.endsWith('.xlsx') && !lower.endsWith('.xls')) {
                     showToast('Vui lòng chọn file Excel (.xlsx hoặc .xls).', 'error');
@@ -1835,19 +1715,9 @@
                             return;
                         }
 
-                        // ============================================================
-                        // CHUẨN BỊ SET VALID (tra cứu O(1))
-                        // ============================================================
-                        const validRoleSet = getValidRoleCodes();
-                        const validTeamSet = getValidTeamCodes();
-
-                        // ============================================================
-                        // PARSE TỪNG DÒNG
-                        // ============================================================
                         const parsed = rows.map((r, i) => {
                             const rawRole = String(r.role || '').trim();
                             const normalized = normalizeRoleValue(rawRole);
-
                             return {
                                 _rowIndex: i + 2,
                                 email: String(r.email || '').trim(),
@@ -1861,11 +1731,7 @@
                             };
                         });
 
-                        // ============================================================
-                        // VALIDATE CHI TIẾT
-                        // ============================================================
                         parsed.forEach(p => {
-                            // --- 1. Email ---
                             if (!p.email) {
                                 p._status = 'invalid';
                                 p._message = 'Thiếu email';
@@ -1876,8 +1742,6 @@
                                 p._message = 'Email không hợp lệ';
                                 return;
                             }
-
-                            // --- 2. Password ---
                             if (!p.password) {
                                 p._status = 'invalid';
                                 p._message = 'Thiếu password';
@@ -1888,50 +1752,18 @@
                                 p._message = 'Password < 6 ký tự';
                                 return;
                             }
-
-                            // --- 3. Role ---
                             if (!p.role) {
                                 p._status = 'invalid';
-                                p._message = '❌ Role sai: "' + (p.roleRaw || '(trống)') + '". Xem Sheet "Hướng dẫn & Mã chuẩn" — PHẦN 1.';
+                                p._message = 'Vai trò không hợp lệ: ' + (p.roleRaw || '(trống)');
                                 return;
                             }
-                            if (!validRoleSet.has(p.role)) {
-                                p._status = 'invalid';
-                                p._message = '❌ Role không hợp lệ: "' + p.role + '". Chỉ chấp nhận: admin, truong_to, to_pho, nhom_truong, giao_vien.';
-                                return;
-                            }
-
-                            // --- 4. TeamId ---
-                            if (p.teamId && !validTeamSet.has(p.teamId)) {
-                                p._status = 'invalid';
-                                p._message = '❌ Mã tổ sai: "' + p.teamId + '". Xem Sheet "Hướng dẫn & Mã chuẩn" — PHẦN 2.';
-                                return;
-                            }
-
-                            // --- Hợp lệ ---
                             p._status = 'valid';
                             p._message = 'Hợp lệ';
                         });
 
                         currentBulkRows = parsed;
                         renderBulkPreview();
-
-                        // ============================================================
-                        // THÔNG BÁO KẾT QUẢ ĐỌC
-                        // ============================================================
-                        const invalidCount = parsed.filter(p => p._status === 'invalid').length;
-                        const validCount = parsed.length - invalidCount;
-
-                        if (invalidCount > 0) {
-                            showToast(
-                                `Đã đọc ${parsed.length} dòng. ${validCount} hợp lệ, ${invalidCount} LỖI — vui lòng sửa các dòng báo đỏ!`,
-                                'warning',
-                                7000
-                            );
-                        } else {
-                            showToast(`✅ Đã đọc ${parsed.length} dòng — tất cả hợp lệ!`, 'success');
-                        }
-
+                        showToast(`Đã đọc ${parsed.length} dòng từ file Excel.`, 'success');
                     } catch (err) {
                         console.error('Lỗi đọc file Excel:', err);
                         showToast('Không đọc được file Excel: ' + err.message, 'error');
@@ -1943,6 +1775,7 @@
                 };
                 reader.readAsArrayBuffer(file);
             }
+
             function renderBulkPreview() {
                 if (currentBulkRows.length === 0) {
                     bulkPreviewWrapper.classList.add('hidden');

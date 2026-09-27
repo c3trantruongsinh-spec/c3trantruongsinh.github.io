@@ -30,19 +30,16 @@ function showToast(message, type = 'info', duration = 4000) {
     
     container.appendChild(toast);
     
-    // Close button
     toast.querySelector('.toast-close').addEventListener('click', function() {
         toast.remove();
     });
     
-    // Auto close
     if (duration > 0) {
         setTimeout(() => {
             toast.remove();
         }, duration);
     }
     
-    // Limit number of toasts
     while (container.children.length > 5) {
         container.removeChild(container.firstChild);
     }
@@ -91,7 +88,6 @@ function showModal(title, body, buttons = []) {
     container.classList.add('active');
     document.body.style.overflow = 'hidden';
     
-    // Close handlers
     const closeModal = () => {
         container.classList.remove('active');
         document.body.style.overflow = '';
@@ -105,7 +101,6 @@ function showModal(title, body, buttons = []) {
         if (e.target === container) closeModal();
     });
     
-    // Button handlers
     modal.querySelectorAll('.modal-footer button').forEach(btn => {
         btn.addEventListener('click', function(e) {
             const action = this.dataset.action;
@@ -478,6 +473,102 @@ function renderFunctionError(funcName) {
 }
 
 // ============================================================
+// SETUP NAVIGATION (Desktop + Mobile)
+// Đã nâng cấp: thêm quyền cho to_pho và nhom_truong
+// ============================================================
+
+/**
+ * Setup desktop navigation
+ * Gắn sự kiện click cho tất cả .nav-item[data-page]
+ * Quyền tạo cuộc họp: truong_to, to_pho, nhom_truong, thu_ky, admin
+ */
+function setupNavigation() {
+    document.querySelectorAll('.nav-item[data-page]').forEach(item => {
+        item.addEventListener('click', function(e) {
+            e.preventDefault();
+            const page = this.dataset.page;
+            
+            if (page === 'create-meeting') {
+                Promise.all([
+                    hasRole('truong_to'),
+                    hasRole('to_pho'),
+                    hasRole('nhom_truong'),
+                    hasRole('thu_ky'),
+                    isAdmin()
+                ]).then(([isLeader, isToPho, isNhomTruong, isSecretary, isAdm]) => {
+                    if (isLeader || isToPho || isNhomTruong || isSecretary || isAdm) {
+                        navigateTo('create-meeting');
+                    } else {
+                        showToast('Bạn không có quyền tạo cuộc họp', 'error');
+                    }
+                });
+            } else {
+                navigateTo(page);
+            }
+            
+            if (window.innerWidth <= 1024) {
+                const sidebar = document.getElementById('sidebar');
+                if (sidebar) sidebar.classList.remove('open');
+            }
+        });
+    });
+}
+
+/**
+ * Setup mobile navigation
+ * Gắn sự kiện click cho tất cả .mobile-nav-item[data-page]
+ * Quyền tạo cuộc họp: truong_to, to_pho, nhom_truong, thu_ky, admin
+ */
+function setupMobileNavigation() {
+    document.querySelectorAll('.mobile-nav-item[data-page]').forEach(item => {
+        item.addEventListener('click', function(e) {
+            e.preventDefault();
+            const page = this.dataset.page;
+            
+            if (page === 'create-meeting') {
+                Promise.all([
+                    hasRole('truong_to'),
+                    hasRole('to_pho'),
+                    hasRole('nhom_truong'),
+                    hasRole('thu_ky'),
+                    isAdmin()
+                ]).then(([isLeader, isToPho, isNhomTruong, isSecretary, isAdm]) => {
+                    if (isLeader || isToPho || isNhomTruong || isSecretary || isAdm) {
+                        navigateTo('create-meeting');
+                    } else {
+                        showToast('Bạn không có quyền tạo cuộc họp', 'error');
+                    }
+                });
+            } else {
+                navigateTo(page);
+            }
+        });
+    });
+}
+
+/**
+ * Lấy URL parameter
+ * @param {string} name
+ * @returns {string|null}
+ */
+function getUrlParam(name) {
+    const params = new URLSearchParams(window.location.search);
+    return params.get(name);
+}
+
+/**
+ * Lấy hash parameter (dạng #meeting-xxxx)
+ * @returns {string|null}
+ */
+function getHashParam() {
+    const hash = window.location.hash;
+    if (hash.startsWith('#meeting-')) {
+        return hash.replace('#meeting-', '');
+    }
+    return null;
+}
+
+// ============================================================
 // GOOGLE DRIVE LINK UTILITIES
 // ============================================================
 
@@ -641,15 +732,12 @@ function resetPendingLinks(formKey) {
         window._pendingLinks[formKey] = [];
     }
 }
-// ============================================================
-// ATTACHMENT RENDER HELPER (dùng chung cho mọi nơi)
-// ============================================================
 
 /**
- * Render danh sách link đính kèm Google Drive ra HTML
+ * Render danh sách link đính kèm Google Drive (dùng trong view)
  * Hỗ trợ cả object {key: {...}} lẫn array [{...}]
  * @param {Object|Array} attachments - Dữ liệu attachments từ Firebase
- * @param {Object} options - { small: bool, showFileId: bool, emptyText: string }
+ * @param {Object} options - { small: bool, showFileId: bool, emptyText: string, label: string }
  * @returns {string} HTML
  */
 function renderAttachmentsHTML(attachments, options = {}) {
@@ -660,7 +748,6 @@ function renderAttachmentsHTML(attachments, options = {}) {
         return '';
     }
     
-    // Chuẩn hóa về array
     let list = [];
     if (Array.isArray(attachments)) {
         list = attachments;
@@ -668,7 +755,6 @@ function renderAttachmentsHTML(attachments, options = {}) {
         list = Object.values(attachments);
     }
     
-    // Lọc bỏ những cái không có URL
     list = list.filter(att => att && att.url);
     
     if (list.length === 0) {
@@ -726,8 +812,6 @@ function renderAttachmentsHTML(attachments, options = {}) {
     return html;
 }
 
-// Export
-
 // ============================================================
 // EXPORTS
 // ============================================================
@@ -750,11 +834,15 @@ window.navigateTo = navigateTo;
 window.loadPage = loadPage;
 window.debounce = debounce;
 window.renderFunctionError = renderFunctionError;
+window.setupNavigation = setupNavigation;
+window.setupMobileNavigation = setupMobileNavigation;
+window.getUrlParam = getUrlParam;
+window.getHashParam = getHashParam;
 window.extractGoogleDriveId = extractGoogleDriveId;
-window.renderAttachmentsHTML = renderAttachmentsHTML;
 window.renderAttachmentTags = renderAttachmentTags;
 window.addAttachmentTagFromInput = addAttachmentTagFromInput;
 window.removeAttachmentTag = removeAttachmentTag;
 window.renderAttachmentList = renderAttachmentList;
 window.getPendingLinks = getPendingLinks;
 window.resetPendingLinks = resetPendingLinks;
+window.renderAttachmentsHTML = renderAttachmentsHTML;

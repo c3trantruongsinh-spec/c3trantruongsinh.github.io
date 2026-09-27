@@ -6,6 +6,11 @@
  * Render dashboard
  * @param {HTMLElement} container
  */
+/**
+ * Render dashboard
+ * Đã nâng cấp: hiển thị cả cuộc họp mà user là khách mời
+ * @param {HTMLElement} container
+ */
 async function renderDashboard(container) {
     const uid = getCurrentUid();
     if (!uid) {
@@ -20,8 +25,8 @@ async function renderDashboard(container) {
     let meetings = [];
     if (role === 'admin') {
         meetings = await getAllMeetings();
-    } else if (teamId) {
-        meetings = await getMeetingsByTeam(teamId);
+    } else {
+        meetings = await getMeetingsForUser(uid, teamId);
     }
     
     const draft = meetings.filter(m => m.status === 'DRAFT').length;
@@ -74,23 +79,32 @@ async function renderDashboard(container) {
                             <p>Chưa có cuộc họp nào.</p>
                         </div>
                     ` : `
-                        ${recent.map(m => `
-                            <div class="meeting-card" onclick="navigateTo('meeting-detail', {id: '${m.id}'})">
-                                <div class="meeting-card-header">
-                                    <span class="meeting-card-title">${escapeHtml(m.title)}</span>
-                                    <span class="meeting-card-code">${escapeHtml(m.code || '')}</span>
+                        ${recent.map(m => {
+                            const isGuest = teamId && m.teamId && m.teamId !== teamId && m.memberIds && m.memberIds[uid];
+                            const guestBadge = isGuest
+                                ? `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:#fef3c7;color:#92400e;border-radius:10px;font-size:11px;font-weight:600;">🎫 Khách mời</span>`
+                                : '';
+                            return `
+                                <div class="meeting-card" onclick="navigateTo('meeting-detail', {id: '${m.id}'})">
+                                    <div class="meeting-card-header">
+                                        <span class="meeting-card-title">${escapeHtml(m.title)}</span>
+                                        <span class="meeting-card-code">${escapeHtml(m.code || '')}</span>
+                                    </div>
+                                    <div class="meeting-card-body">
+                                        <span><i class="far fa-calendar"></i> ${formatDate(m.meetingDate)}</span>
+                                        <span><i class="far fa-clock"></i> ${m.meetingTime || '--:--'}</span>
+                                        <span><i class="fas fa-users"></i> ${m.memberIds ? Object.keys(m.memberIds).length : 0} thành viên</span>
+                                    </div>
+                                    <div class="meeting-card-footer">
+                                        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+                                            ${getStatusBadge(m.status)}
+                                            ${guestBadge}
+                                        </div>
+                                        <span style="font-size:13px;color:var(--gray-400);">${formatDate(m.createdAt, true)}</span>
+                                    </div>
                                 </div>
-                                <div class="meeting-card-body">
-                                    <span><i class="far fa-calendar"></i> ${formatDate(m.meetingDate)}</span>
-                                    <span><i class="far fa-clock"></i> ${m.meetingTime || '--:--'}</span>
-                                    <span><i class="fas fa-users"></i> ${m.memberIds ? Object.keys(m.memberIds).length : 0} thành viên</span>
-                                </div>
-                                <div class="meeting-card-footer">
-                                    ${getStatusBadge(m.status)}
-                                    <span style="font-size:13px;color:var(--gray-400);">${formatDate(m.createdAt, true)}</span>
-                                </div>
-                            </div>
-                        `).join('')}
+                            `;
+                        }).join('')}
                     `}
                 </div>
             </div>
@@ -136,6 +150,11 @@ async function renderDashboard(container) {
  * Render meetings list
  * @param {HTMLElement} container
  */
+/**
+ * Render meetings list
+ * Đã nâng cấp: hiển thị cả cuộc họp mà user là KHÁCH MỜI (khác tổ)
+ * @param {HTMLElement} container
+ */
 async function renderMeetings(container) {
     const uid = getCurrentUid();
     if (!uid) return;
@@ -146,8 +165,8 @@ async function renderMeetings(container) {
     let meetings = [];
     if (role === 'admin') {
         meetings = await getAllMeetings();
-    } else if (teamId) {
-        meetings = await getMeetingsByTeam(teamId);
+    } else {
+        meetings = await getMeetingsForUser(uid, teamId);
     }
     
     meetings.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
@@ -174,26 +193,37 @@ async function renderMeetings(container) {
                     <p>${canCreate ? 'Hãy tạo cuộc họp đầu tiên.' : 'Chờ tổ trưởng tạo cuộc họp.'}</p>
                 </div>
             ` : `
-                ${meetings.map(m => `
-                    <div class="meeting-card" data-title="${escapeHtml(m.title).toLowerCase()}" data-code="${escapeHtml(m.code || '').toLowerCase()}">
-                        <div class="meeting-card-header">
-                            <span class="meeting-card-title">${escapeHtml(m.title)}</span>
-                            <span class="meeting-card-code">${escapeHtml(m.code || '')}</span>
+                ${meetings.map(m => {
+                    // Đánh dấu nếu user là khách mời (khác tổ)
+                    const isGuest = teamId && m.teamId && m.teamId !== teamId && m.memberIds && m.memberIds[uid];
+                    const guestBadge = isGuest
+                        ? `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:#fef3c7;color:#92400e;border-radius:10px;font-size:11px;font-weight:600;">🎫 Khách mời</span>`
+                        : '';
+                    
+                    return `
+                        <div class="meeting-card" data-title="${escapeHtml(m.title).toLowerCase()}" data-code="${escapeHtml(m.code || '').toLowerCase()}">
+                            <div class="meeting-card-header">
+                                <span class="meeting-card-title">${escapeHtml(m.title)}</span>
+                                <span class="meeting-card-code">${escapeHtml(m.code || '')}</span>
+                            </div>
+                            <div class="meeting-card-body">
+                                <span><i class="far fa-calendar"></i> ${formatDate(m.meetingDate)}</span>
+                                <span><i class="far fa-clock"></i> ${m.meetingTime || '--:--'}</span>
+                                <span><i class="fas fa-users"></i> ${m.memberIds ? Object.keys(m.memberIds).length : 0} thành viên</span>
+                                <span><i class="fas fa-${m.format === 'truc_tiep' ? 'building' : m.format === 'truc_tuyen' ? 'video' : 'wifi'}"></i> ${getFormatLabel(m.format)}</span>
+                            </div>
+                            <div class="meeting-card-footer">
+                                <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+                                    ${getStatusBadge(m.status)}
+                                    ${guestBadge}
+                                </div>
+                                <button class="btn-secondary" style="padding:6px 16px;font-size:13px;" onclick="navigateTo('meeting-detail', {id: '${m.id}'})">
+                                    <i class="fas fa-eye"></i> Xem
+                                </button>
+                            </div>
                         </div>
-                        <div class="meeting-card-body">
-                            <span><i class="far fa-calendar"></i> ${formatDate(m.meetingDate)}</span>
-                            <span><i class="far fa-clock"></i> ${m.meetingTime || '--:--'}</span>
-                            <span><i class="fas fa-users"></i> ${m.memberIds ? Object.keys(m.memberIds).length : 0} thành viên</span>
-                            <span><i class="fas fa-${m.format === 'truc_tiep' ? 'building' : m.format === 'truc_tuyen' ? 'video' : 'wifi'}"></i> ${getFormatLabel(m.format)}</span>
-                        </div>
-                        <div class="meeting-card-footer">
-                            ${getStatusBadge(m.status)}
-                            <button class="btn-secondary" style="padding:6px 16px;font-size:13px;" onclick="navigateTo('meeting-detail', {id: '${m.id}'})">
-                                <i class="fas fa-eye"></i> Xem
-                            </button>
-                        </div>
-                    </div>
-                `).join('')}
+                    `;
+                }).join('')}
             `}
         </div>
     `;
@@ -236,17 +266,17 @@ function getFormatLabel(format) {
 
 /**
  * Render create meeting form
+ * Đã nâng cấp: Đặc quyền Admin + Giao diện khách mời CSS Grid
  * @param {HTMLElement} container
  */
 async function renderCreateMeeting(container) {
     const uid = getCurrentUid();
     if (!uid) return;
-    
     const userData = await getCurrentUserData();
     const role = await getCurrentUserRole();
     const teamId = await getCurrentUserTeamId();
-    
-    if (role !== 'truong_to' && role !== 'admin' && role !== 'thu_ky') {
+
+    if (role !== 'truong_to' && role !== 'admin' && role !== 'thu_ky' && role !== 'to_pho' && role !== 'nhom_truong') {
         container.innerHTML = `
             <div class="empty-state">
                 <i class="fas fa-lock"></i>
@@ -256,164 +286,263 @@ async function renderCreateMeeting(container) {
         `;
         return;
     }
-    
-    let members = [];
-    if (teamId) {
-        try {
-            const snapshot = await db.ref(`teams/${teamId}/members`).once('value');
-            const data = snapshot.val();
-            if (data) {
-                const memberUids = Object.keys(data);
-                for (const memberUid of memberUids) {
-                    const userSnapshot = await db.ref(`users/${memberUid}`).once('value');
-                    const memberData = userSnapshot.val();
-                    if (memberData) {
-                        members.push({
-                            uid: memberUid,
-                            displayName: memberData.displayName || memberData.email || memberUid,
-                            role: memberData.role || 'giao_vien'
-                        });
-                    }
+
+    // ============================================================
+    // 1. LẤY DATA TẤT CẢ CÁC TỔ
+    // ============================================================
+    const teamsSnap = await db.ref('teams').once('value');
+    const teamsData = teamsSnap.val() || {};
+    const teamNameMap = {};
+    Object.keys(teamsData).forEach(tid => {
+        teamNameMap[tid] = teamsData[tid].name || tid;
+    });
+
+    // ============================================================
+    // 2. PHÂN LOẠI THÀNH VIÊN VÀ KHÁCH MỜI
+    // ============================================================
+    let ownTeamMembers = [];
+    let otherTeamMembers = [];
+
+    try {
+        const allUsersSnap = await db.ref('users').once('value');
+        const allUsers = allUsersSnap.val() || {};
+
+        Object.keys(allUsers).forEach(otherUid => {
+            const u = allUsers[otherUid];
+            if (!u) return;
+
+            if (role === 'admin') {
+                if (otherUid !== uid) {
+                    otherTeamMembers.push({
+                        uid: otherUid,
+                        displayName: u.displayName || u.email || otherUid,
+                        email: u.email || '',
+                        role: u.role || 'giao_vien',
+                        teamId: u.teamId || '',
+                        teamName: u.teamId ? (teamNameMap[u.teamId] || u.teamId) : 'Chưa phân tổ'
+                    });
+                }
+            } else {
+                if (u.teamId === teamId) {
+                    ownTeamMembers.push({
+                        uid: otherUid,
+                        displayName: u.displayName || u.email || otherUid,
+                        email: u.email || '',
+                        role: u.role || 'giao_vien',
+                        teamId: teamId
+                    });
+                } else if (otherUid !== uid) {
+                    otherTeamMembers.push({
+                        uid: otherUid,
+                        displayName: u.displayName || u.email || otherUid,
+                        email: u.email || '',
+                        role: u.role || 'giao_vien',
+                        teamId: u.teamId || '',
+                        teamName: u.teamId ? (teamNameMap[u.teamId] || u.teamId) : 'Chưa phân tổ'
+                    });
                 }
             }
-        } catch (e) {
-            console.error('Error loading members:', e);
-        }
-    }
-    
-    let teamCode = 'TO';
-    let teamName = '';
-    if (teamId) {
-        try {
-            const snapshot = await db.ref(`teams/${teamId}`).once('value');
-            const data = snapshot.val();
-            if (data) {
-                teamCode = data.code || 'TO';
-                teamName = data.name || '';
-            }
-        } catch (e) {}
-    }
-    
-    let sequence = 1;
-    try {
-        const meetings = await getMeetingsByTeam(teamId);
-        const thisMonth = new Date().getMonth();
-        const thisYear = new Date().getFullYear();
-        const monthMeetings = meetings.filter(m => {
-            const d = new Date(m.meetingDate);
-            return d.getMonth() === thisMonth && d.getFullYear() === thisYear;
         });
-        sequence = monthMeetings.length + 1;
-    } catch (e) {}
+
+        otherTeamMembers.sort((a, b) => {
+            const t = (a.teamName || '').localeCompare(b.teamName || '');
+            if (t !== 0) return t;
+            return (a.displayName || '').localeCompare(b.displayName || '');
+        });
+    } catch (e) {
+        console.error('Error loading members:', e);
+    }
+
+    // ============================================================
+    // 3. LOGIC HIỂN THỊ TỔ CHUYÊN MÔN (ĐẶC QUYỀN ADMIN)
+    // ============================================================
+    let teamSelectorHtml = '';
     
+    if (role === 'admin') {
+        let options = `<option value="TOAN_TRUONG">🏫 Cuộc họp Toàn trường</option>`;
+        Object.keys(teamsData).forEach(tid => {
+            options += `<option value="${tid}">Tổ: ${teamsData[tid].name}</option>`;
+        });
+        teamSelectorHtml = `
+            <select id="meetingTeamId" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;">
+                ${options}
+            </select>
+            <span class="form-help">Quản trị viên có thể chọn quy mô họp</span>
+        `;
+    } else {
+        teamSelectorHtml = `
+            <input type="text" value="${escapeHtml(teamNameMap[teamId] || teamId)}" disabled style="background:var(--gray-50); width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;">
+            <input type="hidden" id="meetingTeamId" value="${teamId}">
+        `;
+    }
+
+    let sequence = 1;
     const today = formatDateInput(new Date());
     const defaultDeadline = formatDateInput(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000));
-    
+
+    // ============================================================
+    // 4. BUILD HTML
+    // ============================================================
     let html = `
-        <div class="section-card">
-            <div class="section-header">
-                <h3><i class="fas fa-plus-circle"></i> Tạo cuộc họp mới</h3>
-            </div>
-            <div class="section-body">
-                <form id="createMeetingForm">
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Tên cuộc họp <span class="required">*</span></label>
-                            <input type="text" id="meetingTitle" placeholder="Nhập tên cuộc họp" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Tổ chuyên môn</label>
-                            <input type="text" value="${escapeHtml(teamName || teamId)}" disabled style="background:var(--gray-50);">
-                            <input type="hidden" id="meetingTeamId" value="${teamId}">
-                        </div>
-                    </div>
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Ngày họp <span class="required">*</span></label>
-                            <input type="date" id="meetingDate" value="${today}" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Thời gian <span class="required">*</span></label>
-                            <input type="time" id="meetingTime" value="14:00" required>
-                        </div>
-                    </div>
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Hình thức <span class="required">*</span></label>
-                            <select id="meetingFormat" required>
-                                <option value="truc_tiep">Trực tiếp</option>
-                                <option value="truc_tuyen">Trực tuyến</option>
-                                <option value="ket_hop">Kết hợp</option>
-                                <option value="khong_dong_thoi">Không đồng thời</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Thời hạn góp ý <span class="required">*</span></label>
-                            <input type="date" id="discussionDeadline" value="${defaultDeadline}" required>
-                        </div>
-                    </div>
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Người chủ trì</label>
-                            <select id="chairmanId">
-                                <option value="${uid}" selected>${escapeHtml(userData?.displayName || userData?.email || 'Tôi')}</option>
-                                ${members.filter(m => m.uid !== uid).map(m => `
-                                    <option value="${m.uid}">${escapeHtml(m.displayName)}</option>
-                                `).join('')}
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Thư ký</label>
-                            <select id="secretaryId">
-                                <option value="">-- Chọn --</option>
-                                ${members.map(m => `
-                                    <option value="${m.uid}">${escapeHtml(m.displayName)}</option>
-                                `).join('')}
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Thành viên tham dự</label>
-                        <div style="display:flex;flex-wrap:wrap;gap:8px;padding:8px 0;">
-                            ${members.map(m => `
-                                <label style="display:flex;align-items:center;gap:6px;font-size:14px;background:var(--gray-50);padding:4px 12px;border-radius:20px;cursor:pointer;">
-                                    <input type="checkbox" class="member-checkbox" value="${m.uid}" checked>
-                                    ${escapeHtml(m.displayName)}
-                                </label>
-                            `).join('')}
-                        </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Nội dung cuộc họp <span class="required">*</span></label>
-                        <textarea id="meetingDescription" rows="3" placeholder="Mô tả nội dung chính của cuộc họp..." required></textarea>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Mã hồ sơ (tự động)</label>
-                        <input type="text" id="meetingCodePreview" value="HS-${teamCode}-${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}-${String(sequence).padStart(3,'0')}" disabled style="background:var(--gray-50);">
-                        <span class="form-help">Mã sẽ được tạo tự động khi lưu.</span>
-                    </div>
-                    
-                    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:16px;">
-                        <button type="submit" class="btn-primary">
-                            <i class="fas fa-save"></i> Tạo cuộc họp
-                        </button>
-                        <button type="button" class="btn-secondary" onclick="navigateTo('meetings')">
-                            <i class="fas fa-times"></i> Hủy
-                        </button>
-                    </div>
-                </form>
-            </div>
+    <div class="section-card">
+        <div class="section-header">
+            <h3><i class="fas fa-plus-circle"></i> Tạo cuộc họp mới</h3>
         </div>
+        <div class="section-body">
+            <form id="createMeetingForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Tên cuộc họp <span class="required">*</span></label>
+                        <input type="text" id="meetingTitle" placeholder="Nhập tên cuộc họp" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Tổ chuyên môn</label>
+                        ${teamSelectorHtml}
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Ngày họp <span class="required">*</span></label>
+                        <input type="date" id="meetingDate" value="${today}" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Thời gian <span class="required">*</span></label>
+                        <input type="time" id="meetingTime" value="14:00" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Hình thức <span class="required">*</span></label>
+                        <select id="meetingFormat" required>
+                            <option value="truc_tiep">Trực tiếp</option>
+                            <option value="truc_tuyen">Trực tuyến</option>
+                            <option value="ket_hop">Kết hợp</option>
+                            <option value="khong_dong_thoi">Không đồng thời</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Thời hạn góp ý <span class="required">*</span></label>
+                        <input type="date" id="discussionDeadline" value="${defaultDeadline}" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Người chủ trì</label>
+                        <select id="chairmanId">
+                            <option value="${uid}" selected>${escapeHtml(userData?.displayName || userData?.email || 'Tôi')}</option>
+                            ${ownTeamMembers.filter(m => m.uid !== uid).map(m => `
+                                <option value="${m.uid}">${escapeHtml(m.displayName)}</option>
+                            `).join('')}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Thư ký</label>
+                        <select id="secretaryId">
+                            <option value="">-- Chọn --</option>
+                            ${ownTeamMembers.map(m => `
+                                <option value="${m.uid}">${escapeHtml(m.displayName)}</option>
+                            `).join('')}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>👥 Thành viên tổ chuyên môn (mặc định)</label>
+                    
+                    <div style="display:flex;gap:6px;margin-bottom:6px;">
+                        <button type="button" class="btn-secondary" style="padding:4px 10px;font-size:12px;" onclick="toggleAllMembers(true)">
+                            <i class="fas fa-check-double"></i> Chọn tất cả
+                        </button>
+                        <button type="button" class="btn-secondary" style="padding:4px 10px;font-size:12px;" onclick="toggleAllMembers(false)">
+                            <i class="fas fa-times"></i> Bỏ chọn
+                        </button>
+                    </div>
+
+                    <div style="display:flex;flex-wrap:wrap;gap:8px;padding:8px 0;">
+                        ${ownTeamMembers.length === 0 ? `
+                            <span style="color:var(--gray-500);font-style:italic;font-size:14px;">Chưa có thành viên trong tổ.</span>
+                        ` : ownTeamMembers.map(m => `
+                            <label style="display:flex;align-items:center;gap:6px;font-size:14px;background:var(--gray-50);padding:4px 12px;border-radius:20px;cursor:pointer;">
+                                <input type="checkbox" class="member-checkbox" value="${m.uid}" checked>
+                                ${escapeHtml(m.displayName)}
+                            </label>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-top:8px;">
+                    <label style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                        <span>🎫 Khách mời tham dự (Tổ khác)</span>
+                        <span style="font-size:12px;color:var(--gray-500);font-weight:400;">
+                            (${otherTeamMembers.length} giáo viên khả dụng)
+                        </span>
+                    </label>
+                    
+                    <div style="display:flex;gap:6px;margin-bottom:6px;">
+                        <button type="button" class="btn-secondary" style="padding:4px 10px;font-size:12px;" onclick="toggleAllGuests(true)">
+                            <i class="fas fa-check-double"></i> Chọn tất cả
+                        </button>
+                        <button type="button" class="btn-secondary" style="padding:4px 10px;font-size:12px;" onclick="toggleAllGuests(false)">
+                            <i class="fas fa-times"></i> Bỏ chọn
+                        </button>
+                    </div>
+
+                    <div id="guestListBox" style="max-height:250px; overflow-y:auto; border:1px solid #cbd5e1; border-radius:8px; padding:8px; background:#f8fafc;">
+                        ${otherTeamMembers.length === 0 ? `
+                            <div style="padding:12px;text-align:center;color:#64748b;font-style:italic;font-size:14px;">
+                                Không có giáo viên nào khả dụng.
+                            </div>
+                        ` : otherTeamMembers.map(m => `
+                            <label style="display:grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; padding:10px 12px; border-radius:6px; cursor:pointer; background:#ffffff; margin-bottom:6px; border:1px solid #e2e8f0; width: 100%; box-sizing: border-box; box-shadow: 0 1px 2px rgba(0,0,0,0.02); transition: all 0.2s;">
+                                <input type="checkbox" class="guest-checkbox" value="${m.uid}" style="width:16px; height:16px; margin:0; cursor:pointer;">
+                                <div style="display:flex; flex-direction:column; overflow:hidden;">
+                                    <div style="font-weight:600; font-size:14px; color:#1e293b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                                        ${escapeHtml(m.displayName)}
+                                    </div>
+                                    <div style="font-size:12px; color:#64748b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px;">
+                                        ${escapeHtml(m.email)}${m.teamName ? ` <span style="color:#0284c7; font-weight:500;">• ${escapeHtml(m.teamName)}</span>` : ''}
+                                    </div>
+                                </div>
+                                <span class="role-badge ${m.role}" style="font-size:11px; white-space:nowrap; flex-shrink:0;">${escapeHtml(getRoleLabelForMeeting(m.role))}</span>
+                            </label>
+                        `).join('')}
+                    </div>
+                    <span class="form-help" style="display:block;margin-top:6px;">
+                        💡 Khách mời sẽ thấy cuộc họp này trong danh sách của họ, dù khác tổ chuyên môn.
+                    </span>
+                </div>
+
+                <div class="form-group">
+                    <label>Nội dung cuộc họp <span class="required">*</span></label>
+                    <textarea id="meetingDescription" rows="3" placeholder="Mô tả nội dung chính của cuộc họp..." required></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Mã hồ sơ (tự động)</label>
+                    <input type="text" id="meetingCodePreview" value="Được tạo tự động sau khi lưu" disabled style="background:var(--gray-50); font-style: italic;">
+                </div>
+
+                <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:16px;">
+                    <button type="submit" class="btn-primary">
+                        <i class="fas fa-save"></i> Tạo cuộc họp
+                    </button>
+                    <button type="button" class="btn-secondary" onclick="navigateTo('meetings')">
+                        <i class="fas fa-times"></i> Hủy
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
     `;
     
     container.innerHTML = html;
-    
+
+    // ============================================================
+    // 5. XỬ LÝ SUBMIT FORM
+    // ============================================================
     document.getElementById('createMeetingForm').addEventListener('submit', async function(e) {
         e.preventDefault();
         
@@ -425,51 +554,72 @@ async function renderCreateMeeting(container) {
         const secretaryId = document.getElementById('secretaryId').value;
         const discussionDeadline = document.getElementById('discussionDeadline').value;
         const description = document.getElementById('meetingDescription').value.trim();
-        const teamId = document.getElementById('meetingTeamId').value;
-        
+        const selectedTeamId = document.getElementById('meetingTeamId').value;
+
         if (!title || !meetingDate || !meetingTime || !format || !description) {
             showToast('Vui lòng điền đầy đủ thông tin bắt buộc', 'error');
             return;
         }
-        
+
+        // ===== GỘP THÀNH VIÊN TỔ MÌNH + KHÁCH MỜI =====
         const selectedMembers = {};
         document.querySelectorAll('.member-checkbox:checked').forEach(cb => {
             selectedMembers[cb.value] = true;
         });
-        
+
+        let guestCount = 0;
+        document.querySelectorAll('.guest-checkbox:checked').forEach(cb => {
+            selectedMembers[cb.value] = true;
+            guestCount++;
+        });
+
         if (Object.keys(selectedMembers).length === 0) {
-            showToast('Vui lòng chọn ít nhất một thành viên', 'error');
+            showToast('Vui lòng chọn ít nhất một thành viên hoặc khách mời', 'error');
             return;
         }
-        
-        const teamSnapshot = await db.ref(`teams/${teamId}`).once('value');
-        const teamData = teamSnapshot.val();
-        const teamCode = teamData?.code || 'TO';
-        
-        const allMeetings = await getMeetingsByTeam(teamId);
-        const now = new Date();
-        const monthMeetings = allMeetings.filter(m => {
-            const d = new Date(m.meetingDate);
-            return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-        });
-        const seq = monthMeetings.length + 1;
-        const code = generateMeetingCode(teamCode, meetingDate, seq);
-        
+
+        // ===== XỬ LÝ TẠO MÃ HỒ SƠ =====
+        let teamCodeForCode = 'TRUONG'; // Mặc định nếu là họp Toàn trường
+        let sequence = 1;
+
+        if (selectedTeamId !== 'TOAN_TRUONG') {
+            const teamSnapshot = await db.ref(`teams/${selectedTeamId}`).once('value');
+            const teamData = teamSnapshot.val();
+            teamCodeForCode = teamData?.code || 'TO';
+            
+            const allMeetings = await getMeetingsByTeam(selectedTeamId);
+            const now = new Date();
+            const monthMeetings = allMeetings.filter(m => {
+                const d = new Date(m.meetingDate);
+                return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+            });
+            sequence = monthMeetings.length + 1;
+        } else {
+            // Nếu là họp toàn trường, đếm tổng số cuộc họp toàn trường
+            const allMeetingsSnap = await db.ref('meetings').orderByChild('teamId').equalTo('TOAN_TRUONG').once('value');
+            if (allMeetingsSnap.exists()) {
+                sequence = Object.keys(allMeetingsSnap.val()).length + 1;
+            }
+        }
+
+        const code = generateMeetingCode(teamCodeForCode, meetingDate, sequence);
+
         const meetingData = {
             title: title,
             code: code,
-            teamId: teamId,
+            teamId: selectedTeamId,
             meetingDate: meetingDate,
             meetingTime: meetingTime,
             format: format,
             chairmanId: chairmanId || null,
             secretaryId: secretaryId || null,
             memberIds: selectedMembers,
+            guestCount: guestCount,
             discussionDeadline: discussionDeadline,
             description: description,
             status: 'DRAFT'
         };
-        
+
         try {
             const btn = e.target.querySelector('button[type="submit"]');
             btn.disabled = true;
@@ -484,8 +634,9 @@ async function renderCreateMeeting(container) {
                     status: 'DRAFT'
                 });
             }
-            
-            showToast('Đã tạo cuộc họp thành công!', 'success');
+
+            const guestMsg = guestCount > 0 ? ` (có ${guestCount} khách mời)` : '';
+            showToast('Đã tạo cuộc họp thành công!' + guestMsg, 'success');
             navigateTo('meeting-detail', { id: meetingId });
         } catch (error) {
             console.error('Error creating meeting:', error);
@@ -496,6 +647,35 @@ async function renderCreateMeeting(container) {
         }
     });
 }
+
+/**
+ * Hàm phụ: chọn/bỏ chọn tất cả khách mời
+ * @param {boolean} checked
+ */
+function toggleAllGuests(checked) {
+    document.querySelectorAll('.guest-checkbox').forEach(cb => {
+        cb.checked = checked;
+    });
+}
+
+/**
+ * Hàm phụ: lấy nhãn vai trò (dùng trong form create)
+ * @param {string} role
+ * @returns {string}
+ */
+function getRoleLabelForMeeting(role) {
+    const map = {
+        'admin': 'Admin',
+        'truong_to': 'Tổ trưởng',
+        'thu_ky': 'Thư ký',
+        'giao_vien': 'Giáo viên'
+    };
+    return map[role] || 'Giáo viên';
+}
+
+// Export
+window.toggleAllGuests = toggleAllGuests;
+window.getRoleLabelForMeeting = getRoleLabelForMeeting;
 
 /**
  * Get all tasks assigned to a user
@@ -567,6 +747,12 @@ async function quickConfirmTask(meetingId, taskId) {
  * @param {HTMLElement} container
  * @param {string} meetingId
  */
+/**
+ * Render meeting detail page
+ * Đã nâng cấp: thêm nút Xóa cuộc họp (chỉ Admin)
+ * @param {HTMLElement} container
+ * @param {string} meetingId
+ */
 async function renderMeetingDetail(container, meetingId) {
     if (!meetingId) {
         container.innerHTML = `<p>Không tìm thấy cuộc họp.</p>`;
@@ -585,9 +771,11 @@ async function renderMeetingDetail(container, meetingId) {
     await recordMeetingView(meetingId, uid);
     
     const role = await getCurrentUserRole();
-    const isLeader = role === 'truong_to' || role === 'admin';
+    const isLeader = role === 'truong_to' || role === 'admin' 
+                  || role === 'to_pho' || role === 'nhom_truong';
     const isSecretary = role === 'thu_ky';
     const canEdit = isLeader || isSecretary;
+    const isAdminUser = role === 'admin';
     const isClosed = meeting.status === 'CLOSED';
     
     const contents = await getMeetingContents(meetingId);
@@ -595,15 +783,11 @@ async function renderMeetingDetail(container, meetingId) {
     const confirmations = await getConfirmations(meetingId);
     const allDiscussions = await getDiscussions(meetingId);
     
-    // === ĐẾM SỐ THẢO LUẬN CHO TỪNG NỘI DUNG (TRƯỚC KHI BUILD HTML) ===
     contents.forEach(c => {
         const liveCount = allDiscussions.filter(d => d.contentId === c.id).length;
         const storedCount = c.discussionCount || 0;
         c.discussionCount = liveCount > 0 ? liveCount : storedCount;
     });
-    
-    // Đếm số thảo luận chung (không thuộc content nào)
-    const generalDiscussionCount = allDiscussions.filter(d => !d.contentId).length;
     
     const memberIds = Object.keys(meeting.memberIds || {});
     
@@ -641,6 +825,11 @@ async function renderMeetingDetail(container, meetingId) {
                     ${!isClosed && canEdit ? `
                         <button class="btn-secondary" style="padding:6px 14px;font-size:13px;" onclick="editMeeting('${meetingId}')">
                             <i class="fas fa-edit"></i> Sửa
+                        </button>
+                    ` : ''}
+                    ${isAdminUser ? `
+                        <button class="btn-danger" style="padding:6px 14px;font-size:13px;background:#dc2626;color:white;border:none;font-weight:600;display:inline-flex;align-items:center;gap:6px;" onclick="deleteMeeting('${meetingId}')" title="Xóa vĩnh viễn cuộc họp này (chỉ Admin)">
+                            <i class="fas fa-trash-alt"></i> Xóa cuộc họp
                         </button>
                     ` : ''}
                 </div>
@@ -1362,6 +1551,13 @@ async function showAssignTask(meetingId) {
  * @param {string} newStatus
  * @returns {Promise<{ok: boolean, reason: string}>}
  */
+/**
+ * Check if a status transition is allowed
+ * Đã nâng cấp: thêm quyền cho to_pho và nhom_truong
+ * @param {string} meetingId
+ * @param {string} newStatus
+ * @returns {Promise<{ok: boolean, reason: string}>}
+ */
 async function canTransition(meetingId, newStatus) {
     const meeting = await getMeeting(meetingId);
     if (!meeting) return { ok: false, reason: 'Cuộc họp không tồn tại' };
@@ -1397,7 +1593,6 @@ async function canTransition(meetingId, newStatus) {
     }
     return { ok: true };
 }
-
 /**
  * Update meeting status with validation
  * @param {string} meetingId
@@ -1442,6 +1637,13 @@ async function updateMeetingStatusAction(meetingId, status) {
  * - Nếu còn người chưa xác nhận → yêu cầu nhập lý do chốt ngoại lệ
  * @param {string} meetingId
  */
+/**
+ * Chốt hồ sơ cuộc họp
+ * - Nếu tất cả thành viên đã xác nhận → chốt bình thường
+ * - Nếu còn người chưa xác nhận → yêu cầu nhập lý do chốt ngoại lệ
+ * Đã nâng cấp: thêm quyền cho to_pho và nhom_truong
+ * @param {string} meetingId
+ */
 async function closeMeeting(meetingId) {
     const meeting = await getMeeting(meetingId);
     if (!meeting) {
@@ -1449,9 +1651,6 @@ async function closeMeeting(meetingId) {
         return;
     }
     
-    // ============================================
-    // BƯỚC 1: Kiểm tra điều kiện CỨNG (không thể chốt ngoại lệ)
-    // ============================================
     const contents = await getMeetingContents(meetingId);
     const tasks = await getTasks(meetingId);
     
@@ -1489,9 +1688,6 @@ async function closeMeeting(meetingId) {
         return;
     }
     
-    // ============================================
-    // BƯỚC 2: Kiểm tra xác nhận thành viên
-    // ============================================
     const confirmations = await getConfirmations(meetingId);
     const memberIds = Object.keys(meeting.memberIds || {});
     const unconfirmedUids = memberIds.filter(mid => {
@@ -1500,9 +1696,6 @@ async function closeMeeting(meetingId) {
     
     const uid = getCurrentUid();
     
-    // ============================================
-    // CASE A: TẤT CẢ ĐÃ XÁC NHẬN → Chốt bình thường
-    // ============================================
     if (unconfirmedUids.length === 0) {
         showConfirm(
             '🔒 Chốt hồ sơ',
@@ -1527,10 +1720,6 @@ async function closeMeeting(meetingId) {
         return;
     }
     
-    // ============================================
-    // CASE B: CÒN NGƯỜI CHƯA XÁC NHẬN → Yêu cầu lý do chốt ngoại lệ
-    // ============================================
-    // Lấy tên những người chưa xác nhận
     const unconfirmedNames = [];
     for (const mid of unconfirmedUids) {
         try {
@@ -2507,6 +2696,18 @@ async function exportMeetingMinutes(meetingId) {
 }
 
 window.exportMeetingMinutes = exportMeetingMinutes;
+/**
+ * Hàm phụ: chọn/bỏ chọn tất cả thành viên tổ chuyên môn
+ * @param {boolean} checked - true: chọn tất cả, false: bỏ chọn tất cả
+ */
+function toggleAllMembers(checked) {
+    document.querySelectorAll('.member-checkbox').forEach(cb => {
+        cb.checked = checked;
+    });
+}
+
+// Export
+window.toggleAllMembers = toggleAllMembers;
 // ============================================================
 // EXPORTS
 // ============================================================

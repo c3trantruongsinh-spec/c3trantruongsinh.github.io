@@ -17,6 +17,7 @@
     
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
     <!-- Loading overlay -->
@@ -52,7 +53,7 @@
                 </a>
                 <a href="#" class="nav-item" data-page="archive">
                     <i class="fas fa-archive"></i>
-                    <span>Hồ sơ điện tử</span>
+                    <span>Tra cứu cuộc họp</span>
                 </a>
                 <a href="#" class="nav-item" data-page="notifications">
                     <i class="fas fa-bell"></i>
@@ -88,11 +89,22 @@
         <!-- Main Content -->
         <main class="main-content">
             <!-- Top Bar -->
+                        <!-- Top Bar — Logo + School Name + Page Title + Date -->
             <header class="top-bar">
                 <button id="toggleSidebar" class="btn-toggle-sidebar">
                     <i class="fas fa-bars"></i>
                 </button>
-                <h1 id="pageTitle">Tổng quan</h1>
+
+                <div class="top-bar-brand">
+                    <img src="images/logo.jpg" alt="Logo Trường THCS-THPT Trần Trường Sinh" class="top-bar-logo" onerror="this.onerror=null; this.style.display='none';">
+                    <div class="top-bar-school">
+                        <div class="school-name">TRƯỜNG THCS-THPT TRẦN TRƯỜNG SINH</div>
+                        <div class="school-subtitle">Hệ thống Quản lý Sinh hoạt Chuyên môn</div>
+                    </div>
+                </div>
+
+                <h1 id="pageTitle" class="top-bar-page-title">Tổng quan</h1>
+
                 <div class="top-bar-actions">
                     <span class="current-date" id="currentDate"></span>
                 </div>

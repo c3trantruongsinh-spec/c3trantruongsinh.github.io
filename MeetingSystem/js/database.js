@@ -648,7 +648,155 @@ async function addAttachmentsByUrls(meetingId, attachments) {
     }
     return results;
 }
+/**
+ * Lấy TẤT CẢ cuộc họp mà một user có quyền xem
+ * Bao gồm:
+ *   - Cuộc họp thuộc tổ của user (dù user có trong memberIds hay không)
+ *   - Cuộc họp mà user là khách mời (có uid trong memberIds nhưng khác teamId)
+ * @param {string} uid - User ID
+ * @param {string} teamId - Team ID của user (có thể null)
+ * @returns {Promise<Array>}
+ */
+async function getMeetingsForUser(uid, teamId) {
+    try {
+        const snapshot = await db.ref('meetings').once('value');
+        const data = snapshot.val();
+        if (!data) return [];
+        
+        const allMeetings = Object.keys(data).map(key => ({
+            id: key,
+            ...data[key]
+        }));
+        
+        // Lọc: user là thành viên (own team HOẶC guest)
+        return allMeetings.filter(m => {
+            // Cuộc họp thuộc tổ của user → luôn thấy
+            if (teamId && m.teamId === teamId) return true;
+            // Hoặc user có uid trong memberIds (khách mời)
+            if (m.memberIds && m.memberIds[uid] === true) return true;
+            return false;
+        });
+    } catch (error) {
+        console.error('Error getting meetings for user:', error);
+        return [];
+    }
+}
 
+// Export
+window.getMeetingsForUser = getMeetingsForUser;
+// ============================================================
+// XÓA CUỘC HỌP (CHỈ ADMIN)
+// ============================================================
+
+/**
+ * Xóa vĩnh viễn một cuộc họp và toàn bộ dữ liệu liên quan
+ * Sử dụng multi-path update để xóa đồng thời nhiều nhánh
+ * CHỈ ADMIN mới có quyền gọi hàm này
+ * @param {string} meetingId - ID cuộc họp cần xóa
+ * @returns {Promise<boolean>} true nếu thành công
+ */
+async function deleteMeeting(meetingId) {
+    const uid = getCurrentUid();
+    if (!uid) {
+        showToast('Vui lòng đăng nhập', 'error');
+        return false;
+    }
+    
+    // ============================================================
+    // 1. KIỂM TRA QUYỀN ADMIN
+    // ============================================================
+    const role = await getCurrentUserRole();
+    if (role !== 'admin') {
+        showToast('❌ Chỉ Admin mới có quyền xóa cuộc họp', 'error', 4000);
+        return false;
+    }
+    
+    // ============================================================
+    // 2. LẤY THÔNG TIN CUỘC HỌP ĐỂ XÁC NHẬN
+    // ============================================================
+    const meeting = await getMeeting(meetingId);
+    if (!meeting) {
+        showToast('Không tìm thấy cuộc họp', 'error');
+        return false;
+    }
+    
+    // ============================================================
+    // 3. HIỆN HỘP THOẠI XÁC NHẬN NGHIÊM NGẶT
+    // ============================================================
+    return new Promise((resolve) => {
+        showConfirm(
+            '🗑️ Xóa cuộc họp',
+            `<div style="line-height:1.7;">
+                Bạn có chắc chắn muốn xóa <strong>VĨNH VIỄN</strong> cuộc họp
+                <strong style="color:#dc2626;">"${escapeHtml(meeting.title || 'Không tên')}"</strong>
+                (Mã: ${escapeHtml(meeting.code || 'N/A')})?
+                <br><br>
+                <div style="padding:12px;background:#fef2f2;border-left:3px solid #dc2626;border-radius:6px;">
+                    <strong style="color:#991b1b;">⚠️ Toàn bộ dữ liệu sau sẽ bị xóa:</strong>
+                    <ul style="margin:8px 0 0 20px;padding:0;color:#7f1d1d;font-size:14px;">
+                        <li>Thông tin cuộc họp</li>
+                        <li>Nội dung và kết luận</li>
+                        <li>Ý kiến thảo luận</li>
+                        <li>Nhiệm vụ đã phân công</li>
+                        <li>Xác nhận của thành viên</li>
+                        <li>Tài liệu đính kèm</li>
+                        <li>Nhật ký hoạt động</li>
+                        <li>Phụ lục (nếu có)</li>
+                    </ul>
+                </div>
+                <br>
+                <span style="color:#dc2626;font-weight:700;font-size:15px;">
+                    🚨 Hành động này KHÔNG THỂ HOÀN TÁC!
+                </span>
+            </div>`,
+            async () => {
+                try {
+                    // ============================================================
+                    // 4. DÙNG MULTI-PATH UPDATE ĐỂ XÓA ĐỒNG THỜI
+                    // ============================================================
+                    const updates = {};
+                    
+                    updates[`meetings/${meetingId}`] = null;
+                    updates[`meetingContents/${meetingId}`] = null;
+                    updates[`discussions/${meetingId}`] = null;
+                    updates[`tasks/${meetingId}`] = null;
+                    updates[`confirmations/${meetingId}`] = null;
+                    updates[`attachments/${meetingId}`] = null;
+                    updates[`activityLogs/${meetingId}`] = null;
+                    updates[`appendices/${meetingId}`] = null;
+                    
+                    await db.ref().update(updates);
+                    
+                    // ============================================================
+                    // 5. THÔNG BÁO THÀNH CÔNG VÀ ĐIỀU HƯỚNG
+                    // ============================================================
+                    showToast('🗑️ Đã xóa cuộc họp thành công!', 'success', 4000);
+                    
+                    // Điều hướng về danh sách cuộc họp
+                    if (typeof navigateTo === 'function') {
+                        navigateTo('meetings');
+                    }
+                    
+                    resolve(true);
+                } catch (error) {
+                    console.error('Delete meeting error:', error);
+                    
+                    let msg = error.message || 'Lỗi không xác định';
+                    if (error.code === 'PERMISSION_DENIED' || msg.includes('permission')) {
+                        msg = 'Không có quyền xóa. Vui lòng kiểm tra Rules Firebase.';
+                    }
+                    
+                    showToast('❌ Lỗi xóa cuộc họp: ' + msg, 'error', 5000);
+                    resolve(false);
+                }
+            },
+            '🗑️ Xóa vĩnh viễn'
+        );
+    });
+}
+
+// Export
+window.deleteMeeting = deleteMeeting;
 // ============================================================
 // EXPORTS
 // ============================================================

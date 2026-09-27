@@ -15,6 +15,15 @@
  * @param {string} meetingId
  * @param {HTMLElement} container
  */
+/**
+ * Render confirmation section cho một meeting
+ * - Hiển thị tiến độ cá nhân
+ * - Hiển thị danh sách TẤT CẢ thành viên (kèm tên, không hiển thị UID)
+ * - Hiển thị lý do chốt ngoại lệ nếu có
+ * Đã nâng cấp: thêm quyền cho to_pho và nhom_truong
+ * @param {string} meetingId
+ * @param {HTMLElement} container
+ */
 async function renderConfirmations(meetingId, container) {
     const uid = getCurrentUid();
     if (!uid) return;
@@ -28,7 +37,8 @@ async function renderConfirmations(meetingId, container) {
     const confirmations = await getConfirmations(meetingId);
     const userConf = confirmations[uid] || {};
     const role = await getCurrentUserRole();
-    const isLeader = role === 'truong_to' || role === 'admin';
+    const isLeader = role === 'truong_to' || role === 'admin' 
+                  || role === 'to_pho' || role === 'nhom_truong';
     
     // Kiểm tra trạng thái kết luận
     const contents = await getMeetingContents(meetingId);
