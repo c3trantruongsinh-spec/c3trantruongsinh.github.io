@@ -2399,13 +2399,13 @@ async function exportMeetingMinutes(meetingId) {
         .header-left {
             text-align: center;
             flex: 0 0 55%;
-            max-width: 55%;
+            max-width: 53%;
             line-height: 1.4;
         }
         .header-right {
             text-align: center;
             flex: 0 0 45%;
-            max-width: 45%;
+            max-width: 47%;
             line-height: 1.4;
         }
         .header-left strong,
@@ -2550,26 +2550,27 @@ async function exportMeetingMinutes(meetingId) {
     <div class="page-wrapper">
     <div class="page">
 
-        <div class="header">
-            <div class="header-left">
-                <strong>SỞ GIÁO DỤC VÀ ĐÀO TẠO VĨNH LONG</strong>
-                <strong class="header-school">TRƯỜNG THCS&THPT TRẦN TRƯỜNG SINH</strong>
-                <div class="header-sub">TỔ: ${esc(teamName || teamCode || '..................')}</div>
-                <div class="header-sub">─────────</div>
-                <div style="font-size:11pt;margin-top:4px;">Số: <strong>${esc(meeting.code || '.......')}</strong></div>
-            </div>
-            <div class="header-right">
-                <strong>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</strong>
-                <div style="font-weight:bold;">Độc lập - Tự do - Hạnh phúc</div>
-                <div class="header-sub">─────────</div>
-                <div style="font-size:11pt;margin-top:4px;font-style:italic;">
-                    Thạnh Phong, ngày ${meetingDayNum} tháng ${meetingMonthNum} năm ${meetingYearNum}
-                </div>
-            </div>
-        </div>
+       <!-- KHUNG TIÊU NGỮ 2 CỘT (CỐ ĐỊNH KHÔNG BỊ RỚT DÒNG) -->
+        <table style="width: 100%; border-collapse: collapse; border: none; margin-bottom: 16px; table-layout: fixed;">
+            <tr>
+                <td style="width: 42%; text-align: center; vertical-align: top; padding: 0; padding-right: 8px;">
+                    <div style="font-family: 'Times New Roman', serif; font-size: 11pt; text-transform: uppercase; line-height: 1.35; white-space: nowrap;">SỞ GIÁO DỤC VÀ ĐÀO TẠO VĨNH LONG</div>
+                    <div style="font-family: 'Times New Roman', serif; font-size: 11.5pt; font-weight: bold; text-transform: uppercase; line-height: 1.35; white-space: nowrap;">TRƯỜNG THCS&THPT TRẦN TRƯỜNG SINH</div>
+                    <div style="display: inline-block; width: 42%; height: 0; border-bottom: 1px solid #000; margin-top: 3px; margin-bottom: 5px;"></div>
+                   
+                    <div style="font-size:11pt;margin-top:2px;white-space:nowrap;">Số: <strong>${esc(meeting.code || '.......')}</strong></div>
+                </td>
+                <td style="width: 58%; text-align: center; vertical-align: top; padding: 0; padding-left: 8px;">
+                    <div style="font-family: 'Times New Roman', serif; font-size: 12pt; font-weight: bold; text-transform: uppercase; line-height: 1.35; white-space: nowrap;">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
+                    <div style="font-family: 'Times New Roman', serif; font-size: 12.5pt; font-weight: bold; line-height: 1.35; white-space: nowrap;">Độc lập - Tự do - Hạnh phúc</div>
+                    <div style="display: inline-block; width: 42%; height: 0; border-bottom: 1px solid #000; margin-top: 3px; margin-bottom: 5px;"></div>
+                    <div style="font-family: 'Times New Roman', serif; font-size: 11.5pt; font-style: italic; line-height: 1.4; white-space: nowrap;">Thạnh Phong, ngày ${meetingDayNum} tháng ${meetingMonthNum} năm ${meetingYearNum}</div>
+                </td>
+            </tr>
+        </table>
 
-        <div class="title">BIÊN BẢN SINH HOẠT TỔ CHUYÊN MÔN</div>
-        <div class="subtitle">(Về việc: ${esc(meeting.title || '')})</div>
+        <div class="title">BIÊN BẢN </div>
+        <div class="subtitle">( ${esc(meeting.title || '')})</div>
 
         <table class="meta-table">
             <tr>
