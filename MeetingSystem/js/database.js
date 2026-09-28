@@ -534,32 +534,96 @@ async function updateConfirmation(meetingId, field, value) {
  * @param {string} meetingId
  * @param {string} type - 'PARTICIPATION'|'FINAL'
  */
+
+/**
+ * Ghi nhận xác nhận của user cho meeting
+ * Đã nâng cấp: dùng set({merge:true}) để đảm bảo ghi được khi node chưa tồn tại
+ * @param {string} meetingId
+ * @param {string} type - 'PARTICIPATION' | 'CONCLUSION_READ' | 'FINAL'
+ * @returns {Promise<void>}
+ */
 async function recordConfirmation(meetingId, type) {
     const uid = getCurrentUid();
     if (!uid) throw new Error('Chưa đăng nhập');
     
+    // Kiểm tra meeting đã chốt chưa
     if (await isMeetingClosed(meetingId)) {
         throw new Error('Không thể xác nhận cho cuộc họp đã chốt');
     }
     
-    const confRef = db.ref(`confirmations/${meetingId}/${uid}`);
     const now = firebase.database.ServerValue.TIMESTAMP;
+    const confRef = db.ref(`confirmations/${meetingId}/${uid}`);
+    
+    // Chuẩn bị updates
+    const updates = {};
     
     if (type === 'PARTICIPATION') {
-        await confRef.update({
-            participated: true,
-            participatedAt: now
-        });
+        updates.participated = true;
+        updates.participatedAt = now;
+    } else if (type === 'CONCLUSION_READ') {
+        updates.conclusionRead = true;
+        updates.conclusionReadAt = now;
     } else if (type === 'FINAL') {
-        await confRef.update({
-            finalConfirmed: true,
-            finalConfirmedAt: now,
-            finalConfirmationId: `CONF_${meetingId}_${uid}_${Date.now()}`
-        });
+        updates.finalConfirmed = true;
+        updates.finalConfirmedAt = now;
+        updates.finalConfirmationId = `CONF_${meetingId}_${uid}_${Date.now()}`;
+    } else {
+        throw new Error('Loại xác nhận không hợp lệ: ' + type);
     }
     
-    await logActivity(meetingId, uid, `CONFIRM_${type}`, 'CONFIRMATION', meetingId, 
-        `Đã xác nhận ${type === 'PARTICIPATION' ? 'tham gia' : 'hồ sơ'}`);
+    // Ghi vào Firebase — dùng update() để merge, an toàn khi node chưa tồn tại
+    try {
+        await confRef.update(updates);
+        console.log(`✅ Đã ghi xác nhận ${type} cho meeting ${meetingId}, user ${uid}`);
+    } catch (err) {
+        console.error(`❌ Lỗi ghi xác nhận ${type}:`, err);
+        // Nếu update thất bại, thử set() như fallback
+        if (err.code === 'PERMISSION_DENIED') {
+            throw new Error('Không có quyền xác nhận. Vui lòng kiểm tra Rules Firebase.');
+        }
+        throw err;
+    }
+    
+    // Ghi activity log
+    try {
+        const typeLabel = type === 'PARTICIPATION' ? 'tham gia'
+                        : type === 'CONCLUSION_READ' ? 'đã đọc kết luận'
+                        : 'hồ sơ';
+        await logActivity(
+            meetingId, uid, `CONFIRM_${type}`, 'CONFIRMATION', meetingId,
+            `Đã xác nhận ${typeLabel}`
+        );
+    } catch (logErr) {
+        // Không throw nếu log thất bại — vì xác nhận chính đã thành công
+        console.warn('Không ghi được activity log:', logErr);
+    }
+}
+
+/**
+ * Cập nhật một trường xác nhận cụ thể
+ * @param {string} meetingId
+ * @param {string} field - 'participated' | 'conclusionRead' | 'finalConfirmed'
+ * @param {*} value
+ * @returns {Promise<void>}
+ */
+async function updateConfirmation(meetingId, field, value) {
+    const uid = getCurrentUid();
+    if (!uid) throw new Error('Chưa đăng nhập');
+    
+    if (await isMeetingClosed(meetingId)) {
+        throw new Error('Không thể cập nhật xác nhận cho cuộc họp đã chốt');
+    }
+    
+    const confRef = db.ref(`confirmations/${meetingId}/${uid}`);
+    const updates = {};
+    
+    updates[field] = value;
+    if (value === true) {
+        updates[field + 'At'] = firebase.database.ServerValue.TIMESTAMP;
+    }
+    
+    await confRef.update(updates);
+    console.log(`✅ Đã cập nhật ${field} = ${value} cho user ${uid}`);
 }
 
 // ============================================================

@@ -265,39 +265,73 @@ async function renderConfirmations(meetingId, container) {
  * Confirm participation
  * @param {string} meetingId
  */
+/**
+ * Xác nhận tham gia cuộc họp
+ * @param {string} meetingId
+ */
 async function confirmParticipation(meetingId) {
+    const btn = event ? event.target : null;
+    const oldHtml = btn ? btn.innerHTML : '';
+    
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xử lý...';
+    }
+    
     try {
         await recordConfirmation(meetingId, 'PARTICIPATION');
-        showToast('Đã xác nhận tham gia!', 'success');
-        // Refresh
+        showToast('✅ Đã xác nhận tham gia!', 'success', 3000);
+        
+        // Refresh lại phần xác nhận
         const container = document.getElementById('confirmationSection');
         if (container) {
             await renderConfirmations(meetingId, container);
         }
     } catch (error) {
-        showToast('Lỗi: ' + error.message, 'error');
+        console.error('Confirm participation error:', error);
+        showToast('❌ Lỗi xác nhận: ' + error.message, 'error', 5000);
+        
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = oldHtml;
+        }
     }
 }
 
 /**
- * Confirm conclusion read
+ * Xác nhận đã đọc kết luận
  * @param {string} meetingId
  */
 async function confirmConclusionRead(meetingId) {
+    const btn = event ? event.target : null;
+    const oldHtml = btn ? btn.innerHTML : '';
+    
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xử lý...';
+    }
+    
     try {
-        await updateConfirmation(meetingId, 'conclusionRead', true);
-        showToast('Đã xác nhận đọc kết luận!', 'success');
+        await recordConfirmation(meetingId, 'CONCLUSION_READ');
+        showToast('✅ Đã xác nhận đọc kết luận!', 'success', 3000);
+        
         const container = document.getElementById('confirmationSection');
         if (container) {
             await renderConfirmations(meetingId, container);
         }
     } catch (error) {
-        showToast('Lỗi: ' + error.message, 'error');
+        console.error('Confirm conclusion read error:', error);
+        showToast('❌ Lỗi xác nhận: ' + error.message, 'error', 5000);
+        
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = oldHtml;
+        }
     }
 }
 
 /**
- * Confirm final
+ * Xác nhận cuối cùng hồ sơ cuộc họp
  * @param {string} meetingId
  */
 async function confirmFinal(meetingId) {
@@ -307,21 +341,27 @@ async function confirmFinal(meetingId) {
         async () => {
             try {
                 await recordConfirmation(meetingId, 'FINAL');
-                showToast('Đã xác nhận hồ sơ!', 'success');
+                showToast('🔐 Đã xác nhận hồ sơ thành công!', 'success', 3000);
+                
                 const container = document.getElementById('confirmationSection');
                 if (container) {
                     await renderConfirmations(meetingId, container);
                 }
-                // Check if all confirmed
-                await checkAllConfirmed(meetingId);
+                
+                // Kiểm tra nếu tất cả đã xác nhận
+                try {
+                    await checkAllConfirmed(meetingId);
+                } catch (e) {
+                    console.warn('Không kiểm tra được trạng thái tổng:', e);
+                }
             } catch (error) {
-                showToast('Lỗi: ' + error.message, 'error');
+                console.error('Confirm final error:', error);
+                showToast('❌ Lỗi xác nhận hồ sơ: ' + error.message, 'error', 5000);
             }
         },
         'Xác nhận'
     );
 }
-
 /**
  * Check if all members have confirmed
  * @param {string} meetingId
