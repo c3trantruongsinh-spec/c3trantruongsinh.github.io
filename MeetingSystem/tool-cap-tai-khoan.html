@@ -730,14 +730,16 @@
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Vai trò <span class="required">*</span></label>
-                        <select id="role">
-                            <option value="giao_vien">Giáo viên</option>
-                            <option value="thu_ky">Thư ký</option>
-                            <option value="truong_to">Tổ trưởng</option>
-                            <option value="admin">Admin</option>
-                        </select>
-                    </div>
+                    <label>Vai trò <span class="required">*</span></label>
+                    <select id="role" class="form-control">
+                        <option value="giao_vien">Giáo viên</option>
+                        <option value="to_pho">Tổ phó</option>           <!-- Thêm dòng này -->
+                        <option value="nhom_truong">Nhóm trưởng</option> <!-- Thêm dòng này -->
+                        <option value="thu_ky">Thư ký</option>
+                        <option value="truong_to">Tổ trưởng</option>
+                        <option value="admin">Quản trị viên</option>
+                    </select>
+                </div>
                     <div class="form-group">
                         <label>Tổ chuyên môn</label>
                        <select id="teamId" class="form-control">
@@ -901,12 +903,14 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label>Vai trò <span class="required">*</span></label>
-                        <select id="editRole">
-                            <option value="giao_vien">Giáo viên</option>
-                            <option value="thu_ky">Thư ký</option>
-                            <option value="truong_to">Tổ trưởng</option>
-                            <option value="admin">Admin</option>
-                        </select>
+                       <select id="editRole" class="form-control">
+                        <option value="giao_vien">Giáo viên</option>
+                        <option value="to_pho">Tổ phó</option>
+                        <option value="nhom_truong">Nhóm trưởng</option>
+                        <option value="thu_ky">Thư ký</option>
+                        <option value="truong_to">Tổ trưởng</option>
+                        <option value="admin">Quản trị viên</option>
+                    </select>
                     </div>
                     <div class="form-group">
                         <label>Tổ chuyên môn</label>
@@ -1114,6 +1118,8 @@
                 const map = {
                     'admin': 'Admin',
                     'truong_to': 'Tổ trưởng',
+                    'to_pho': 'Tổ phó',              // <-- Bổ sung dòng này
+                    'nhom_truong': 'Nhóm trưởng',    // <-- Bổ sung dòng này
                     'thu_ky': 'Thư ký',
                     'giao_vien': 'Giáo viên'
                 };
@@ -1617,6 +1623,8 @@
                 if (!s) return 'giao_vien';
                 if (s === 'admin') return 'admin';
                 if (s === 'truong_to' || s === 'truongto' || s === 'to_truong' || s === 'totruong') return 'truong_to';
+                if (s === 'to_pho' || s === 'topho' || s === 'pho_to' || s === 'photruong') return 'to_pho';             // <-- Bổ sung dòng này
+                if (s === 'nhom_truong' || s === 'nhomtruong' || s === 'truong_nhom' || s === 'truongnhom') return 'nhom_truong'; // <-- Bổ sung dòng này
                 if (s === 'thu_ky' || s === 'thuky') return 'thu_ky';
                 if (s === 'giao_vien' || s === 'giaovien' || s === 'gv') return 'giao_vien';
                 return null;
@@ -1626,6 +1634,8 @@
                 const map = {
                     'admin': 'Admin',
                     'truong_to': 'Tổ trưởng',
+                    'to_pho': 'Tổ phó',             // <-- Bổ sung dòng này
+                    'nhom_truong': 'Nhóm trưởng',    // <-- Bổ sung dòng này
                     'thu_ky': 'Thư ký',
                     'giao_vien': 'Giáo viên'
                 };
