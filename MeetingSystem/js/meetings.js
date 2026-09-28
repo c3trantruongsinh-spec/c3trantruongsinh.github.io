@@ -11,6 +11,12 @@
  * Đã nâng cấp: hiển thị cả cuộc họp mà user là khách mời
  * @param {HTMLElement} container
  */
+/**
+ * Render dashboard
+ * Đã nâng cấp: hiển thị nút tắt "Tạo cuộc họp" cho Ban lãnh đạo (5 role)
+ * Đã nâng cấp: hiển thị cả cuộc họp mà user là khách mời
+ * @param {HTMLElement} container
+ */
 async function renderDashboard(container) {
     const uid = getCurrentUid();
     if (!uid) {
@@ -29,6 +35,9 @@ async function renderDashboard(container) {
         meetings = await getMeetingsForUser(uid, teamId);
     }
     
+    // Sử dụng helper canCreateMeeting() để kiểm tra quyền tạo cuộc họp
+    const canCreate = await canCreateMeeting();
+    
     const draft = meetings.filter(m => m.status === 'DRAFT').length;
     const discussion = meetings.filter(m => m.status === 'DISCUSSION').length;
     const concluded = meetings.filter(m => m.status === 'CONCLUDED' || m.status === 'CONFIRMATION').length;
@@ -45,6 +54,14 @@ async function renderDashboard(container) {
     }
     
     let html = `
+        ${canCreate ? `
+            <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
+                <button class="btn-primary" style="padding:10px 20px;font-weight:600;" onclick="navigateTo('create-meeting')">
+                    <i class="fas fa-plus"></i> Tạo cuộc họp mới
+                </button>
+            </div>
+        ` : ''}
+        
         <div class="dashboard-stats">
             <div class="stat-card draft">
                 <div class="stat-number">${draft}</div>
@@ -77,6 +94,11 @@ async function renderDashboard(container) {
                         <div class="empty-state">
                             <i class="fas fa-calendar-alt"></i>
                             <p>Chưa có cuộc họp nào.</p>
+                            ${canCreate ? `
+                                <button class="btn-primary" style="margin-top:12px;" onclick="navigateTo('create-meeting')">
+                                    <i class="fas fa-plus"></i> Tạo cuộc họp đầu tiên
+                                </button>
+                            ` : ''}
                         </div>
                     ` : `
                         ${recent.map(m => {
@@ -155,6 +177,12 @@ async function renderDashboard(container) {
  * Đã nâng cấp: hiển thị cả cuộc họp mà user là KHÁCH MỜI (khác tổ)
  * @param {HTMLElement} container
  */
+/**
+ * Render meetings list
+ * Đã nâng cấp: dùng canCreateMeeting() để hỗ trợ đủ 5 role (admin, truong_to, to_pho, nhom_truong, thu_ky)
+ * Đã nâng cấp: hiển thị cả cuộc họp mà user là KHÁCH MỜI (khác tổ)
+ * @param {HTMLElement} container
+ */
 async function renderMeetings(container) {
     const uid = getCurrentUid();
     if (!uid) return;
@@ -171,7 +199,8 @@ async function renderMeetings(container) {
     
     meetings.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     
-    const canCreate = role === 'truong_to' || role === 'admin' || role === 'thu_ky';
+    // Sử dụng helper canCreateMeeting() từ auth.js để kiểm tra quyền
+    const canCreate = await canCreateMeeting();
     
     let html = `
         <div class="meetings-toolbar">
@@ -190,11 +219,15 @@ async function renderMeetings(container) {
                 <div class="empty-state">
                     <i class="fas fa-calendar-alt"></i>
                     <h3>Chưa có cuộc họp nào</h3>
-                    <p>${canCreate ? 'Hãy tạo cuộc họp đầu tiên.' : 'Chờ tổ trưởng tạo cuộc họp.'}</p>
+                    <p>${canCreate ? 'Hãy tạo cuộc họp đầu tiên.' : 'Chờ Ban lãnh đạo tổ tạo cuộc họp.'}</p>
+                    ${canCreate ? `
+                        <button class="btn-primary" style="margin-top:12px;" onclick="navigateTo('create-meeting')">
+                            <i class="fas fa-plus"></i> Tạo cuộc họp đầu tiên
+                        </button>
+                    ` : ''}
                 </div>
             ` : `
                 ${meetings.map(m => {
-                    // Đánh dấu nếu user là khách mời (khác tổ)
                     const isGuest = teamId && m.teamId && m.teamId !== teamId && m.memberIds && m.memberIds[uid];
                     const guestBadge = isGuest
                         ? `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:#fef3c7;color:#92400e;border-radius:10px;font-size:11px;font-weight:600;">🎫 Khách mời</span>`
@@ -269,6 +302,7 @@ function getFormatLabel(format) {
  * Đã nâng cấp: Đặc quyền Admin + Giao diện khách mời CSS Grid
  * @param {HTMLElement} container
  */
+
 async function renderCreateMeeting(container) {
     const uid = getCurrentUid();
     if (!uid) return;
@@ -276,7 +310,8 @@ async function renderCreateMeeting(container) {
     const role = await getCurrentUserRole();
     const teamId = await getCurrentUserTeamId();
 
-    if (role !== 'truong_to' && role !== 'admin' && role !== 'thu_ky' && role !== 'to_pho' && role !== 'nhom_truong') {
+    const canCreate = await canCreateMeeting();
+    if (!canCreate) {
         container.innerHTML = `
             <div class="empty-state">
                 <i class="fas fa-lock"></i>
@@ -647,7 +682,6 @@ async function renderCreateMeeting(container) {
         }
     });
 }
-
 /**
  * Hàm phụ: chọn/bỏ chọn tất cả khách mời
  * @param {boolean} checked
@@ -753,6 +787,7 @@ async function quickConfirmTask(meetingId, taskId) {
  * @param {HTMLElement} container
  * @param {string} meetingId
  */
+
 async function renderMeetingDetail(container, meetingId) {
     if (!meetingId) {
         container.innerHTML = `<p>Không tìm thấy cuộc họp.</p>`;

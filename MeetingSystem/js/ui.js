@@ -482,21 +482,19 @@ function renderFunctionError(funcName) {
  * Gắn sự kiện click cho tất cả .nav-item[data-page]
  * Quyền tạo cuộc họp: truong_to, to_pho, nhom_truong, thu_ky, admin
  */
+/**
+ * Setup desktop navigation
+ * Đã nâng cấp: dùng canCreateMeeting() để hỗ trợ đủ 5 role
+ */
 function setupNavigation() {
     document.querySelectorAll('.nav-item[data-page]').forEach(item => {
         item.addEventListener('click', function(e) {
             e.preventDefault();
             const page = this.dataset.page;
-            
+
             if (page === 'create-meeting') {
-                Promise.all([
-                    hasRole('truong_to'),
-                    hasRole('to_pho'),
-                    hasRole('nhom_truong'),
-                    hasRole('thu_ky'),
-                    isAdmin()
-                ]).then(([isLeader, isToPho, isNhomTruong, isSecretary, isAdm]) => {
-                    if (isLeader || isToPho || isNhomTruong || isSecretary || isAdm) {
+                canCreateMeeting().then(canCreate => {
+                    if (canCreate) {
                         navigateTo('create-meeting');
                     } else {
                         showToast('Bạn không có quyền tạo cuộc họp', 'error');
@@ -505,7 +503,7 @@ function setupNavigation() {
             } else {
                 navigateTo(page);
             }
-            
+
             if (window.innerWidth <= 1024) {
                 const sidebar = document.getElementById('sidebar');
                 if (sidebar) sidebar.classList.remove('open');
@@ -516,24 +514,17 @@ function setupNavigation() {
 
 /**
  * Setup mobile navigation
- * Gắn sự kiện click cho tất cả .mobile-nav-item[data-page]
- * Quyền tạo cuộc họp: truong_to, to_pho, nhom_truong, thu_ky, admin
+ * Đã nâng cấp: dùng canCreateMeeting() để hỗ trợ đủ 5 role
  */
 function setupMobileNavigation() {
     document.querySelectorAll('.mobile-nav-item[data-page]').forEach(item => {
         item.addEventListener('click', function(e) {
             e.preventDefault();
             const page = this.dataset.page;
-            
+
             if (page === 'create-meeting') {
-                Promise.all([
-                    hasRole('truong_to'),
-                    hasRole('to_pho'),
-                    hasRole('nhom_truong'),
-                    hasRole('thu_ky'),
-                    isAdmin()
-                ]).then(([isLeader, isToPho, isNhomTruong, isSecretary, isAdm]) => {
-                    if (isLeader || isToPho || isNhomTruong || isSecretary || isAdm) {
+                canCreateMeeting().then(canCreate => {
+                    if (canCreate) {
                         navigateTo('create-meeting');
                     } else {
                         showToast('Bạn không có quyền tạo cuộc họp', 'error');

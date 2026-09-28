@@ -1,7 +1,78 @@
 // ============================================================
 // AUTHENTICATION MODULE
+// Trường THCS-THPT Trần Trường Sinh
 // ============================================================
 
+/**
+ * Bảng ánh xạ mã vai trò → nhãn hiển thị tiếng Việt
+ * Được dùng thống nhất ở mọi nơi trong hệ thống
+ */
+const ROLE_LABELS = {
+    'admin':        'Quản trị viên',
+    'truong_to':    'Tổ trưởng',
+    'to_pho':       'Tổ phó',
+    'nhom_truong':  'Nhóm trưởng',
+    'thu_ky':       'Thư ký',
+    'giao_vien':    'Giáo viên'
+};
+
+/**
+ * Lấy nhãn hiển thị của vai trò
+ * @param {string} role - Mã role (admin, truong_to, ...)
+ * @returns {string} Nhãn tiếng Việt
+ */
+function getRoleDisplayLabel(role) {
+    if (!role) return 'Chưa xác định';
+    return ROLE_LABELS[role] || 'Chưa xác định';
+}
+
+/**
+ * Kiểm tra user có thuộc Ban Lãnh đạo (Tổ trưởng, Tổ phó, Nhóm trưởng)
+ * KHÔNG bao gồm admin — vì admin là cấp cao hơn
+ * @returns {Promise<boolean>}
+ */
+async function isBanLanhDao() {
+    const role = await getCurrentUserRole();
+    return role === 'truong_to' || role === 'to_pho' || role === 'nhom_truong';
+}
+
+/**
+ * Kiểm tra user có quyền TẠO cuộc họp
+ * Bao gồm: admin, truong_to, to_pho, nhom_truong, thu_ky
+ * @returns {Promise<boolean>}
+ */
+async function canCreateMeeting() {
+    const role = await getCurrentUserRole();
+    return role === 'admin'
+        || role === 'truong_to'
+        || role === 'to_pho'
+        || role === 'nhom_truong'
+        || role === 'thu_ky';
+}
+
+/**
+ * Kiểm tra user có quyền QUẢN LÝ cuộc họp
+ * (chuyển trạng thái, kết luận nội dung, giao việc, chốt hồ sơ)
+ * Bao gồm: admin, truong_to, to_pho, nhom_truong
+ * KHÔNG bao gồm thu_ky (chỉ soạn thảo)
+ * @returns {Promise<boolean>}
+ */
+async function canManageMeeting() {
+    const role = await getCurrentUserRole();
+    return role === 'admin'
+        || role === 'truong_to'
+        || role === 'to_pho'
+        || role === 'nhom_truong';
+}
+
+/**
+ * Kiểm tra user có quyền XEM tất cả hồ sơ (không giới hạn tổ)
+ * @returns {Promise<boolean>}
+ */
+async function canViewAllArchives() {
+    const role = await getCurrentUserRole();
+    return role === 'admin';
+}
 /**
  * Check authentication state and redirect if needed
  */
@@ -11,55 +82,69 @@ function initAuth() {
             const loadingOverlay = document.getElementById('loadingOverlay');
             
             if (user) {
-                // User is signed in
                 console.log('User authenticated:', user.uid);
                 
-                // Check if user has role in database
                 try {
                     const userData = await getCurrentUserData();
                     if (!userData) {
-                        // User exists in auth but not in database
                         console.warn('User not found in database, creating entry...');
-                        // Create basic user entry
                         await db.ref(`users/${user.uid}`).set({
                             email: user.email,
                             displayName: user.displayName || user.email,
-                            role: 'giao_vien', // Default role
+                            role: 'giao_vien',
                             createdAt: firebase.database.ServerValue.TIMESTAMP
                         });
                     }
                     
-                    // Update user display name
-                    if (user.displayName) {
-                        document.getElementById('userName').textContent = user.displayName;
-                    } else {
-                        document.getElementById('userName').textContent = user.email || 'Người dùng';
+                    // ============================================================
+                    // 1. HIỂN THỊ TÊN NGƯỜI DÙNG
+                    // ============================================================
+                    const userNameEl = document.getElementById('userName');
+                    if (userNameEl) {
+                        if (user.displayName) {
+                            userNameEl.textContent = user.displayName;
+                        } else if (userData && userData.displayName) {
+                            userNameEl.textContent = userData.displayName;
+                        } else {
+                            userNameEl.textContent = user.email || 'Người dùng';
+                        }
                     }
                     
-                    // Get and display user role
+                    // ============================================================
+                    // 2. HIỂN THỊ VAI TRÒ (đã sửa — hỗ trợ đủ 5 role)
+                    // ============================================================
                     const role = await getCurrentUserRole();
-                    const roleMap = {
-                        'admin': 'Quản trị viên',
-                        'truong_to': 'Tổ trưởng',
-                        'thu_ky': 'Thư ký',
-                        'giao_vien': 'Giáo viên'
-                    };
-                    document.getElementById('userRole').textContent = roleMap[role] || 'Giáo viên';
+                    const roleLabel = getRoleDisplayLabel(role);
                     
-                    // Show admin nav if admin
+                    const userRoleEl = document.getElementById('userRole');
+                    if (userRoleEl) {
+                        userRoleEl.textContent = roleLabel;
+                    }
+                    
+                    // ============================================================
+                    // 3. HIỆN MENU ADMIN NẾU LÀ ADMIN
+                    // ============================================================
                     if (role === 'admin') {
-                        document.getElementById('adminNav').style.display = 'flex';
+                        const adminNav = document.getElementById('adminNav');
+                        if (adminNav) adminNav.style.display = 'flex';
                     }
                     
-                    // Update avatar
+                    // ============================================================
+                    // 4. CẬP NHẬT AVATAR
+                    // ============================================================
                     const avatarEl = document.getElementById('userAvatar');
-                    if (user.photoURL) {
-                        avatarEl.innerHTML = `<img src="${user.photoURL}" alt="Avatar" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
-                    } else {
-                        avatarEl.textContent = (user.displayName || user.email || 'U').charAt(0).toUpperCase();
+                    if (avatarEl) {
+                        if (user.photoURL) {
+                            avatarEl.innerHTML = `<img src="${user.photoURL}" alt="Avatar" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+                        } else {
+                            const initial = (user.displayName || user.email || 'U').charAt(0).toUpperCase();
+                            avatarEl.textContent = initial;
+                        }
                     }
                     
-                    // Hide loading overlay
+                    // ============================================================
+                    // 5. ẨN LOADING OVERLAY
+                    // ============================================================
                     if (loadingOverlay) loadingOverlay.classList.add('hidden');
                     
                     resolve(user);
@@ -70,11 +155,9 @@ function initAuth() {
                     resolve(null);
                 }
             } else {
-                // User is signed out
                 console.log('User not authenticated');
                 if (loadingOverlay) loadingOverlay.classList.add('hidden');
                 
-                // Redirect to login if not on login page
                 if (!window.location.pathname.includes('login.html')) {
                     window.location.href = 'login.html';
                 }
@@ -142,26 +225,6 @@ async function updateUserTeam(uid, teamId) {
     }
 }
 
-// Initialize auth when DOM is ready
-document.addEventListener('DOMContentLoaded', function() {
-    // Login page doesn't need to check auth here
-    if (!window.location.pathname.includes('login.html')) {
-        initAuth();
-    }
-    
-    // Logout button listener
-    const logoutBtn = document.getElementById('logoutBtn');
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', logoutUser);
-    }
-});
-
-// Export functions
-window.initAuth = initAuth;
-window.logoutUser = logoutUser;
-window.updateUserRole = updateUserRole;
-window.updateUserTeam = updateUserTeam;
-
 // ============================================================
 // CHANGE PASSWORD
 // ============================================================
@@ -196,7 +259,7 @@ function showChangePasswordModal() {
         </div>
     `;
     
-    const modal = showModal('🔑 Đổi mật khẩu', modalHtml, [
+    showModal('🔑 Đổi mật khẩu', modalHtml, [
         { text: 'Hủy', class: 'btn-secondary', action: 'cancel' },
         {
             text: 'Lưu thay đổi',
@@ -223,33 +286,26 @@ async function handleChangePassword(closeModal) {
     const newPassword = newPasswordEl.value;
     const confirmPassword = confirmPasswordEl.value;
     
-    // Reset error
     errorEl.style.display = 'none';
     errorEl.textContent = '';
     
-    // Validate: rỗng
     if (!newPassword || !confirmPassword) {
         errorEl.textContent = 'Vui lòng nhập đầy đủ cả hai ô mật khẩu.';
         errorEl.style.display = 'block';
         return;
     }
     
-    // Validate: độ dài
     if (newPassword.length < 6) {
         errorEl.textContent = 'Mật khẩu mới phải có ít nhất 6 ký tự.';
         errorEl.style.display = 'block';
         return;
     }
     
-    // Validate: khớp nhau
     if (newPassword !== confirmPassword) {
         errorEl.textContent = 'Mật khẩu xác nhận không khớp với mật khẩu mới.';
         errorEl.style.display = 'block';
         return;
     }
-    
-    // Validate: mật khẩu mới không trùng mật khẩu cũ (không thể check chính xác, chỉ khuyến nghị)
-    // (Bỏ qua vì Firebase không cho phép so sánh)
     
     const user = auth.currentUser;
     if (!user) {
@@ -258,7 +314,6 @@ async function handleChangePassword(closeModal) {
         return;
     }
     
-    // Disable nút Lưu
     const saveBtn = document.querySelector('.modal-footer button[data-action="save"]');
     if (saveBtn) {
         saveBtn.disabled = true;
@@ -268,7 +323,6 @@ async function handleChangePassword(closeModal) {
     try {
         await user.updatePassword(newPassword);
         
-        // Thành công
         showToast('✅ Đổi mật khẩu thành công!', 'success', 4000);
         if (closeModal) closeModal();
         
@@ -280,7 +334,6 @@ async function handleChangePassword(closeModal) {
         switch (error.code) {
             case 'auth/requires-recent-login':
                 message = 'Phiên đăng nhập đã quá cũ. Vui lòng ĐĂNG XUẤT và ĐĂNG NHẬP LẠI, sau đó thực hiện đổi mật khẩu.';
-                // Hiển thị confirm để đăng xuất
                 if (closeModal) closeModal();
                 setTimeout(() => {
                     showConfirm(
@@ -313,7 +366,6 @@ async function handleChangePassword(closeModal) {
         errorEl.textContent = message;
         errorEl.style.display = 'block';
         
-        // Re-enable nút Lưu
         if (saveBtn) {
             saveBtn.disabled = false;
             saveBtn.innerHTML = 'Lưu thay đổi';
@@ -321,6 +373,32 @@ async function handleChangePassword(closeModal) {
     }
 }
 
-// Export toàn cục
+// ============================================================
+// INITIALIZE ON DOM READY
+// ============================================================
+document.addEventListener('DOMContentLoaded', function() {
+    if (!window.location.pathname.includes('login.html')) {
+        initAuth();
+    }
+    
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', logoutUser);
+    }
+});
+
+// ============================================================
+// EXPORTS
+// ============================================================
+window.ROLE_LABELS = ROLE_LABELS;
+window.getRoleDisplayLabel = getRoleDisplayLabel;
+window.initAuth = initAuth;
+window.logoutUser = logoutUser;
+window.updateUserRole = updateUserRole;
+window.updateUserTeam = updateUserTeam;
 window.showChangePasswordModal = showChangePasswordModal;
 window.handleChangePassword = handleChangePassword;
+window.isBanLanhDao = isBanLanhDao;
+window.canCreateMeeting = canCreateMeeting;
+window.canManageMeeting = canManageMeeting;
+window.canViewAllArchives = canViewAllArchives;
