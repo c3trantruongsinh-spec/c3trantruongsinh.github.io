@@ -1,5 +1,6 @@
 // ============================================================
 // DATABASE OPERATIONS MODULE
+// Trường THCS-THPT Trần Trường Sinh
 // ============================================================
 
 /**
@@ -274,19 +275,6 @@ async function getDiscussions(meetingId, contentId = null) {
 
 /**
  * Add a discussion (with CLOSED check)
- * @param {string} meetingId
- * @param {Object} discussionData
- * @returns {Promise<string>} Discussion ID
- */
-/**
- * Add a discussion (with CLOSED check)
- * Đã bổ sung: tăng discussionCount của meeting sau khi push thành công
- * @param {string} meetingId
- * @param {Object} discussionData
- * @returns {Promise<string>} Discussion ID
- */
-/**
- * Add a discussion (with CLOSED check)
  * Đã bổ sung: tăng discussionCount ở cả meeting (tổng) lẫn content (riêng)
  * @param {string} meetingId
  * @param {Object} discussionData
@@ -319,7 +307,6 @@ async function addDiscussion(meetingId, discussionData) {
     
     await discRef.set(data);
     
-    // === TĂNG discussionCount TỔNG CỦA MEETING ===
     try {
         await db.ref(`meetings/${meetingId}/discussionCount`).transaction(function(currentCount) {
             return (currentCount || 0) + 1;
@@ -328,7 +315,6 @@ async function addDiscussion(meetingId, discussionData) {
         console.warn('Không cập nhật được discussionCount tổng:', countError);
     }
     
-    // === TĂNG discussionCount RIÊNG CỦA CONTENT (nếu có) ===
     if (discussionData.contentId) {
         try {
             await db.ref(`meetingContents/${meetingId}/${discussionData.contentId}/discussionCount`)
@@ -340,7 +326,6 @@ async function addDiscussion(meetingId, discussionData) {
         }
     }
     
-    // Ghi log hoạt động
     await logActivity(
         meetingId,
         uid,
@@ -352,10 +337,6 @@ async function addDiscussion(meetingId, discussionData) {
     
     return discId;
 }
-
-window.addDiscussion = addDiscussion;
-
-
 
 /**
  * Update a discussion (with CLOSED check)
@@ -396,6 +377,10 @@ async function updateDiscussion(meetingId, discussionId, updates) {
 
 /**
  * Get tasks for a meeting
+ * Đã nâng cấp:
+ *   - LUÔN inject meetingId vào mỗi task để tránh lỗi undefined
+ *   - PHÒNG THỦ chống permission_denied: nếu user không có quyền đọc meeting này,
+ *     trả về mảng rỗng thay vì ném lỗi ra console
  * @param {string} meetingId
  * @param {string} assignedTo - Optional filter by user
  * @returns {Promise<Array>}
@@ -407,8 +392,9 @@ async function getTasks(meetingId, assignedTo = null) {
         if (!data) return [];
         
         let tasks = Object.keys(data).map(key => ({
+            ...data[key],
             id: key,
-            ...data[key]
+            meetingId: meetingId
         }));
         
         if (assignedTo) {
@@ -417,7 +403,58 @@ async function getTasks(meetingId, assignedTo = null) {
         
         return tasks;
     } catch (error) {
+        if (error.code === 'PERMISSION_DENIED'
+            || (error.message && error.message.includes('permission_denied'))) {
+            console.warn(`⚠️ Không có quyền đọc tasks của meeting ${meetingId} — bỏ qua.`);
+            return [];
+        }
         console.error('Error getting tasks:', error);
+        return [];
+    }
+}
+
+/**
+ * Lấy tất cả nhiệm vụ được giao cho một user
+ * Đã nâng cấp:
+ *   - CHỈ đọc tasks từ những meetings mà user có quyền truy cập
+ *   - Dùng getMeetingsForUser cho non-admin để bao gồm cả meetings khách mời
+ *   - Bọc try/catch từng meeting để tránh 1 meeting lỗi làm hỏng toàn bộ
+ * @param {string} uid
+ * @returns {Promise<Array>}
+ */
+async function getAllUserTasks(uid) {
+    try {
+        const role = await getCurrentUserRole();
+        const teamId = await getCurrentUserTeamId();
+        
+        let accessibleMeetings = [];
+        
+        if (role === 'admin') {
+            accessibleMeetings = await getAllMeetings();
+        } else {
+            accessibleMeetings = await getMeetingsForUser(uid, teamId);
+        }
+        
+        let allTasks = [];
+        for (const meeting of accessibleMeetings) {
+            try {
+                const tasks = await getTasks(meeting.id, uid);
+                tasks.forEach(t => {
+                    allTasks.push({
+                        ...t,
+                        meetingId: meeting.id,
+                        meetingTitle: meeting.title,
+                        meetingCode: meeting.code
+                    });
+                });
+            } catch (taskErr) {
+                console.warn(`Không đọc được tasks của meeting ${meeting.id}:`, taskErr.message);
+            }
+        }
+        
+        return allTasks;
+    } catch (error) {
+        console.error('Error getting user tasks:', error);
         return [];
     }
 }
@@ -450,14 +487,14 @@ async function addTask(meetingId, taskData) {
     
     await taskRef.set(data);
     
-    await logActivity(meetingId, uid, 'ASSIGN_TASK', 'TASK', taskId, 
+    await logActivity(meetingId, uid, 'ASSIGN_TASK', 'TASK', taskId,
         `Đã phân công nhiệm vụ cho ${taskData.assignedByName || 'giáo viên'}`);
     
     return taskId;
 }
 
 /**
- * Confirm task (with CLOSED check)
+ * Confirm task (with CLOSED check + validation chống undefined)
  * @param {string} meetingId
  * @param {string} taskId
  */
@@ -465,18 +502,39 @@ async function confirmTask(meetingId, taskId) {
     const uid = getCurrentUid();
     if (!uid) throw new Error('Chưa đăng nhập');
     
+    if (!meetingId
+        || meetingId === 'undefined'
+        || meetingId === 'null'
+        || meetingId === ''
+        || typeof meetingId !== 'string') {
+        console.error('confirmTask: meetingId không hợp lệ:', meetingId);
+        throw new Error('Không xác định được cuộc họp. Vui lòng refresh trang (Ctrl+F5) và thử lại.');
+    }
+    
+    if (!taskId
+        || taskId === 'undefined'
+        || taskId === 'null'
+        || taskId === ''
+        || typeof taskId !== 'string') {
+        console.error('confirmTask: taskId không hợp lệ:', taskId);
+        throw new Error('Không xác định được nhiệm vụ. Vui lòng refresh trang (Ctrl+F5) và thử lại.');
+    }
+    
     if (await isMeetingClosed(meetingId)) {
         throw new Error('Không thể xác nhận nhiệm vụ trong cuộc họp đã chốt');
     }
     
     const task = await db.ref(`tasks/${meetingId}/${taskId}`).once('value');
     const taskData = task.val();
-    if (!taskData) throw new Error('Không tìm thấy nhiệm vụ');
+    
+    if (!taskData) {
+        throw new Error('Không tìm thấy nhiệm vụ trong hệ thống');
+    }
     if (taskData.assignedTo !== uid && !await isAdmin()) {
         throw new Error('Bạn không được giao nhiệm vụ này');
     }
     if (taskData.confirmed) {
-        throw new Error('Nhiệm vụ đã được xác nhận');
+        throw new Error('Nhiệm vụ này đã được xác nhận trước đó');
     }
     
     await db.ref(`tasks/${meetingId}/${taskId}`).update({
@@ -486,8 +544,14 @@ async function confirmTask(meetingId, taskId) {
         status: 'CONFIRMED'
     });
     
-    await logActivity(meetingId, uid, 'CONFIRM_TASK', 'TASK', taskId, 
-        `Đã xác nhận nhiệm vụ: "${taskData.title || 'Nhiệm vụ'}"`);
+    try {
+        await logActivity(
+            meetingId, uid, 'CONFIRM_TASK', 'TASK', taskId,
+            `Đã xác nhận nhiệm vụ: "${taskData.title || 'Nhiệm vụ'}"`
+        );
+    } catch (logErr) {
+        console.warn('Không ghi được activity log:', logErr);
+    }
 }
 
 /**
@@ -503,99 +567,6 @@ async function getConfirmations(meetingId) {
     } catch (error) {
         console.error('Error getting confirmations:', error);
         return {};
-    }
-}
-
-/**
- * Update user confirmation (with CLOSED check)
- * @param {string} meetingId
- * @param {string} field - 'participated'|'conclusionRead'|'finalConfirmed'
- * @param {*} value
- */
-async function updateConfirmation(meetingId, field, value) {
-    const uid = getCurrentUid();
-    if (!uid) throw new Error('Chưa đăng nhập');
-    
-    if (await isMeetingClosed(meetingId)) {
-        throw new Error('Không thể cập nhật xác nhận cho cuộc họp đã chốt');
-    }
-    
-    const updates = {};
-    updates[field] = value;
-    if (value === true) {
-        updates[field + 'At'] = firebase.database.ServerValue.TIMESTAMP;
-    }
-    
-    await db.ref(`confirmations/${meetingId}/${uid}`).update(updates);
-}
-
-/**
- * Record user confirmation (with CLOSED check)
- * @param {string} meetingId
- * @param {string} type - 'PARTICIPATION'|'FINAL'
- */
-
-/**
- * Ghi nhận xác nhận của user cho meeting
- * Đã nâng cấp: dùng set({merge:true}) để đảm bảo ghi được khi node chưa tồn tại
- * @param {string} meetingId
- * @param {string} type - 'PARTICIPATION' | 'CONCLUSION_READ' | 'FINAL'
- * @returns {Promise<void>}
- */
-async function recordConfirmation(meetingId, type) {
-    const uid = getCurrentUid();
-    if (!uid) throw new Error('Chưa đăng nhập');
-    
-    // Kiểm tra meeting đã chốt chưa
-    if (await isMeetingClosed(meetingId)) {
-        throw new Error('Không thể xác nhận cho cuộc họp đã chốt');
-    }
-    
-    const now = firebase.database.ServerValue.TIMESTAMP;
-    const confRef = db.ref(`confirmations/${meetingId}/${uid}`);
-    
-    // Chuẩn bị updates
-    const updates = {};
-    
-    if (type === 'PARTICIPATION') {
-        updates.participated = true;
-        updates.participatedAt = now;
-    } else if (type === 'CONCLUSION_READ') {
-        updates.conclusionRead = true;
-        updates.conclusionReadAt = now;
-    } else if (type === 'FINAL') {
-        updates.finalConfirmed = true;
-        updates.finalConfirmedAt = now;
-        updates.finalConfirmationId = `CONF_${meetingId}_${uid}_${Date.now()}`;
-    } else {
-        throw new Error('Loại xác nhận không hợp lệ: ' + type);
-    }
-    
-    // Ghi vào Firebase — dùng update() để merge, an toàn khi node chưa tồn tại
-    try {
-        await confRef.update(updates);
-        console.log(`✅ Đã ghi xác nhận ${type} cho meeting ${meetingId}, user ${uid}`);
-    } catch (err) {
-        console.error(`❌ Lỗi ghi xác nhận ${type}:`, err);
-        // Nếu update thất bại, thử set() như fallback
-        if (err.code === 'PERMISSION_DENIED') {
-            throw new Error('Không có quyền xác nhận. Vui lòng kiểm tra Rules Firebase.');
-        }
-        throw err;
-    }
-    
-    // Ghi activity log
-    try {
-        const typeLabel = type === 'PARTICIPATION' ? 'tham gia'
-                        : type === 'CONCLUSION_READ' ? 'đã đọc kết luận'
-                        : 'hồ sơ';
-        await logActivity(
-            meetingId, uid, `CONFIRM_${type}`, 'CONFIRMATION', meetingId,
-            `Đã xác nhận ${typeLabel}`
-        );
-    } catch (logErr) {
-        // Không throw nếu log thất bại — vì xác nhận chính đã thành công
-        console.warn('Không ghi được activity log:', logErr);
     }
 }
 
@@ -626,9 +597,63 @@ async function updateConfirmation(meetingId, field, value) {
     console.log(`✅ Đã cập nhật ${field} = ${value} cho user ${uid}`);
 }
 
-// ============================================================
-// ATTACHMENT FUNCTIONS (Google Drive URLs only)
-// ============================================================
+/**
+ * Ghi nhận xác nhận của user cho meeting
+ * Đã nâng cấp: dùng update() để đảm bảo ghi được khi node chưa tồn tại
+ * @param {string} meetingId
+ * @param {string} type - 'PARTICIPATION' | 'CONCLUSION_READ' | 'FINAL'
+ * @returns {Promise<void>}
+ */
+async function recordConfirmation(meetingId, type) {
+    const uid = getCurrentUid();
+    if (!uid) throw new Error('Chưa đăng nhập');
+    
+    if (await isMeetingClosed(meetingId)) {
+        throw new Error('Không thể xác nhận cho cuộc họp đã chốt');
+    }
+    
+    const now = firebase.database.ServerValue.TIMESTAMP;
+    const confRef = db.ref(`confirmations/${meetingId}/${uid}`);
+    
+    const updates = {};
+    
+    if (type === 'PARTICIPATION') {
+        updates.participated = true;
+        updates.participatedAt = now;
+    } else if (type === 'CONCLUSION_READ') {
+        updates.conclusionRead = true;
+        updates.conclusionReadAt = now;
+    } else if (type === 'FINAL') {
+        updates.finalConfirmed = true;
+        updates.finalConfirmedAt = now;
+        updates.finalConfirmationId = `CONF_${meetingId}_${uid}_${Date.now()}`;
+    } else {
+        throw new Error('Loại xác nhận không hợp lệ: ' + type);
+    }
+    
+    try {
+        await confRef.update(updates);
+        console.log(`✅ Đã ghi xác nhận ${type} cho meeting ${meetingId}, user ${uid}`);
+    } catch (err) {
+        console.error(`❌ Lỗi ghi xác nhận ${type}:`, err);
+        if (err.code === 'PERMISSION_DENIED') {
+            throw new Error('Không có quyền xác nhận. Vui lòng kiểm tra Rules Firebase.');
+        }
+        throw err;
+    }
+    
+    try {
+        const typeLabel = type === 'PARTICIPATION' ? 'tham gia'
+                        : type === 'CONCLUSION_READ' ? 'đã đọc kết luận'
+                        : 'hồ sơ';
+        await logActivity(
+            meetingId, uid, `CONFIRM_${type}`, 'CONFIRMATION', meetingId,
+            `Đã xác nhận ${typeLabel}`
+        );
+    } catch (logErr) {
+        console.warn('Không ghi được activity log:', logErr);
+    }
+}
 
 /**
  * Add an attachment by Google Drive URL (with fileId extraction)
@@ -680,7 +705,7 @@ async function addAttachmentByUrl(meetingId, url, fileName, fileType, type = 'DI
         await db.ref(`meetingContents/${meetingId}/${contentId}/conclusionAttachments/${firebaseKey}`).set(metadata);
     }
     
-    await logActivity(meetingId, uid, 'UPLOAD_FILE', 'ATTACHMENT', firebaseKey, 
+    await logActivity(meetingId, uid, 'UPLOAD_FILE', 'ATTACHMENT', firebaseKey,
         `Đã thêm tài liệu: ${fileName || 'Tài liệu'} (ID: ${driveFileId.substring(0,8)}…)`);
     
     return { fileId: firebaseKey, driveFileId, ...metadata };
@@ -712,6 +737,7 @@ async function addAttachmentsByUrls(meetingId, attachments) {
     }
     return results;
 }
+
 /**
  * Lấy TẤT CẢ cuộc họp mà một user có quyền xem
  * Bao gồm:
@@ -732,11 +758,8 @@ async function getMeetingsForUser(uid, teamId) {
             ...data[key]
         }));
         
-        // Lọc: user là thành viên (own team HOẶC guest)
         return allMeetings.filter(m => {
-            // Cuộc họp thuộc tổ của user → luôn thấy
             if (teamId && m.teamId === teamId) return true;
-            // Hoặc user có uid trong memberIds (khách mời)
             if (m.memberIds && m.memberIds[uid] === true) return true;
             return false;
         });
@@ -745,12 +768,6 @@ async function getMeetingsForUser(uid, teamId) {
         return [];
     }
 }
-
-// Export
-window.getMeetingsForUser = getMeetingsForUser;
-// ============================================================
-// XÓA CUỘC HỌP (CHỈ ADMIN)
-// ============================================================
 
 /**
  * Xóa vĩnh viễn một cuộc họp và toàn bộ dữ liệu liên quan
@@ -766,27 +783,18 @@ async function deleteMeeting(meetingId) {
         return false;
     }
     
-    // ============================================================
-    // 1. KIỂM TRA QUYỀN ADMIN
-    // ============================================================
     const role = await getCurrentUserRole();
     if (role !== 'admin') {
         showToast('❌ Chỉ Admin mới có quyền xóa cuộc họp', 'error', 4000);
         return false;
     }
     
-    // ============================================================
-    // 2. LẤY THÔNG TIN CUỘC HỌP ĐỂ XÁC NHẬN
-    // ============================================================
     const meeting = await getMeeting(meetingId);
     if (!meeting) {
         showToast('Không tìm thấy cuộc họp', 'error');
         return false;
     }
     
-    // ============================================================
-    // 3. HIỆN HỘP THOẠI XÁC NHẬN NGHIÊM NGẶT
-    // ============================================================
     return new Promise((resolve) => {
         showConfirm(
             '🗑️ Xóa cuộc họp',
@@ -815,9 +823,6 @@ async function deleteMeeting(meetingId) {
             </div>`,
             async () => {
                 try {
-                    // ============================================================
-                    // 4. DÙNG MULTI-PATH UPDATE ĐỂ XÓA ĐỒNG THỜI
-                    // ============================================================
                     const updates = {};
                     
                     updates[`meetings/${meetingId}`] = null;
@@ -831,12 +836,8 @@ async function deleteMeeting(meetingId) {
                     
                     await db.ref().update(updates);
                     
-                    // ============================================================
-                    // 5. THÔNG BÁO THÀNH CÔNG VÀ ĐIỀU HƯỚNG
-                    // ============================================================
                     showToast('🗑️ Đã xóa cuộc họp thành công!', 'success', 4000);
                     
-                    // Điều hướng về danh sách cuộc họp
                     if (typeof navigateTo === 'function') {
                         navigateTo('meetings');
                     }
@@ -859,8 +860,6 @@ async function deleteMeeting(meetingId) {
     });
 }
 
-// Export
-window.deleteMeeting = deleteMeeting;
 // ============================================================
 // EXPORTS
 // ============================================================
@@ -879,6 +878,7 @@ window.getDiscussions = getDiscussions;
 window.addDiscussion = addDiscussion;
 window.updateDiscussion = updateDiscussion;
 window.getTasks = getTasks;
+window.getAllUserTasks = getAllUserTasks;
 window.addTask = addTask;
 window.confirmTask = confirmTask;
 window.getConfirmations = getConfirmations;
@@ -886,3 +886,5 @@ window.updateConfirmation = updateConfirmation;
 window.recordConfirmation = recordConfirmation;
 window.addAttachmentByUrl = addAttachmentByUrl;
 window.addAttachmentsByUrls = addAttachmentsByUrls;
+window.getMeetingsForUser = getMeetingsForUser;
+window.deleteMeeting = deleteMeeting;

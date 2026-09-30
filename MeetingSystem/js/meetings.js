@@ -17,6 +17,7 @@
  * Đã nâng cấp: hiển thị cả cuộc họp mà user là khách mời
  * @param {HTMLElement} container
  */
+
 async function renderDashboard(container) {
     const uid = getCurrentUid();
     if (!uid) {
@@ -742,13 +743,70 @@ async function getAllUserTasks(uid) {
  * @param {string} meetingId
  * @param {string} taskId
  */
+/**
+ * Quick confirm task từ Dashboard hoặc Tasks page
+ * Đã sửa: VALIDATION chống undefined + refresh trang hiện tại đúng cách
+ * @param {string} meetingId
+ * @param {string} taskId
+ */
 async function quickConfirmTask(meetingId, taskId) {
+    // ============================================================
+    // VALIDATION ĐẦU VÀO
+    // ============================================================
+    if (!meetingId 
+        || meetingId === 'undefined' 
+        || meetingId === 'null' 
+        || meetingId === '') {
+        console.error('quickConfirmTask: meetingId không hợp lệ:', meetingId);
+        showToast('❌ Lỗi: Không xác định được cuộc họp. Vui lòng refresh trang (Ctrl+F5) và thử lại.', 'error', 5000);
+        return;
+    }
+    
+    if (!taskId 
+        || taskId === 'undefined' 
+        || taskId === 'null' 
+        || taskId === '') {
+        console.error('quickConfirmTask: taskId không hợp lệ:', taskId);
+        showToast('❌ Lỗi: Không xác định được nhiệm vụ. Vui lòng refresh trang (Ctrl+F5) và thử lại.', 'error', 5000);
+        return;
+    }
+    
+    // ============================================================
+    // GỌI API XÁC NHẬN
+    // ============================================================
     try {
         await confirmTask(meetingId, taskId);
-        showToast('Đã xác nhận nhiệm vụ!', 'success');
-        navigateTo('dashboard');
+        showToast('✅ Đã xác nhận nhiệm vụ thành công!', 'success', 3000);
+        
+        // ============================================================
+        // REFRESH TRANG HIỆN TẠI
+        // ============================================================
+        const pageContainer = document.getElementById('pageContainer');
+        if (!pageContainer) return;
+        
+        const activeNavItem = document.querySelector('.nav-item.active[data-page], .mobile-nav-item.active[data-page]');
+        const currentPage = activeNavItem ? activeNavItem.dataset.page : 'dashboard';
+        
+        if (currentPage === 'tasks') {
+            if (typeof renderTasks === 'function') {
+                await renderTasks(pageContainer);
+            }
+        } else if (currentPage === 'dashboard') {
+            if (typeof renderDashboard === 'function') {
+                await renderDashboard(pageContainer);
+            }
+        } else if (currentPage === 'meeting-detail') {
+            if (typeof renderMeetingDetail === 'function') {
+                await renderMeetingDetail(pageContainer, meetingId);
+            }
+        } else {
+            if (typeof renderDashboard === 'function') {
+                await renderDashboard(pageContainer);
+            }
+        }
     } catch (error) {
-        showToast('Lỗi: ' + error.message, 'error');
+        console.error('Confirm task error:', error);
+        showToast('❌ Lỗi xác nhận: ' + error.message, 'error', 5000);
     }
 }
 

@@ -99,11 +99,74 @@ async function renderTasks(container) {
  * @param {boolean} showAssignee - Hiển thị tên người được phân công
  * @returns {string} HTML
  */
+/**
+ * Render một task item
+ * Đã sửa: PHÒNG THỦ chống lỗi undefined meetingId/taskId
+ * @param {Object} task
+ * @param {boolean} showAssignee - Hiển thị tên người được phân công
+ * @returns {string} HTML
+ */
 function renderTaskItem(task, showAssignee = false) {
     const statusClass = task.confirmed ? 'confirmed' : 'pending';
     const statusLabel = task.confirmed ? '✅ Đã xác nhận' : '⏳ Chờ xác nhận';
     const deadline = task.deadline ? formatDate(task.deadline) : 'Chưa có hạn';
     const isOverdue = task.deadline && new Date(task.deadline) < new Date() && !task.confirmed;
+    
+    // ============================================================
+    // LẤY IDS VÀ KIỂM TRA TÍNH HỢP LỆ
+    // ============================================================
+    const meetingId = task.meetingId || '';
+    const taskId = task.id || '';
+    const hasValidIds = meetingId !== '' 
+                     && taskId !== '' 
+                     && meetingId !== 'undefined' 
+                     && taskId !== 'undefined';
+    
+    // ============================================================
+    // BUILD NÚT XÁC NHẬN (có/không có ID hợp lệ)
+    // ============================================================
+    let actionButtonHtml = '';
+    
+    if (!task.confirmed) {
+        if (hasValidIds) {
+            actionButtonHtml = `
+                <button class="btn-success" 
+                        onclick="quickConfirmTask('${meetingId}', '${taskId}')" 
+                        style="padding:6px 16px;font-size:13px;">
+                    <i class="fas fa-check"></i> Xác nhận nhận nhiệm vụ
+                </button>
+            `;
+        } else {
+            actionButtonHtml = `
+                <button class="btn-secondary" 
+                        disabled 
+                        title="Không xác định được ID cuộc họp hoặc nhiệm vụ"
+                        style="padding:6px 16px;font-size:13px;opacity:0.6;cursor:not-allowed;">
+                    <i class="fas fa-exclamation-triangle"></i> Thiếu dữ liệu ID
+                </button>
+            `;
+        }
+    } else {
+        actionButtonHtml = `
+            <span style="color:var(--success);font-size:13px;">
+                <i class="fas fa-check-circle"></i> Đã xác nhận lúc ${formatDate(task.confirmedAt, true)}
+            </span>
+        `;
+    }
+    
+    // ============================================================
+    // BUILD NÚT XEM CUỘC HỌP (chỉ khi có meetingId)
+    // ============================================================
+    let viewMeetingButtonHtml = '';
+    if (hasValidIds) {
+        viewMeetingButtonHtml = `
+            <button class="btn-secondary" 
+                    style="padding:6px 14px;font-size:13px;" 
+                    onclick="navigateTo('meeting-detail', {id: '${meetingId}'})">
+                <i class="fas fa-eye"></i> Xem cuộc họp
+            </button>
+        `;
+    }
     
     return `
         <div class="task-card ${statusClass}" style="${isOverdue ? 'border-left-color:var(--danger);' : ''}">
@@ -119,19 +182,8 @@ function renderTaskItem(task, showAssignee = false) {
             </div>
             ${task.description ? `<div style="font-size:14px;color:var(--gray-600);margin-top:4px;">${escapeHtml(task.description)}</div>` : ''}
             <div class="task-actions">
-                ${!task.confirmed ? `
-                    <button class="btn-success" onclick="quickConfirmTask('${task.meetingId}', '${task.id}')" style="padding:6px 16px;font-size:13px;">
-                        <i class="fas fa-check"></i> Xác nhận nhận nhiệm vụ
-                    </button>
-                ` : `
-                    <span style="color:var(--success);font-size:13px;">
-                        <i class="fas fa-check-circle"></i> Đã xác nhận lúc ${formatDate(task.confirmedAt, true)}
-                    </span>
-                `}
-                <button class="btn-secondary" style="padding:6px 14px;font-size:13px;" 
-                    onclick="navigateTo('meeting-detail', {id: '${task.meetingId}'})">
-                    <i class="fas fa-eye"></i> Xem cuộc họp
-                </button>
+                ${actionButtonHtml}
+                ${viewMeetingButtonHtml}
             </div>
         </div>
     `;
