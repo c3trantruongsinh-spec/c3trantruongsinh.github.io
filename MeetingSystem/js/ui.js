@@ -802,7 +802,388 @@ function renderAttachmentsHTML(attachments, options = {}) {
     html += `</div>`;
     return html;
 }
+// ============================================================
+// AUTO-RESIZE TEXTAREA CHO Ô NHẬP THẢO LUẬN
+// ============================================================
 
+/**
+ * Tự động điều chỉnh chiều cao textarea theo nội dung
+ * @param {HTMLTextAreaElement} textarea
+ */
+function autoResizeTextarea(textarea) {
+    if (!textarea) return;
+    
+    textarea.style.height = 'auto';
+    const newHeight = Math.min(Math.max(textarea.scrollHeight, 140), 500);
+    textarea.style.height = newHeight + 'px';
+}
+
+/**
+ * Gắn sự kiện auto-resize cho TẤT CẢ textarea thảo luận trong container
+ * @param {HTMLElement} container - Container chứa các textarea cần gắn
+ */
+function attachAutoResizeToDiscussionInputs(container) {
+    if (!container) return;
+    
+    const textareas = container.querySelectorAll('textarea[id^="discussionInput_"]');
+    
+    textareas.forEach(textarea => {
+        // Tránh gắn trùng lặp
+        if (textarea.dataset.autoResizeAttached === 'true') return;
+        textarea.dataset.autoResizeAttached = 'true';
+        
+        // Resize lần đầu
+        autoResizeTextarea(textarea);
+        
+        // Gắn sự kiện input
+        textarea.addEventListener('input', function() {
+            autoResizeTextarea(this);
+        });
+        
+        // Gắn sự kiện keyup để bắt trường hợp paste, cut, undo
+        textarea.addEventListener('keyup', function() {
+            autoResizeTextarea(this);
+        });
+        
+        // Gắn sự kiện paste để chờ DOM cập nhật
+        textarea.addEventListener('paste', function() {
+            setTimeout(() => autoResizeTextarea(this), 10);
+        });
+    });
+}
+// ============================================================
+// WELCOME MODAL — Hướng dẫn chào mừng theo vai trò
+// ============================================================
+
+/**
+ * Lấy khóa lưu trạng thái "đã xem hướng dẫn" theo uid
+ * @param {string} uid
+ * @returns {string}
+ */
+function getWelcomeShownKey(uid) {
+    return `welcome_shown_${uid}`;
+}
+
+/**
+ * Kiểm tra xem có nên hiển thị welcome modal không
+ * - Hiển thị nếu: chưa từng xem trong session hiện tại
+ * - Sau khi user bấm "Đã hiểu", lưu vào localStorage với TTL 24h
+ * @param {string} uid
+ * @returns {boolean}
+ */
+function shouldShowWelcomeModal(uid) {
+    if (!uid) return false;
+    
+    try {
+        const key = getWelcomeShownKey(uid);
+        const raw = localStorage.getItem(key);
+        if (!raw) return true;
+        
+        const data = JSON.parse(raw);
+        const now = Date.now();
+        const ttl = 24 * 60 * 60 * 1000;
+        
+        // Nếu quá 24h, cho xem lại
+        if (now - (data.shownAt || 0) > ttl) {
+            return true;
+        }
+        return false;
+    } catch (e) {
+        return true;
+    }
+}
+
+/**
+ * Đánh dấu đã xem welcome modal
+ * @param {string} uid
+ */
+function markWelcomeAsShown(uid) {
+    if (!uid) return;
+    try {
+        const key = getWelcomeShownKey(uid);
+        localStorage.setItem(key, JSON.stringify({ shownAt: Date.now() }));
+    } catch (e) {
+        console.warn('Không lưu được trạng thái welcome:', e);
+    }
+}
+
+/**
+ * Build nội dung các bước theo vai trò
+ * @param {string} role
+ * @returns {Object} { headerClass, emoji, title, subtitle, steps }
+ */
+function buildWelcomeContent(role) {
+    const isAdmin = role === 'admin';
+    const isLeader = role === 'truong_to' || role === 'to_pho' || role === 'nhom_truong';
+    const isSecretary = role === 'thu_ky';
+    
+    if (isAdmin) {
+        return {
+            headerClass: 'admin',
+            emoji: '👑',
+            title: 'Chào mừng Quản trị viên!',
+            subtitle: 'Bạn có toàn quyền quản lý hệ thống',
+            steps: [
+                {
+                    number: '1',
+                    stepClass: 'step-1',
+                    title: 'Quản lý tài khoản',
+                    badge: 'Bắt đầu',
+                    desc: 'Tạo tài khoản cho giáo viên qua <strong>Công cụ tạo tài khoản</strong> (nhập tay hoặc Excel hàng loạt), gán vai trò và tổ chuyên môn.'
+                },
+                {
+                    number: '2',
+                    stepClass: 'step-2',
+                    title: 'Quản lý tổ chuyên môn',
+                    badge: 'Thiết lập',
+                    desc: 'Xem tất cả cuộc họp của toàn trường. Có thể xóa cuộc họp nháp của bất kỳ tổ nào để dọn dẹp hệ thống.'
+                },
+                {
+                    number: '3',
+                    stepClass: 'step-3',
+                    title: 'Theo dõi hoạt động',
+                    badge: 'Giám sát',
+                    desc: 'Xem tiến độ sinh hoạt của từng tổ, xem biên bản hồ sơ điện tử, đảm bảo mọi tổ hoạt động đúng quy trình.'
+                }
+            ],
+            note: '<strong>Lưu ý:</strong> Admin không nên sửa nội dung chuyên môn của tổ (nội dung, kết luận) để đảm bảo tính khách quan. Chỉ can thiệp khi cần xử lý sự cố.'
+        };
+    }
+    
+    if (isLeader) {
+        return {
+            headerClass: 'leader',
+            emoji: '🎯',
+            title: 'Chào mừng Ban điều hành Tổ chuyên môn!',
+            subtitle: 'Bạn có quyền tổ chức và điều hành cuộc họp tổ mình',
+            steps: [
+                {
+                    number: '1',
+                    stepClass: 'step-1',
+                    title: 'Tạo cuộc họp mới',
+                    badge: 'Bước 1',
+                    desc: 'Vào menu <strong>"Cuộc họp"</strong> → bấm <strong>"Tạo cuộc họp"</strong>. Điền thông tin, chọn thành viên, có thể mời giáo viên tổ khác làm khách mời.'
+                },
+                {
+                    number: '2',
+                    stepClass: 'step-2',
+                    title: 'Điều hành trạng thái',
+                    badge: 'Bước 2',
+                    desc: 'Dùng <strong>Bảng điều khiển nổi bật</strong> ở đầu trang chi tiết để chuyển trạng thái: <em>Dự thảo → Thảo luận → Kết luận → Chờ xác nhận → Chốt hồ sơ</em>.'
+                },
+                {
+                    number: '3',
+                    stepClass: 'step-3',
+                    title: 'Theo dõi & Xác nhận',
+                    badge: 'Bước 3',
+                    desc: 'Xem thanh tiến trình xác nhận của thành viên. Khi đủ điều kiện, bấm <strong>"CHỐT HỒ SƠ"</strong> để khóa hồ sơ và xuất biên bản PDF.'
+                },
+                {
+                    number: '4',
+                    stepClass: 'step-4',
+                    title: 'Xuất biên bản',
+                    badge: 'Hoàn tất',
+                    desc: 'Sau khi chốt, bấm <strong>"Xuất biên bản PDF"</strong> để tải biên bản chuẩn hành chính, có Quốc hiệu, Tiêu ngữ và chữ ký.'
+                }
+            ],
+            note: '<strong>Mẹo:</strong> Nếu có thành viên vắng không xác nhận được, bạn vẫn có thể chốt hồ sơ bằng cách nhập <em>lý do chốt ngoại lệ</em>.'
+        };
+    }
+    
+    if (isSecretary) {
+        return {
+            headerClass: 'leader',
+            emoji: '📝',
+            title: 'Chào mừng Thư ký Tổ!',
+            subtitle: 'Bạn hỗ trợ Ban lãnh đạo soạn thảo và quản lý hồ sơ',
+            steps: [
+                {
+                    number: '1',
+                    stepClass: 'step-1',
+                    title: 'Xem cuộc họp của tổ',
+                    badge: 'Bước 1',
+                    desc: 'Vào menu <strong>"Cuộc họp"</strong> để xem danh sách. Click vào cuộc họp để xem chi tiết nội dung, tài liệu đính kèm.'
+                },
+                {
+                    number: '2',
+                    stepClass: 'step-2',
+                    title: 'Hỗ trợ soạn thảo',
+                    badge: 'Bước 2',
+                    desc: 'Thêm/sửa nội dung cuộc họp, đính kèm tài liệu (link Google Drive). Tham gia thảo luận để ghi nhận ý kiến giáo viên.'
+                },
+                {
+                    number: '3',
+                    stepClass: 'step-3',
+                    title: 'Hỗ trợ xuất biên bản',
+                    badge: 'Bước 3',
+                    desc: 'Khi hồ sơ đã chốt, bạn có thể xuất biên bản PDF chuẩn hành chính để in và lưu trữ.'
+                }
+            ],
+            note: '<strong>Lưu ý:</strong> Thư ký <em>không được tự ý chốt hồ sơ</em> — chỉ Tổ trưởng/Tổ phó/Nhóm trưởng mới có quyền này.'
+        };
+    }
+    
+    // Mặc định: Giáo viên
+    return {
+        headerClass: 'teacher',
+        emoji: '👨‍🏫',
+        title: 'Chào mừng Thầy/Cô!',
+        subtitle: 'Quy trình tham gia sinh hoạt chuyên môn',
+        steps: [
+            {
+                number: '1',
+                stepClass: 'step-1',
+                title: 'Xem cuộc họp',
+                badge: 'Bước 1',
+                desc: 'Vào menu <strong>"Cuộc họp"</strong> → bấm vào cuộc họp để xem <em>nội dung, tài liệu đính kèm</em>. Có thể tham gia từ bất cứ đâu, không cần tập trung trực tiếp.'
+            },
+            {
+                number: '2',
+                stepClass: 'step-2',
+                title: 'Thảo luận & Góp ý',
+                badge: 'Bước 2',
+                desc: 'Vào tab <strong>"Thảo luận"</strong> → viết ý kiến, có thể <em>đính kèm hình ảnh, PDF, link Google Drive</em> để minh họa công thức, sơ đồ, bài làm.'
+            },
+            {
+                number: '3',
+                stepClass: 'step-3',
+                title: 'Xác nhận tham gia',
+                badge: 'Bước 3',
+                desc: 'Vào tab <strong>"Xác nhận"</strong> → bấm <em>"Xác nhận đã tham gia"</em>. Sau khi có kết luận, bấm <em>"Đã đọc kết luận"</em> và <em>"Xác nhận hồ sơ"</em>.'
+            }
+        ],
+        note: '<strong>Mẹo:</strong> Hệ thống lưu vết toàn bộ ý kiến của bạn — chỉ cần góp ý một lần, không phải họp lại nhiều lần. Thầy/cô có thể tham gia mọi lúc mọi nơi!'
+    };
+}
+
+/**
+ * Hiển thị Welcome Modal theo vai trò người dùng
+ * @param {string} role - Vai trò của user
+ * @param {string} displayName - Tên hiển thị của user
+ * @param {string} uid - UID của user
+ */
+function showWelcomeModal(role, displayName, uid) {
+    // Xóa modal cũ nếu có
+    const existing = document.getElementById('welcomeModal');
+    if (existing) existing.remove();
+    
+    const content = buildWelcomeContent(role);
+    const greetingName = displayName || 'bạn';
+    
+    // Build steps HTML
+    const stepsHtml = content.steps.map(step => `
+        <div class="welcome-step ${step.stepClass}">
+            <div class="welcome-step-number">${step.number}</div>
+            <div class="welcome-step-content">
+                <div class="welcome-step-title">
+                    ${step.title}
+                    ${step.badge ? `<span class="welcome-step-badge">${step.badge}</span>` : ''}
+                </div>
+                <div class="welcome-step-desc">${step.desc}</div>
+            </div>
+        </div>
+    `).join('');
+    
+    const overlay = document.createElement('div');
+    overlay.id = 'welcomeModal';
+    overlay.className = 'welcome-overlay active';
+    overlay.innerHTML = `
+        <div class="welcome-modal">
+            <div class="welcome-header ${content.headerClass}">
+                <button class="welcome-close" onclick="closeWelcomeModal(true)" title="Đóng (ESC)">
+                    <i class="fas fa-times"></i>
+                </button>
+                <span class="welcome-emoji">${content.emoji}</span>
+                <h2 class="welcome-title">${content.title}</h2>
+                <p class="welcome-subtitle">${content.subtitle}</p>
+            </div>
+            
+            <div class="welcome-body">
+                <div class="welcome-greeting">
+                    Xin chào <strong>${escapeHtml(greetingName)}</strong>! 
+                    Đây là hướng dẫn nhanh để bạn sử dụng hệ thống hiệu quả nhất.
+                </div>
+                
+                <div class="welcome-section-title">
+                    <i class="fas fa-list-check"></i>
+                    Các bước cần biết
+                </div>
+                
+                <div class="welcome-steps">
+                    ${stepsHtml}
+                </div>
+                
+                <div class="welcome-note">
+                    <i class="fas fa-lightbulb"></i>
+                    ${content.note}
+                </div>
+            </div>
+            
+            <div class="welcome-footer">
+                <button class="welcome-btn welcome-btn-primary" onclick="closeWelcomeModal(true)">
+                    <i class="fas fa-check-circle"></i>
+                    Đã hiểu, bắt đầu sử dụng
+                </button>
+                <button class="welcome-btn welcome-btn-secondary" onclick="closeWelcomeModal(false)">
+                    <i class="fas fa-redo"></i>
+                    Xem lại sau
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(overlay);
+    document.body.style.overflow = 'hidden';
+    
+    // ESC để đóng
+    const escHandler = (e) => {
+        if (e.key === 'Escape') {
+            closeWelcomeModal(true);
+            document.removeEventListener('keydown', escHandler);
+        }
+    };
+    document.addEventListener('keydown', escHandler);
+    
+    // Click ngoài để đóng
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+            closeWelcomeModal(true);
+        }
+    });
+}
+
+/**
+ * Đóng welcome modal
+ * @param {boolean} markAsShown - Có lưu trạng thái "đã xem" không
+ */
+function closeWelcomeModal(markAsShown = true) {
+    const modal = document.getElementById('welcomeModal');
+    if (!modal) return;
+    
+    modal.style.opacity = '0';
+    modal.style.transition = 'opacity 0.25s ease';
+    
+    setTimeout(() => {
+        modal.remove();
+        document.body.style.overflow = '';
+    }, 250);
+    
+    if (markAsShown) {
+        const uid = typeof getCurrentUid === 'function' ? getCurrentUid() : null;
+        if (uid) {
+            markWelcomeAsShown(uid);
+        }
+    }
+}
+
+// Export
+window.showWelcomeModal = showWelcomeModal;
+window.closeWelcomeModal = closeWelcomeModal;
+window.shouldShowWelcomeModal = shouldShowWelcomeModal;
+window.markWelcomeAsShown = markWelcomeAsShown;
+// Export
+window.autoResizeTextarea = autoResizeTextarea;
+window.attachAutoResizeToDiscussionInputs = attachAutoResizeToDiscussionInputs;
 // ============================================================
 // EXPORTS
 // ============================================================

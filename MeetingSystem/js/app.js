@@ -72,14 +72,37 @@ async function initApp() {
     });
     
     // 9. Cập nhật badge thông báo chưa đọc
+       // Update notification badge
     try {
         if (typeof updateNotificationBadge === 'function') {
             await updateNotificationBadge();
-        } else {
-            console.warn('updateNotificationBadge function not available yet');
         }
     } catch (error) {
         console.warn('Error updating notification badge:', error);
+    }
+    
+    // ============================================================
+    // HIỂN THỊ WELCOME MODAL THEO VAI TRÒ
+    // Chỉ hiển thị lần đầu đăng nhập (hoặc sau 24h)
+    // ============================================================
+    try {
+        if (typeof shouldShowWelcomeModal === 'function' && 
+            typeof showWelcomeModal === 'function') {
+            
+            const uid = user.uid;
+            const role = await getCurrentUserRole();
+            const userData = await getCurrentUserData();
+            const displayName = userData?.displayName || user.displayName || user.email;
+            
+            if (shouldShowWelcomeModal(uid)) {
+                // Chờ 800ms để dashboard render xong rồi mới hiện modal
+                setTimeout(() => {
+                    showWelcomeModal(role, displayName, uid);
+                }, 800);
+            }
+        }
+    } catch (error) {
+        console.warn('Error showing welcome modal:', error);
     }
 }
 

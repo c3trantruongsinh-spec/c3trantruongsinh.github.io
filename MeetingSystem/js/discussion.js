@@ -80,7 +80,12 @@ async function renderDiscussions(meetingId, contentId, container, readOnly = fal
             `;
         }
         
-        container.innerHTML = html;
+           container.innerHTML = html;
+    
+    // Gắn auto-resize cho các ô nhập thảo luận
+    if (typeof attachAutoResizeToDiscussionInputs === 'function') {
+        attachAutoResizeToDiscussionInputs(container);
+    }
     } catch (error) {
         console.error('Error rendering discussions:', error);
         container.innerHTML = `<p class="error">Lỗi tải thảo luận: ${escapeHtml(error.message)}</p>`;
