@@ -815,6 +815,313 @@ async function quickConfirmTask(meetingId, taskId) {
 // ============================================================
 
 /**
+ * Build ACTION PANEL nổi bật ở đầu trang chi tiết cuộc họp
+ * Bao gồm: Trạng thái + Thống kê xác nhận + Nút chuyển trạng thái + Cảnh báo
+ * @param {Object} meeting - Dữ liệu meeting
+ * @param {Object} options - { isLeader, isClosed, totalMembers, confirmedMembers, participatedMembers, contentsCount, tasksCount }
+ * @returns {string} HTML
+ */
+function buildMeetingActionPanel(meeting, options) {
+    const isLeader = options.isLeader || false;
+    const isClosed = options.isClosed || false;
+    const totalMembers = options.totalMembers || 0;
+    const confirmedMembers = options.confirmedMembers || 0;
+    const participatedMembers = options.participatedMembers || 0;
+    const contentsCount = options.contentsCount || 0;
+    const tasksCount = options.tasksCount || 0;
+    
+    // ============================================================
+    // TÍNH TOÁN TỶ LỆ XÁC NHẬN
+    // ============================================================
+    const confirmPercent = totalMembers > 0 
+        ? Math.round((confirmedMembers / totalMembers) * 100) 
+        : 0;
+    const participatePercent = totalMembers > 0 
+        ? Math.round((participatedMembers / totalMembers) * 100) 
+        : 0;
+    
+    // Màu progress bar theo tỷ lệ
+    let progressColor = '#ef4444'; // Đỏ
+    if (confirmPercent >= 100) progressColor = '#22c55e'; // Xanh lá
+    else if (confirmPercent >= 75) progressColor = '#84cc16'; // Xanh vàng
+    else if (confirmPercent >= 50) progressColor = '#f59e0b'; // Vàng cam
+    else if (confirmPercent >= 25) progressColor = '#fb923c'; // Cam
+    else progressColor = '#ef4444'; // Đỏ
+    
+    const remainingCount = totalMembers - confirmedMembers;
+    
+    // ============================================================
+    // XÁC ĐỊNH NÚT HÀNH ĐỘNG THEO TRẠNG THÁI
+    // ============================================================
+    let actionButtonHtml = '';
+    let statusMessageHtml = '';
+    
+    if (isLeader) {
+        if (meeting.status === 'DRAFT') {
+            actionButtonHtml = `
+                <button class="meeting-action-btn" 
+                        style="background:linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);color:#fff;"
+                        onclick="updateMeetingStatusAction('${meeting.id}', 'DISCUSSION')"
+                        title="Chuyển cuộc họp sang trạng thái ĐANG THẢO LUẬN">
+                    <i class="fas fa-play-circle" style="font-size:20px;"></i>
+                    <span>Bắt đầu thảo luận</span>
+                </button>
+            `;
+            statusMessageHtml = `
+                <div style="margin-top:10px;padding:10px 14px;background:#dbeafe;border-radius:8px;font-size:13px;color:#1e40af;line-height:1.6;">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>Bước tiếp theo:</strong> Bấm <em>"Bắt đầu thảo luận"</em> để giáo viên có thể gửi ý kiến vào các nội dung.
+                </div>
+            `;
+        } else if (meeting.status === 'DISCUSSION') {
+            const allConcluded = options.allContentsConcluded || false;
+            const canConclude = allConcluded && contentsCount > 0;
+            const btnColor = canConclude 
+                ? 'background:linear-gradient(135deg, #f59e0b 0%, #d97706 100%);color:#fff;' 
+                : 'background:#e2e8f0;color:#94a3b8;cursor:not-allowed;';
+            
+            actionButtonHtml = `
+                <button class="meeting-action-btn" 
+                        style="${btnColor}"
+                        onclick="${canConclude ? `updateMeetingStatusAction('${meeting.id}', 'CONCLUDED')` : `showToast('Cần kết luận TẤT CẢ nội dung trước khi chốt kết luận', 'warning')`}"
+                        title="${canConclude ? 'Chuyển sang trạng thái ĐÃ KẾT LUẬN' : 'Cần kết luận tất cả nội dung trước'}">
+                    <i class="fas fa-check-double" style="font-size:20px;"></i>
+                    <span>Chốt kết luận</span>
+                </button>
+            `;
+            if (!canConclude) {
+                statusMessageHtml = `
+                    <div style="margin-top:10px;padding:10px 14px;background:#fef3c7;border-radius:8px;font-size:13px;color:#92400e;line-height:1.6;">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>Lưu ý:</strong> Cần <em>kết luận từng nội dung</em> trước khi chuyển sang bước tiếp theo. Hiện còn ${contentsCount - (options.concludedContentsCount || 0)} nội dung chưa kết luận.
+                    </div>
+                `;
+            } else {
+                statusMessageHtml = `
+                    <div style="margin-top:10px;padding:10px 14px;background:#dcfce7;border-radius:8px;font-size:13px;color:#15803d;line-height:1.6;">
+                        <i class="fas fa-check-circle"></i>
+                        Tất cả ${contentsCount} nội dung đã kết luận. Có thể chốt kết luận cuộc họp.
+                    </div>
+                `;
+            }
+        } else if (meeting.status === 'CONCLUDED') {
+            const hasTasks = tasksCount > 0;
+            const btnColor = hasTasks 
+                ? 'background:linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);color:#fff;' 
+                : 'background:#e2e8f0;color:#94a3b8;cursor:not-allowed;';
+            
+            actionButtonHtml = `
+                <button class="meeting-action-btn" 
+                        style="${btnColor}"
+                        onclick="${hasTasks ? `updateMeetingStatusAction('${meeting.id}', 'CONFIRMATION')` : `showToast('Cần phân công ít nhất một nhiệm vụ trước khi chuyển sang bước xác nhận', 'warning')`}"
+                        title="${hasTasks ? 'Chuyển sang giai đoạn chờ xác nhận' : 'Cần có ít nhất một nhiệm vụ'}">
+                    <i class="fas fa-users-cog" style="font-size:20px;"></i>
+                    <span>Chuyển chờ xác nhận</span>
+                </button>
+            `;
+            if (!hasTasks) {
+                statusMessageHtml = `
+                    <div style="margin-top:10px;padding:10px 14px;background:#fef3c7;border-radius:8px;font-size:13px;color:#92400e;line-height:1.6;">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>Cần phân công nhiệm vụ</strong> trước khi chuyển sang bước xác nhận hồ sơ.
+                    </div>
+                `;
+            }
+        } else if (meeting.status === 'CONFIRMATION') {
+            const allConfirmed = (remainingCount === 0);
+            const btnColor = allConfirmed
+                ? 'background:linear-gradient(135deg, #22c55e 0%, #16a34a 100%);color:#fff;box-shadow:0 4px 14px rgba(34,197,94,0.4);'
+                : 'background:linear-gradient(135deg, #f59e0b 0%, #ea580c 100%);color:#fff;box-shadow:0 4px 14px rgba(245,158,11,0.35);';
+            
+            actionButtonHtml = `
+                <button class="meeting-action-btn" 
+                        style="${btnColor}"
+                        onclick="closeMeeting('${meeting.id}')"
+                        title="${allConfirmed ? 'Tất cả đã xác nhận — Sẵn sàng chốt' : 'Còn thành viên chưa xác nhận — sẽ yêu cầu lý do ngoại lệ'}">
+                    <i class="fas fa-lock" style="font-size:22px;"></i>
+                    <span style="font-weight:800;font-size:16px;">CHỐT HỒ SƠ</span>
+                </button>
+            `;
+            if (allConfirmed) {
+                statusMessageHtml = `
+                    <div style="margin-top:10px;padding:10px 14px;background:#dcfce7;border-radius:8px;font-size:13px;color:#15803d;line-height:1.6;">
+                        <i class="fas fa-check-circle"></i>
+                        <strong>Tất cả ${totalMembers} thành viên đã xác nhận!</strong> Sẵn sàng chốt hồ sơ.
+                    </div>
+                `;
+            } else {
+                statusMessageHtml = `
+                    <div style="margin-top:10px;padding:10px 14px;background:#fef3c7;border-radius:8px;font-size:13px;color:#92400e;line-height:1.6;">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>Còn ${remainingCount} thành viên chưa xác nhận.</strong> Nếu chốt bây giờ, bạn sẽ cần nhập <em>lý do chốt ngoại lệ</em>.
+                    </div>
+                `;
+            }
+        } else if (meeting.status === 'CLOSED') {
+            actionButtonHtml = `
+                <button class="meeting-action-btn" 
+                        style="background:linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);color:#fff;"
+                        onclick="exportMeetingMinutes('${meeting.id}')"
+                        title="Xuất biên bản cuộc họp ra PDF">
+                    <i class="fas fa-file-pdf" style="font-size:20px;"></i>
+                    <span>Xuất biên bản PDF</span>
+                </button>
+            `;
+            statusMessageHtml = `
+                <div style="margin-top:10px;padding:10px 14px;background:#dcfce7;border-radius:8px;font-size:13px;color:#15803d;line-height:1.6;">
+                    <i class="fas fa-lock"></i>
+                    Hồ sơ đã được chốt. Mọi thao tác chỉnh sửa đã bị khóa.
+                </div>
+            `;
+        }
+    } else {
+        // Non-leader message
+        statusMessageHtml = `
+            <div style="margin-top:10px;padding:10px 14px;background:#f1f5f9;border-radius:8px;font-size:13px;color:#475569;line-height:1.6;">
+                <i class="fas fa-info-circle"></i>
+                Bạn không phải Ban lãnh đạo tổ nên không có quyền chuyển trạng thái. Vui lòng liên hệ Tổ trưởng/Tổ phó nếu cần.
+            </div>
+        `;
+    }
+    
+    // ============================================================
+    // BUILD HTML PANEL
+    // ============================================================
+    return `
+        <div class="meeting-action-panel" style="
+            margin-bottom:20px;
+            padding:20px;
+            background:linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+            border:2px solid var(--gray-200);
+            border-radius:14px;
+            box-shadow:0 4px 20px rgba(30,58,138,0.08);
+            position:relative;
+            overflow:hidden;
+        ">
+            <!-- Dải màu trạng thái ở đầu -->
+            <div style="
+                position:absolute;top:0;left:0;right:0;height:5px;
+                background:linear-gradient(90deg, var(--primary) 0%, var(--accent) 100%);
+            "></div>
+            
+            <!-- Tiêu đề panel -->
+            <div style="
+                display:flex;justify-content:space-between;align-items:center;
+                flex-wrap:wrap;gap:10px;margin-bottom:16px;
+            ">
+                <div style="
+                    display:flex;align-items:center;gap:10px;
+                    font-size:16px;font-weight:800;color:var(--primary);
+                    text-transform:uppercase;letter-spacing:0.5px;
+                ">
+                    <i class="fas fa-tachometer-alt" style="font-size:20px;color:var(--accent);"></i>
+                    <span>Trạng thái & Thao tác</span>
+                </div>
+                <div style="
+                    padding:6px 16px;border-radius:20px;
+                    background:linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+                    color:#fff;font-size:13px;font-weight:700;
+                    letter-spacing:0.5px;
+                ">
+                    ${getStatusInfo(meeting.status).label}
+                </div>
+            </div>
+            
+            <!-- Thống kê 4 ô -->
+            <div style="
+                display:grid;
+                grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));
+                gap:10px;margin-bottom:16px;
+            ">
+                <div style="
+                    padding:14px;border-radius:10px;text-align:center;
+                    background:linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+                    border:1px solid #bfdbfe;
+                ">
+                    <div style="font-size:26px;font-weight:800;color:#1e40af;line-height:1;">
+                        ${confirmedMembers}/${totalMembers}
+                    </div>
+                    <div style="font-size:12px;color:#1e40af;font-weight:600;margin-top:6px;">
+                        ✅ Đã xác nhận
+                    </div>
+                </div>
+                
+                <div style="
+                    padding:14px;border-radius:10px;text-align:center;
+                    background:linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+                    border:1px solid #bbf7d0;
+                ">
+                    <div style="font-size:26px;font-weight:800;color:#15803d;line-height:1;">
+                        ${participatedMembers}/${totalMembers}
+                    </div>
+                    <div style="font-size:12px;color:#15803d;font-weight:600;margin-top:6px;">
+                        👥 Đã tham gia
+                    </div>
+                </div>
+                
+                <div style="
+                    padding:14px;border-radius:10px;text-align:center;
+                    background:linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+                    border:1px solid #fcd34d;
+                ">
+                    <div style="font-size:26px;font-weight:800;color:#92400e;line-height:1;">
+                        ${contentsCount}
+                    </div>
+                    <div style="font-size:12px;color:#92400e;font-weight:600;margin-top:6px;">
+                        📋 Nội dung
+                    </div>
+                </div>
+                
+                <div style="
+                    padding:14px;border-radius:10px;text-align:center;
+                    background:linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%);
+                    border:1px solid #d8b4fe;
+                ">
+                    <div style="font-size:26px;font-weight:800;color:#6b21a8;line-height:1;">
+                        ${tasksCount}
+                    </div>
+                    <div style="font-size:12px;color:#6b21a8;font-weight:600;margin-top:6px;">
+                        📌 Nhiệm vụ
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Thanh tiến trình xác nhận -->
+            <div style="margin-bottom:16px;">
+                <div style="
+                    display:flex;justify-content:space-between;align-items:center;
+                    margin-bottom:8px;font-size:13px;font-weight:600;color:var(--gray-700);
+                ">
+                    <span>📊 Tiến độ xác nhận hồ sơ</span>
+                    <span style="color:${progressColor};font-weight:800;font-size:15px;">${confirmPercent}%</span>
+                </div>
+                <div style="
+                    height:14px;background:#e2e8f0;border-radius:10px;
+                    overflow:hidden;position:relative;
+                ">
+                    <div style="
+                        height:100%;width:${confirmPercent}%;
+                        background:linear-gradient(90deg, ${progressColor} 0%, ${progressColor}dd 100%);
+                        border-radius:10px;
+                        transition:width 0.6s ease;
+                        box-shadow:0 0 10px ${progressColor}66;
+                    "></div>
+                </div>
+            </div>
+            
+            <!-- Nút hành động -->
+            ${actionButtonHtml ? `
+                <div style="margin-top:16px;">
+                    ${actionButtonHtml}
+                </div>
+            ` : ''}
+            
+            <!-- Thông báo hướng dẫn -->
+            ${statusMessageHtml}
+        </div>
+    `;
+}
+/**
  * Render meeting detail page
  * @param {HTMLElement} container
  * @param {string} meetingId
@@ -845,7 +1152,16 @@ async function quickConfirmTask(meetingId, taskId) {
  * @param {HTMLElement} container
  * @param {string} meetingId
  */
-
+/**
+ * Render meeting detail page
+ * Đã nâng cấp: 
+ *   - Action panel nổi bật ở đầu trang (thay vì ẩn trong tab Admin)
+ *   - Nút chuyển trạng thái to rõ, màu sắc sinh động
+ *   - Thống kê xác nhận hiển thị ngay đầu
+ *   - Bỏ tab Admin (không cần thiết nữa)
+ * @param {HTMLElement} container
+ * @param {string} meetingId
+ */
 async function renderMeetingDetail(container, meetingId) {
     if (!meetingId) {
         container.innerHTML = `<p>Không tìm thấy cuộc họp.</p>`;
@@ -868,7 +1184,6 @@ async function renderMeetingDetail(container, meetingId) {
                   || role === 'to_pho' || role === 'nhom_truong';
     const isSecretary = role === 'thu_ky';
     const canEdit = isLeader || isSecretary;
-    const isAdminUser = role === 'admin';
     const isClosed = meeting.status === 'CLOSED';
     
     const contents = await getMeetingContents(meetingId);
@@ -876,13 +1191,25 @@ async function renderMeetingDetail(container, meetingId) {
     const confirmations = await getConfirmations(meetingId);
     const allDiscussions = await getDiscussions(meetingId);
     
+    // === ĐẾM SỐ THẢO LUẬN CHO TỪNG NỘI DUNG ===
     contents.forEach(c => {
         const liveCount = allDiscussions.filter(d => d.contentId === c.id).length;
         const storedCount = c.discussionCount || 0;
         c.discussionCount = liveCount > 0 ? liveCount : storedCount;
     });
     
+    // === TÍNH TOÁN THỐNG KÊ CHO ACTION PANEL ===
     const memberIds = Object.keys(meeting.memberIds || {});
+    const totalMembers = memberIds.length;
+    const confirmedMembers = memberIds.filter(mid => 
+        confirmations[mid] && confirmations[mid].finalConfirmed === true
+    ).length;
+    const participatedMembers = memberIds.filter(mid => 
+        confirmations[mid] && confirmations[mid].participated === true
+    ).length;
+    const allContentsConcluded = contents.length > 0 
+        && contents.every(c => c.status === 'CONCLUDED');
+    const concludedContentsCount = contents.filter(c => c.status === 'CONCLUDED').length;
     
     let chairmanName = 'Chưa xác định';
     let secretaryName = 'Chưa có';
@@ -910,19 +1237,9 @@ async function renderMeetingDetail(container, meetingId) {
                 </div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
                     ${getStatusBadge(meeting.status)}
-                    ${isClosed ? `
-                        <button class="btn-primary" style="padding:6px 14px;font-size:13px;background:#7c3aed;border:none;font-weight:600;" onclick="exportMeetingMinutes('${meetingId}')">
-                            <i class="fas fa-print"></i> Xuất biên bản (PDF)
-                        </button>
-                    ` : ''}
                     ${!isClosed && canEdit ? `
                         <button class="btn-secondary" style="padding:6px 14px;font-size:13px;" onclick="editMeeting('${meetingId}')">
                             <i class="fas fa-edit"></i> Sửa
-                        </button>
-                    ` : ''}
-                    ${isAdminUser ? `
-                        <button class="btn-danger" style="padding:6px 14px;font-size:13px;background:#dc2626;color:white;border:none;font-weight:600;display:inline-flex;align-items:center;gap:6px;" onclick="deleteMeeting('${meetingId}')" title="Xóa vĩnh viễn cuộc họp này (chỉ Admin)">
-                            <i class="fas fa-trash-alt"></i> Xóa cuộc họp
                         </button>
                     ` : ''}
                 </div>
@@ -952,13 +1269,24 @@ async function renderMeetingDetail(container, meetingId) {
             ` : ''}
         </div>
         
+        ${buildMeetingActionPanel(meeting, {
+            isLeader: isLeader,
+            isClosed: isClosed,
+            totalMembers: totalMembers,
+            confirmedMembers: confirmedMembers,
+            participatedMembers: participatedMembers,
+            contentsCount: contents.length,
+            concludedContentsCount: concludedContentsCount,
+            allContentsConcluded: allContentsConcluded,
+            tasksCount: tasks.length
+        })}
+        
         <div class="meeting-tabs">
             <button class="meeting-tab active" data-tab="contents">📋 Nội dung</button>
             <button class="meeting-tab" data-tab="discussions">💬 Thảo luận (${allDiscussions.length})</button>
             <button class="meeting-tab" data-tab="tasks">📋 Nhiệm vụ</button>
             <button class="meeting-tab" data-tab="confirmations">✅ Xác nhận</button>
             <button class="meeting-tab" data-tab="logs">📜 Nhật ký</button>
-            ${isLeader && !isClosed ? `<button class="meeting-tab" data-tab="admin">⚙️ Quản lý</button>` : ''}
         </div>
         
         <div id="tabContents">
@@ -1089,65 +1417,12 @@ async function renderMeetingDetail(container, meetingId) {
                     <p>Đang tải nhật ký hoạt động...</p>
                 </div>
             </div>
-            
-            ${isLeader && !isClosed ? `
-                <div class="meeting-content-panel" data-panel="admin">
-                    <div class="section-card">
-                        <div class="section-header">
-                            <h3>⚙️ Quản lý cuộc họp</h3>
-                        </div>
-                        <div class="section-body">
-                            ${meeting.status === 'DRAFT' ? `
-                                <button class="btn-primary" onclick="updateMeetingStatusAction('${meetingId}', 'DISCUSSION')">
-                                    <i class="fas fa-play"></i> Bắt đầu thảo luận
-                                </button>
-                                <p style="font-size:13px;color:var(--gray-500);margin-top:4px;">Chuyển sang trạng thái ĐANG THẢO LUẬN</p>
-                            ` : ''}
-                            
-                            ${meeting.status === 'DISCUSSION' ? `
-                                <button class="btn-primary" onclick="updateMeetingStatusAction('${meetingId}', 'CONCLUDED')">
-                                    <i class="fas fa-check-double"></i> Chốt kết luận
-                                </button>
-                                <p style="font-size:13px;color:var(--gray-500);margin-top:4px;">Chuyển sang trạng thái ĐÃ KẾT LUẬN</p>
-                            ` : ''}
-                            
-                            ${meeting.status === 'CONCLUDED' ? `
-                                <button class="btn-primary" onclick="updateMeetingStatusAction('${meetingId}', 'CONFIRMATION')">
-                                    <i class="fas fa-check-circle"></i> Chuyển sang chờ xác nhận
-                                </button>
-                                <p style="font-size:13px;color:var(--gray-500);margin-top:4px;">Yêu cầu thành viên xác nhận hồ sơ</p>
-                            ` : ''}
-                            
-                            ${meeting.status === 'CONFIRMATION' ? `
-                                <button class="btn-success" onclick="closeMeeting('${meetingId}')" style="font-weight:600;">
-                                    <i class="fas fa-lock"></i> CHỐT HỒ SƠ
-                                </button>
-                                <p style="font-size:13px;color:var(--gray-500);margin-top:4px;line-height:1.6;">
-                                    Bấm để chốt hồ sơ. Nếu còn thành viên chưa xác nhận, hệ thống sẽ yêu cầu bạn nhập <strong>lý do chốt ngoại lệ</strong>.
-                                </p>
-                            ` : ''}
-                            
-                            ${meeting.status === 'CLOSED' ? `
-                                <p style="color:var(--success);font-weight:600;">✅ Hồ sơ đã được chốt</p>
-                                <p style="font-size:13px;color:var(--gray-500);">Không thể chỉnh sửa hồ sơ đã chốt.</p>
-                                <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--gray-200);">
-                                    <button class="btn-primary" style="background:#7c3aed;font-weight:600;width:100%;justify-content:center;" onclick="exportMeetingMinutes('${meetingId}')">
-                                        <i class="fas fa-print"></i> 🖨️ Xuất biên bản cuộc họp (PDF)
-                                    </button>
-                                    <p style="font-size:12px;color:var(--gray-500);margin-top:6px;text-align:center;">
-                                        Biên bản sẽ mở ở tab mới và tự động mở hộp thoại in.
-                                    </p>
-                                </div>
-                            ` : ''}
-                        </div>
-                    </div>
-                </div>
-            ` : ''}
         </div>
     `;
     
     container.innerHTML = html;
     
+    // Gắn sự kiện cho tabs
     document.querySelectorAll('.meeting-tab').forEach(tab => {
         tab.addEventListener('click', function() {
             const tabName = this.dataset.tab;
@@ -1155,6 +1430,7 @@ async function renderMeetingDetail(container, meetingId) {
         });
     });
     
+    // Load nội dung cho các tab động
     await renderDiscussions(meetingId, null, document.getElementById('discussionsContainer'));
     await renderConfirmations(meetingId, document.getElementById('confirmationSection'));
     await renderActivityLog(meetingId, document.getElementById('logsContainer'));
