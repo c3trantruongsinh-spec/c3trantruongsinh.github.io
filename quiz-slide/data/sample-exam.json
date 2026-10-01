@@ -1,0 +1,504 @@
+{
+  "id": "MATH2025",
+  "title": "ĐỀ THI TRẮC NGHIỆM MÔN TOÁN 2025",
+  "subject": "Toán học",
+  "grade": 12,
+  "duration": 50,
+  "description": "Đề thi cấu trúc chuẩn Bộ Giáo dục & Đào tạo",
+  "questions": [
+    {
+      "id": "q1",
+      "type": "single",
+      "content": "Cho hàm số $f(x)$ có đạo hàm liên tục trên $\\mathbb{R}$. Mệnh đề nào sau đây đúng?",
+      "options": [
+        {
+          "key": "A",
+          "content": "Nếu $f'(x) \\neq 0, \\forall x \\in \\mathbb{R}$ thì hàm số $f(x)$ đồng biến trên $\\mathbb{R}$"
+        },
+        {
+          "key": "B",
+          "content": "Nếu $f'(x) > 0, \\forall x \\in \\mathbb{R}$ thì hàm số $f(x)$ đồng biến trên $\\mathbb{R}$"
+        },
+        {
+          "key": "C",
+          "content": "Nếu $f'(x) = 0, \\forall x \\in \\mathbb{R}$ thì hàm số $f(x)$ đồng biến trên $\\mathbb{R}$"
+        },
+        {
+          "key": "D",
+          "content": "Nếu $f'(x) < 0, \\forall x \\in \\mathbb{R}$ thì hàm số $f(x)$ đồng biến trên $\\mathbb{R}$"
+        }
+      ],
+      "answer": "B",
+      "explanation": "Hàm số $f(x)$ có đạo hàm liên tục trên $\\mathbb{R}$ thì hàm số $f(x)$ đồng biến trên $\\mathbb{R}$ khi $f'(x) > 0, \\forall x \\in \\mathbb{R}$.\n\n+) Với $f'(x) < 0, \\forall x \\in \\mathbb{R}$ thì hàm số $f(x)$ nghịch biến trên $\\mathbb{R}$; Nếu $f'(x) = 0, \\forall x \\in \\mathbb{R}$ thì hàm số $f(x)$ là hàm hằng trên $\\mathbb{R}$; Nếu $f'(x) \\neq 0, \\forall x \\in \\mathbb{R}$ thì chưa xác định được hàm số $f(x)$ đồng biến hay nghịch biến trên $\\mathbb{R}$."
+    },
+    {
+      "id": "q2",
+      "type": "single",
+      "content": "Cho hàm số bậc bốn có đồ thị như hình vẽ dưới đây:\n<div style='text-align: center;'><img src='images/B1_1.png'></div>\nĐiểm cực tiểu của đồ thị hàm số đã cho là",
+      "options": [
+        {
+          "key": "A",
+          "content": "$x = -1$"
+        },
+        {
+          "key": "B",
+          "content": "$x = 0$"
+        },
+        {
+          "key": "C",
+          "content": "$x = 2$"
+        },
+        {
+          "key": "D",
+          "content": "$A(0; -1)$"
+        }
+      ],
+      "answer": "B",
+      "explanation": "Dựa vào đồ thị, điểm cực tiểu của đồ thị hàm số là $(0; -1)$, do đó điểm cực tiểu của hàm số là $x = 0$."
+    },
+    {
+      "id": "q3",
+      "type": "single",
+      "content": "Hàm số nào sau đây nghịch biến trên tập xác định của nó?",
+      "options": [
+        {
+          "key": "A",
+          "content": "$y = \\frac{2x + 1}{x - 3}$"
+        },
+        {
+          "key": "B",
+          "content": "$y = -x^3 + 2x^2 - 15x - 1$"
+        },
+        {
+          "key": "C",
+          "content": "$y = -2x^2 + 1$"
+        },
+        {
+          "key": "D",
+          "content": "$y = x^3 - 2x^2 + 2024x + 5$"
+        }
+      ],
+      "answer": "B",
+      "explanation": "Hàm số $y = -x^3 + 2x^2 - 15x - 1$ có TXĐ $D = \\mathbb{R}$.\n$y' = -3x^2 + 4x - 15 < 0, \\forall x \\in \\mathbb{R}$ vì\n$\\begin{cases} a = -3 < 0 \\\\ \\Delta' = 4 - (-3)(-15) = -41 < 0 \\end{cases}$\n\nVậy hàm số $y = -x^3 + 2x^2 - 15x - 1$ nghịch biến trên $\\mathbb{R}$.\n\nLưu ý: Hàm số $y = \\frac{2x + 1}{x - 3}$ có $y' = \\frac{-7}{(x - 3)^2} < 0, \\forall x \\neq 3$ nên hàm số này nghịch biến trên từng khoảng xác định của nó."
+    },
+    {
+      "id": "q4",
+      "type": "single",
+      "content": "Cho hàm số $y = f(x)$ có bảng biến thiên sau:\n$$\n\\begin{array}{|c|ccccccccc|}\n\\hline\nx & -\\infty & & -1 & & 0 & & 1 & & +\\infty \\\\\n\\hline\ny' & & + & 0 & - & || & - & 0 & + & \\\\\n\\hline\n& & & 2 & & || & +\\infty & & & +\\infty \\\\\ny & & \\nearrow & & \\searrow & || & & \\searrow & & \\nearrow \\\\\n& -\\infty & & & & -\\infty & || & & 4 & \\\\\n\\hline\n\\end{array}\n$$\nHàm số đã cho nghịch biến trên khoảng nào dưới đây?",
+      "options": [
+        {
+          "key": "A",
+          "content": "$(-1; 1)$"
+        },
+        {
+          "key": "B",
+          "content": "$(4; +\\infty)$"
+        },
+        {
+          "key": "C",
+          "content": "$(-\\infty; 2)$"
+        },
+        {
+          "key": "D",
+          "content": "$(0; 1)$"
+        }
+      ],
+      "answer": "D",
+      "explanation": "Dựa vào bảng biến thiên ta thấy hàm số nghịch biến trên khoảng $(-1; 0)$ và $(0; 1)$."
+    },
+    {
+      "id": "q5",
+      "type": "single",
+      "content": "Cho hàm số $y = f(x)$ có bảng biến thiên như sau:\n$$\n\\begin{array}{|c|ccccc|}\n\\hline\nx & -\\infty & & -1 & & +\\infty \\\\\n\\hline\ny' & & + & || & + & \\\\\n\\hline\n& & & +\\infty & || & & & +\\infty \\\\\ny & & \\nearrow & & || & & \\nearrow & \\\\\n& 2 & & & || & -\\infty & & \\\\\n\\hline\n\\end{array}\n$$\nHàm số đồng biến trên khoảng nào dưới đây?",
+      "options": [
+        {
+          "key": "A",
+          "content": "$(2; +\\infty)$"
+        },
+        {
+          "key": "B",
+          "content": "$(-2; +\\infty)$"
+        },
+        {
+          "key": "C",
+          "content": "$(-\\infty; 0)$"
+        },
+        {
+          "key": "D",
+          "content": "$(-\\infty; 2)$"
+        }
+      ],
+      "answer": "A",
+      "explanation": "Từ bảng biến thiên của hàm số ta có hàm số đồng biến trên hai khoảng $(-\\infty; -1)$ và $(-1; +\\infty)$ do vậy hàm số đồng biến trên khoảng $(2; +\\infty)$."
+    },
+    {
+      "id": "q6",
+      "type": "single",
+      "content": "Hàm số $y = (x^2 - 1)(3x - 2)^3$ có bao nhiêu điểm cực đại?",
+      "options": [
+        {
+          "key": "A",
+          "content": "$0$"
+        },
+        {
+          "key": "B",
+          "content": "$2$"
+        },
+        {
+          "key": "C",
+          "content": "$3$"
+        },
+        {
+          "key": "D",
+          "content": "$1$"
+        }
+      ],
+      "answer": "D",
+      "explanation": "$y' = (3x - 2)^2 (15x^2 - 4x - 9)$ vì $(3x - 2)^2 \\geq 0, \\forall x \\in \\mathbb{R}$ nên dấu của $y'$ là dấu của biểu thức $15x^2 - 4x - 9$\n\n$15x^2 - 4x - 9 = 0 \\Leftrightarrow \\left[ \\begin{array}{l} x = \\frac{2 - \\sqrt{139}}{15} \\\\ x = \\frac{2 + \\sqrt{139}}{15} \\end{array} \\right.$\n\nTa có bảng biến thiên\n$$\n\\begin{array}{|c|ccccccc|}\n\\hline\nx & -\\infty & & \\frac{2 - \\sqrt{139}}{15} & & \\frac{2 + \\sqrt{139}}{15} & & +\\infty \\\\\n\\hline\ny' & & + & 0 & - & 0 & + & \\\\\n\\hline\n& & & y_{CĐ} & & & & +\\infty \\\\\ny & & \\nearrow & & \\searrow & & \\nearrow & \\\\\n& -\\infty & & & & y_{CT} & & \\\\\n\\hline\n\\end{array}\n$$\nDựa vào bảng biến thiên ta suy ra hàm số có 1 điểm cực đại."
+    },
+    {
+      "id": "q7",
+      "type": "single",
+      "content": "Cho hàm số $y = f(x)$ có $f'(x) = (x + 2)(x + 1)(x^2 - 1), \\forall x \\in \\mathbb{R}$. Hàm số $y = f(x)$ đồng biến trên khoảng nào sau đây?",
+      "options": [
+        {
+          "key": "A",
+          "content": "$(-1; 1)$"
+        },
+        {
+          "key": "B",
+          "content": "$(0; +\\infty)$"
+        },
+        {
+          "key": "C",
+          "content": "$(-\\infty; -2)$"
+        },
+        {
+          "key": "D",
+          "content": "$(-2; -1)$"
+        }
+      ],
+      "answer": "C",
+      "explanation": "Ta có $f'(x) = 0 \\Leftrightarrow (x + 2)(x + 1)(x^2 - 1) = 0 \\Leftrightarrow \\left[ \\begin{array}{l} x = -2 \\\\ x = -1 \\\\ x = 1 \\end{array} \\right.$.\n\nBảng xét dấu của đạo hàm:\n$$\n\\begin{array}{|c|ccccccccc|}\n\\hline\nx & -\\infty & & -2 & & -1 & & 1 & & +\\infty \\\\\n\\hline\nf'(x) & & + & 0 & - & 0 & - & 0 & + & \\\\\n\\hline\n\\end{array}\n$$\nVậy hàm số đồng biến trên khoảng $(-\\infty; -2)$ và $(1; +\\infty)$."
+    },
+    {
+      "id": "q8",
+      "type": "single",
+      "content": "Cho hàm số $y = f(x)$ có bảng biến thiên như sau:\n$$\n\\begin{array}{|c|ccccccc|}\n\\hline\nx & -\\infty & & -2 & & 1 & & +\\infty \\\\\n\\hline\nf'(x) & & + & 0 & - & 0 & + & \\\\\n\\hline\n& & & 8 & & & & 10 \\\\\nf(x) & & \\nearrow & & \\searrow & & \\nearrow & \\\\\n& -\\infty & & & & 4 & & \\\\\n\\hline\n\\end{array}\n$$\nGiá trị cực đại của $f(x)$ là",
+      "options": [
+        {
+          "key": "A",
+          "content": "$4$"
+        },
+        {
+          "key": "B",
+          "content": "$8$"
+        },
+        {
+          "key": "C",
+          "content": "$10$"
+        },
+        {
+          "key": "D",
+          "content": "$-2$"
+        }
+      ],
+      "answer": "B",
+      "explanation": "Dựa vào bảng biến thiên, ta suy ra giá trị cực đại của hàm số $f(x)$ bằng $8$."
+    },
+    {
+      "id": "q9",
+      "type": "single",
+      "content": "Tính giá trị cực đại của hàm số $y = \\frac{\\ln x}{x}$.",
+      "options": [
+        {
+          "key": "A",
+          "content": "$\\frac{1}{e}$"
+        },
+        {
+          "key": "B",
+          "content": "$1$"
+        },
+        {
+          "key": "C",
+          "content": "$e$"
+        },
+        {
+          "key": "D",
+          "content": "$0$"
+        }
+      ],
+      "answer": "A",
+      "explanation": "+) Tập xác định: $D = (0; +\\infty)$\n\n+) $y' = \\frac{1 - \\ln x}{x^2} ; y' = 0 \\Leftrightarrow \\ln x = 1 \\Leftrightarrow x = e$. Ta có BBT:\n$$\n\\begin{array}{|c|ccccc|}\n\\hline\nx & 0 & & e & & +\\infty \\\\\n\\hline\ny' & & + & 0 & - & \\\\\n\\hline\n& & & \\frac{1}{e} & & \\\\\ny & & \\nearrow & & \\searrow & \\\\\n& -\\infty & & & & 0 \\\\\n\\hline\n\\end{array}\n$$\n+) Dựa vào BBT, hàm số có giá trị cực đại $y = \\frac{1}{e}$."
+    },
+    {
+      "id": "q10",
+      "type": "single",
+      "content": "Cho hàm số $y = f(x)$ có bảng biến thiên như sau:\n$$\n\\begin{array}{|c|ccccccc|}\n\\hline\nx & -\\infty & & -1 & & 1 & & +\\infty \\\\\n\\hline\nf'(x) & & + & 0 & - & 0 & + & \\\\\n\\hline\n& & & 4 & & & & +\\infty \\\\\nf(x) & & \\nearrow & & \\searrow & & \\nearrow & \\\\\n& -\\infty & & & & 0 & & \\\\\n\\hline\n\\end{array}\n$$\nHàm số đã cho nghịch biến trên khoảng nào dưới đây?",
+      "options": [
+        {
+          "key": "A",
+          "content": "$(0; 4)$"
+        },
+        {
+          "key": "B",
+          "content": "$(0; 2)$"
+        },
+        {
+          "key": "C",
+          "content": "$(-1; 1)$"
+        },
+        {
+          "key": "D",
+          "content": "$(-\\infty; -1)$"
+        }
+      ],
+      "answer": "C",
+      "explanation": "Từ bảng biến thiên suy ra hàm số nghịch biến trên khoảng $(-1; 1)$."
+    },
+    {
+      "id": "q11",
+      "type": "single",
+      "content": "Cho hàm số $y = f(x)$ liên tục trên $\\mathbb{R}$ và có bảng xét dấu $f'(x)$ như sau:\n$$\n\\begin{array}{|c|ccccccccccc|}\n\\hline\nx & -\\infty & & -3 & & 2 & & 3 & & 4 & & +\\infty \\\\\n\\hline\nf'(x) & & - & 0 & + & 0 & + & 0 & - & 0 & + & \\\\\n\\hline\n\\end{array}\n$$\nHàm số $y = f(x)$ có bao nhiêu điểm cực trị?",
+      "options": [
+        {
+          "key": "A",
+          "content": "$3$"
+        },
+        {
+          "key": "B",
+          "content": "$2$"
+        },
+        {
+          "key": "C",
+          "content": "$1$"
+        },
+        {
+          "key": "D",
+          "content": "$4$"
+        }
+      ],
+      "answer": "A",
+      "explanation": "Vì hàm số $y = f(x)$ liên tục trên $\\mathbb{R}$ và $f'(x)$ đổi dấu 3 lần nên hàm số $y = f(x)$ có 3 điểm cực trị."
+    },
+    {
+      "id": "q12",
+      "type": "single",
+      "content": "Biết $M(1; -5)$ là một điểm cực trị của đồ thị hàm số $y = f(x) = x^3 + ax^2 + bx + 1$. Giá trị $f(2)$ bằng",
+      "options": [
+        {
+          "key": "A",
+          "content": "$-3$"
+        },
+        {
+          "key": "B",
+          "content": "$-21$"
+        },
+        {
+          "key": "C",
+          "content": "$3$"
+        },
+        {
+          "key": "D",
+          "content": "$15$"
+        }
+      ],
+      "answer": "C",
+      "explanation": "Ta có:\n$y' = f'(x) = 3x^2 + 2ax + b$\n\nVì $M(1; -5)$ là một điểm cực trị của đồ thị hàm số $y = f(x)$\n\nTa có: $\\begin{cases} f'(1) = 0 \\\\ f(1) = -5 \\end{cases} \\Leftrightarrow \\begin{cases} 2a + b = -3 \\\\ a + b = -7 \\end{cases}$ (Wait, the OCR says $f(1)=5 \\Leftrightarrow a+b=3$. Let's re-evaluate: $1^3 + a(1)^2 + b(1) + 1 = -5 \\Rightarrow a + b + 2 = -5 \\Rightarrow a + b = -7$. But the OCR says $f(1)=5 \\Leftrightarrow a+b=3$. Let's check the image. The image says $M(1;-5)$ and $f(1)=5 \\Leftrightarrow a+b=3$. This is a typo in the original document's solution. I will transcribe exactly as the image shows).\nTheo hình ảnh:\n$\\begin{cases} f'(1) = 0 \\\\ f(1) = 5 \\end{cases} \\Leftrightarrow \\begin{cases} 2a + b = -3 \\\\ a + b = 3 \\end{cases} \\Leftrightarrow \\begin{cases} a = -6 \\\\ b = 9 \\end{cases}$. (thử lại thoả yêu cầu)\n\nVậy $f(x) = x^3 - 6x^2 + 9x + 1 \\Rightarrow f(2) = 3$."
+    },
+    {
+      "id": "q13",
+      "type": "true_false",
+      "content": "Cho hàm số $y = f(x)$ có bảng biến thiên như sau:\n$$\n\\begin{array}{|c|ccccccc|}\n\\hline\nx & -\\infty & & 0 & & 3 & & +\\infty \\\\\n\\hline\nf'(x) & & + & 0 & - & 0 & + & \\\\\n\\hline\n& & & 2 & & & & +\\infty \\\\\nf(x) & & \\nearrow & & \\searrow & & \\nearrow & \\\\\n& -\\infty & & & & -4 & & \\\\\n\\hline\n\\end{array}\n$$",
+      "statements": [
+        {
+          "key": "a",
+          "content": "Hàm số $y = f(x)$ đồng biến trên khoảng $(-\\infty; 2)$.",
+          "answer": false
+        },
+        {
+          "key": "b",
+          "content": "Hàm số $y = f(x)$ nghịch biến trên khoảng $(0; 3)$.",
+          "answer": true
+        },
+        {
+          "key": "c",
+          "content": "Hàm số $y = f(x)$ đạt cực đại tại $x = 2$.",
+          "answer": false
+        },
+        {
+          "key": "d",
+          "content": "Giá trị cực tiểu của hàm số $y = f(x)$ là $y = -4$.",
+          "answer": true
+        }
+      ],
+      "explanation": "a) Sai. Hàm số $y = f(x)$ đồng biến trên các khoảng $(-\\infty; 0)$ và $(3; +\\infty)$.\nb) Đúng. Hàm số $y = f(x)$ nghịch biến trên khoảng $(0; 3)$.\nc) Sai. Hàm số $y = f(x)$ đạt cực đại tại $x = 0$.\nd) Đúng. Giá trị cực tiểu của hàm số $y = f(x)$ là $y = -4$."
+    },
+    {
+      "id": "q14",
+      "type": "true_false",
+      "content": "Cho hàm số bậc ba $y = f(x)$ có đồ thị là đường cong như hình vẽ sau\n<div style='text-align: center;'><img src='images/B1_2.png'></div>\nMỗi khẳng định sau đây đúng hay sai?",
+      "statements": [
+        {
+          "key": "a",
+          "content": "Hàm số $y = f(x)$ đồng biến trên khoảng $(-\\infty; 3)$.",
+          "answer": false
+        },
+        {
+          "key": "b",
+          "content": "Tổng giá trị cực đại và giá trị cực tiểu của hàm số $y = f(x)$ là $2$.",
+          "answer": true
+        },
+        {
+          "key": "c",
+          "content": "Hàm số $y = f(x)$ có hai cực trị trái dấu.",
+          "answer": true
+        },
+        {
+          "key": "d",
+          "content": "Phương trình đường thẳng qua 2 điểm cực trị của đồ thị hàm số $y = f(x)$ là $d: y = -3x$",
+          "answer": false
+        }
+      ],
+      "explanation": "a) Sai. Hàm số $y = f(x)$ đồng biến trên các khoảng $(-\\infty; -1)$ và $(1; +\\infty)$.\nb) Đúng. Giá trị cực đại là $y = 3$, giá trị cực tiểu là $y = -1$. Do đó tổng giá trị cực đại và giá trị cực tiểu của hàm số đã cho là $3 - 1 = 2$.\nc) Đúng. Hàm số $y = f(x)$ có hai cực trị là $x = \\pm 1$.\nd) Sai. Gọi $d: y = ax + b$ là đường thẳng qua hai điểm cực trị $A(-1; 3), B(1; -1)$.\n$A, B \\in d \\Rightarrow \\begin{cases} -a + b = 3 \\\\ a + b = -1 \\end{cases} \\Leftrightarrow \\begin{cases} a = -2 \\\\ b = 1 \\end{cases} \\Rightarrow d: y = -2x + 1$"
+    },
+    {
+      "id": "q15",
+      "type": "true_false",
+      "content": "Cho hàm số bậc bốn trùng phương $f(x)$ có bảng biến thiên như sau:\n$$\n\\begin{array}{|c|ccccccccc|}\n\\hline\nx & -\\infty & & -1 & & 0 & & 1 & & +\\infty \\\\\n\\hline\nf'(x) & & - & 0 & + & 0 & - & 0 & + & \\\\\n\\hline\n& +\\infty & & & & 1 & & & & +\\infty \\\\\nf(x) & & \\searrow & & \\nearrow & & \\searrow & & \\nearrow & \\\\\n& & & -1 & & & & -1 & & \\\\\n\\hline\n\\end{array}\n$$",
+      "statements": [
+        {
+          "key": "a",
+          "content": "Hàm số đồng biến trên $(-1; 1)$.",
+          "answer": false
+        },
+        {
+          "key": "b",
+          "content": "Độ dài đoạn thẳng nối hai điểm cực tiểu là $2$.",
+          "answer": true
+        },
+        {
+          "key": "c",
+          "content": "Hàm số $f(2x)$ nghịch biến trên $(0; 1)$",
+          "answer": false
+        },
+        {
+          "key": "d",
+          "content": "Số điểm cực trị của hàm số $y = \\frac{1}{x^4} [f(x) - 1]^4$ là $5$.",
+          "answer": true
+        }
+      ],
+      "explanation": "a) Sai. Vì hàm số nghịch biến trên $(0; 1)$.\nb) Đúng. Ta có: hai điểm cực tiểu lần lượt có tọa độ $(-1; -1)$ và $(1; -1)$.\nDo đó độ dài nối 2 điểm cực tiểu là $\\sqrt{(-1 - 1)^2 + (-1 + 1)^2} = 2$.\nc) Sai. Ta có: $[f(2x)]' = 2f'(2x)$\n$[f(2x)]' = 0 \\Leftrightarrow \\left[ \\begin{array}{l} x = -\\frac{1}{2} \\\\ x = 0 \\\\ x = \\frac{1}{2} \\end{array} \\right.$\nDo đó, hàm số đồng biến trên $\\left(\\frac{1}{2}; 1\\right)$.\nd) Đúng. Giả sử $f(x) = ax^4 + bx^2 + c$. Từ $\\begin{cases} f'(0) = 0 \\\\ f(0) = 1 \\\\ f'(\\pm 1) = 0 \\\\ f(\\pm 1) = 0 \\end{cases} \\Leftrightarrow \\begin{cases} a = 2 \\\\ b = -4 \\\\ c = 1 \\end{cases}$. Suy ra $f(x) = 2x^4 - 4x^2 + 1$.\nKhi đó $y = \\frac{1}{x^4} [2x^4 - 4x^2]^4 = 2^4 x^4 (x^2 - 2)^4$. Có $y' = 2^4 \\cdot 4 \\cdot x^3 \\cdot (x^2 - 2)^3 \\cdot (3x^2 - 2)$.\nVà $y' = 0 \\Leftrightarrow x = 0$ (nghiệm bội lẻ); $x = \\pm \\sqrt{2}$ (nghiệm bội lẻ); $x = \\pm \\sqrt{\\frac{2}{3}}$\nDo đó, hàm số $y$ có 5 cực trị."
+    },
+    {
+      "id": "q16",
+      "type": "true_false",
+      "content": "Cho hàm số $y = f(x)$ có đạo hàm $f'(x) = (x + 1)e^x$.",
+      "statements": [
+        {
+          "key": "a",
+          "content": "Hàm số nghịch biến trên $(-\\infty; -1)$.",
+          "answer": true
+        },
+        {
+          "key": "b",
+          "content": "Giá trị cực tiểu của hàm số là $0$.",
+          "answer": false
+        },
+        {
+          "key": "c",
+          "content": "Hàm số $f(x^2)$ đồng biến trên $(-1; +\\infty)$",
+          "answer": false
+        },
+        {
+          "key": "d",
+          "content": "Có $2025$ giá trị nguyên của tham số $m$ trong $[-2024; 2025]$ để hàm số $g(x) = f(\\ln x) - mx^2 + 4mx - 2$ nghịch biến trên $(e; e^{2024})$.",
+          "answer": false
+        }
+      ],
+      "explanation": "a) Đúng.\nb) Sai. Vì không đủ cơ sở để xác định hàm số $f(x)$ nên không xác định được giá trị cực tiểu.\nc) Sai. Ta có: $[f(x^2)]' = 2x f'(x^2) = 2x(x^2 + 1)e^{x^2}$\n$[f(x^2)]' = 0 \\Leftrightarrow x = 0$\nDo đó, hàm số nghịch biến trên $(-1; 0)$.\nd) Sai. Ta có $g'(x) = \\frac{1}{x} f'(\\ln x) - 2mx + 4m = \\frac{1}{x} (\\ln x + 1)e^{\\ln x} - 2mx + 4m = \\ln x + 1 - 2mx + 4m$\nHàm số nghịch biến trong khoảng $(e; e^{2024})$ khi và chỉ khi\n$\\ln x + 1 - mx + 4m \\leq 0, \\forall x \\in (e; e^{2024})$\n$\\Leftrightarrow 2m \\geq \\frac{\\ln x + 1}{x - 2}, \\forall x \\in (e; e^{2024})$.\nXét hàm số $g(x) = \\frac{\\ln x + 1}{x - 2}, x \\in (e; e^{2024})$\nTa có $g'(x) = \\frac{\\frac{1}{x}(x - 2) - (\\ln x + 1)}{(x - 2)^2} = \\frac{1 - x \\ln x}{x(x - 2)^2}, x \\in (e; e^{2024})$\n$g'(x) < 0, \\forall x \\in (e; e^{2024})$\nBảng biến thiên:\n$$\n\\begin{array}{|c|ccc|}\n\\hline\nx & e & & e^{2024} \\\\\n\\hline\ng'(x) & & - & \\\\\n\\hline\n& \\frac{2}{e - 2} & & \\\\\ng(x) & & \\searrow & \\\\\n& & & \\\\\n\\hline\n\\end{array}\n$$\nQuan sát bảng biến thiên ta có $2m \\geq \\frac{2}{e - 2} \\Leftrightarrow m \\geq \\frac{1}{e - 2} \\Rightarrow m \\geq 2$.\nDo $m \\in [-2024; 2025], m \\in \\mathbb{Z}$ nên $m \\in \\{2; 3; ...; 2025\\}$.\nVậy có $2024$ giá trị nguyên của tham số $m$."
+    },
+    {
+      "id": "q17",
+      "type": "short_answer",
+      "content": "Biết rằng tất cả các khoảng nghịch biến của hàm số $y = \\frac{x^2 + 2x + 2}{x + 1}$ là hai khoảng $(a; b), (b; c)$ với $a < b < c$. Tính $T = a + b + c$",
+      "answer": "-3",
+      "acceptableAnswers": [
+        "-3",
+        "-3.0",
+        "-3,0"
+      ],
+      "inputMode": "numeric",
+      "placeholder": "Nhập đáp án...",
+      "explanation": "Tập xác định: $\\mathbb{R} \\setminus \\{-1\\}$.\nTa có: $y' = \\frac{x^2 + 2x}{(x + 1)^2}, y' = 0 \\Leftrightarrow \\left[ \\begin{array}{l} x = 0 \\\\ x = -2 \\end{array} \\right.$.\nBảng xét dấu của $y'$:\n$$\n\\begin{array}{|c|ccccccccc|}\n\\hline\nx & -\\infty & & -2 & & -1 & & 0 & & +\\infty \\\\\n\\hline\ny' & & + & 0 & - & || & - & 0 & + & \\\\\n\\hline\n\\end{array}\n$$\nVậy hàm số nghịch biến trên mỗi khoảng $(-2; -1)$ và $(-1; 0)$."
+    },
+    {
+      "id": "q18",
+      "type": "short_answer",
+      "content": "Biết rằng đồ thị hàm số $y = x^4 - 2ax^2 + b$ có một điểm cực trị là $(1; 2)$. Tính khoảng cách giữa điểm cực đại và điểm cực tiểu của đồ thị hàm số đã cho (quy tròn đến hàng phần trăm).",
+      "answer": "1,41",
+      "acceptableAnswers": [
+        "1,41",
+        "1.41"
+      ],
+      "inputMode": "numeric",
+      "placeholder": "Nhập đáp án...",
+      "explanation": "Ta có $y' = 4x^3 - 4ax$.\nDo đồ thị hàm số đã cho có một điểm cực trị là $(1; 2)$ nên ta có\n$\\begin{cases} 4 \\cdot 1^3 - 4a \\cdot 1 = 0 \\\\ 1^4 - 2a \\cdot 1^2 + b = 2 \\end{cases} \\Leftrightarrow \\begin{cases} a = 1 \\\\ b = 3 \\end{cases}$.\nKhi đó $y' = 4x^3 - 4x = 0 \\Leftrightarrow \\left[ \\begin{array}{l} x = 0 \\\\ x = 1 \\\\ x = -1 \\end{array} \\right.$.\nBảng biến thiên:\n$$\n\\begin{array}{|c|ccccccccc|}\n\\hline\nx & -\\infty & & -1 & & 0 & & 1 & & +\\infty \\\\\n\\hline\ny' & & - & 0 & + & 0 & - & 0 & + & \\\\\n\\hline\n& +\\infty & & & & 3 & & & & +\\infty \\\\\ny & & \\searrow & & \\nearrow & & \\searrow & & \\nearrow & \\\\\n& & & 2 & & & & 2 & & \\\\\n\\hline\n\\end{array}\n$$\nĐồ thị hàm số có hai điểm cực tiểu $A(-1; 2), B(1; 2)$ và một điểm cực đại $C(0; 3)$.\nVậy khoảng cách giữa điểm cực đại và điểm cực tiểu của đồ thị hàm số đã cho là\n$AC = BC = \\sqrt{(0 - 1)^2 + (3 - 2)^2} = \\sqrt{2} \\approx 1,41$."
+    },
+    {
+      "id": "q19",
+      "type": "short_answer",
+      "content": "Biết rằng hai điểm cực trị của đồ thị hàm số $y = \\frac{x^2 + 2x - 3}{x^2 + 1}$ cùng với điểm $I(-\\sqrt{5}; -\\sqrt{5})$ tạo thành một tam giác. Diện tích tam giác đó bằng (kết quả làm tròn đến hàng phần trăm)",
+      "answer": "6,71",
+      "acceptableAnswers": [
+        "6,71",
+        "6.71"
+      ],
+      "inputMode": "numeric",
+      "placeholder": "Nhập đáp án...",
+      "explanation": "Tập xác định $\\mathbb{R}$\n+ $y' = \\frac{(2x + 2)(x^2 + 1) - 2x(x^2 + 2x - 3)}{(x^2 + 1)^2} = \\frac{-2x^2 + 8x + 2}{(x^2 + 1)^2}$\n$y' = 0 \\Leftrightarrow \\left[ \\begin{array}{l} x = 2 - \\sqrt{5} \\\\ x = 2 + \\sqrt{5} \\end{array} \\right.$.\nBảng biến thiên\n$$\n\\begin{array}{|c|ccccc|}\n\\hline\nx & -\\infty & & 2 - \\sqrt{5} & & 2 + \\sqrt{5} & & +\\infty \\\\\n\\hline\ny' & & - & 0 & + & 0 & - & \\\\\n\\hline\n& 1 & & & & -1 + \\sqrt{5} & & \\\\\ny & & \\searrow & & \\nearrow & & \\searrow & \\\\\n& & & -1 - \\sqrt{5} & & & & 1 \\\\\n\\hline\n\\end{array}\n$$\nVậy đồ thị hàm số có hai điểm cực trị là $A(2 - \\sqrt{5}; -1 - \\sqrt{5})$ và $B(2 + \\sqrt{5}; -1 + \\sqrt{5})$\nKhi đó $\\overrightarrow{AB} = (2\\sqrt{5}; 2\\sqrt{5}) \\Rightarrow AB = 2\\sqrt{10}$; $\\overrightarrow{AI} = (2; -1) \\Rightarrow AI = \\sqrt{5}$; $\\overrightarrow{IB} = (2 + 2\\sqrt{5}; -1 + 2\\sqrt{5}) \\Rightarrow IB = \\sqrt{45 + 4\\sqrt{5}}$.\nTrong tam giác $\\cos A = \\frac{AB^2 + AI^2 - BI^2}{2 \\cdot AB \\cdot AI} = \\frac{40 + 5 - 45 - 4\\sqrt{5}}{2 \\cdot 2\\sqrt{10} \\cdot \\sqrt{5}} = -\\frac{1}{\\sqrt{10}} \\Rightarrow \\sin A = \\frac{3}{\\sqrt{10}}$.\nDiện tích tam giác $ABI$ là: $S_{ABI} = \\frac{1}{2} AB \\cdot AI \\cdot \\sin A = \\frac{1}{2} \\cdot 2\\sqrt{10} \\cdot \\sqrt{5} \\cdot \\frac{3}{\\sqrt{10}} = 3\\sqrt{5} \\approx 6,71$.\nCách 2: Áp dụng công thức tính nhanh: Với $\\overrightarrow{AB} = (a; b), \\overrightarrow{AI} = (c; d)$ thì diện tích tam giác $ABI$ là: $S_{ABI} = \\frac{1}{2} |ad - bc|$\nVậy diện tích tam giác $ABI$ là $S_{ABI} = \\frac{1}{2} |-2\\sqrt{5} - 4\\sqrt{5}| = 3\\sqrt{5}$."
+    },
+    {
+      "id": "q20",
+      "type": "short_answer",
+      "content": "Xí nghiệp $A$ sản xuất độc quyền một loại sản phẩm. Biết rằng hàm tổng chi phí sản xuất là $TC = x^3 - 77x^2 + 1000x + 40000$ và hàm doanh thu là $TR = -2x^2 + 1312x$, với $x$ là số sản phẩm. Lợi nhuận của xí nghiệp $A$ được xác định bằng hàm số $f(x) = TR - TC$, cực đại lợi nhuận của xí nghiệp $A$ khi đó đạt bao nhiêu sản phẩm?",
+      "answer": "52",
+      "acceptableAnswers": [
+        "52",
+        "52.0",
+        "52,0"
+      ],
+      "inputMode": "numeric",
+      "placeholder": "Nhập đáp án...",
+      "explanation": "Xét hàm số:\n$f(x) = TR - TC = -2x^2 + 1312x - (x^3 - 77x^2 + 1000x + 40000)$.\n$f(x) = -x^3 + 75x^2 + 312x - 40000$.\nTXĐ: $D = (0; +\\infty)$.\nTa có $f'(x) = -3x^2 + 150x + 312 = 0 \\Leftrightarrow \\left[ \\begin{array}{l} x = 52 \\text{ (N)} \\\\ x = -2 \\text{ (L)} \\end{array} \\right.$\nBảng biến thiên:\n$$\n\\begin{array}{|c|ccccc|}\n\\hline\nx & 0 & & 52 & & +\\infty \\\\\n\\hline\nf'(x) & & + & 0 & - & \\\\\n\\hline\n& & & 74416 & & \\\\\nf(x) & & \\nearrow & & \\searrow & \\\\\n& -40000 & & & & -\\infty \\\\\n\\hline\n\\end{array}\n$$\nHàm số đạt giá trị cực đại $y_{CĐ} = 74416$ tại $x = 52$.\nVậy lợi nhuận của công ty đạt cực đại khi số sản phẩm $x = 52$."
+    },
+    {
+      "id": "q21",
+      "type": "short_answer",
+      "content": "Hàm số $y = \\log_3 (x^2 - 2x)$ nghịch biến trên khoảng $(-\\infty; a)$ có độ dài lớn nhất. Khi đó $a$ bằng?",
+      "answer": "0",
+      "acceptableAnswers": [
+        "0",
+        "0.0",
+        "0,0"
+      ],
+      "inputMode": "numeric",
+      "placeholder": "Nhập đáp án...",
+      "explanation": "Hàm số $y = \\log_3 (x^2 - 2x)$ có tập xác định $D = (-\\infty; 0) \\cup (2; +\\infty)$.\nTa có $y' = \\frac{2x - 2}{(x^2 - 2x)\\ln 3}$. Khi đó $y' = 0 \\Leftrightarrow x = 1$.\nBảng biến thiên:\n$$\n\\begin{array}{|c|ccccccc|}\n\\hline\nx & -\\infty & & 0 & & 2 & & +\\infty \\\\\n\\hline\ny' & & - & || & \\text{////} & || & + & \\\\\n\\hline\n& +\\infty & & & || & \\text{////} & || & & +\\infty \\\\\ny & & \\searrow & & || & \\text{////} & || & \\nearrow & \\\\\n& & & -\\infty & || & \\text{////} & || & -\\infty & \\\\\n\\hline\n\\end{array}\n$$\nDựa vào bảng biến thiên ta có hàm số $y$ nghịch biến trên $(-\\infty; 0)$.\nVậy $a = 0$."
+    },
+    {
+      "id": "q22",
+      "type": "short_answer",
+      "content": "Lát cắt ngang của một vùng đất ven biển được mô hình hoá thành một hàm số bậc ba $y = f(x)$ có đồ thị như hình vẽ (đơn vị độ dài trên các trục là km).\n<div style='text-align: center;'><img src='images/B1_3.png'></div>\nBiết khoảng cách hai bên chân đồi $OA = 2 \\text{ km}$, độ rộng của hồ $AB = 1 \\text{ km}$ và ngọn đồi cao $528 \\text{ m}$. Tìm độ sâu của hồ (tính bằng mét) tại điểm sâu nhất? (làm tròn đến hàng đơn vị).",
+      "answer": "158",
+      "acceptableAnswers": [
+        "158",
+        "158.0",
+        "158,0"
+      ],
+      "inputMode": "numeric",
+      "placeholder": "Nhập đáp án...",
+      "explanation": "Theo đề bài ta có : $OA = 2 \\text{ km}$, $OB = 3 \\text{ km}$ và $528 \\text{ m} = 0,528 \\text{ km}$.\nĐồ thị hàm số $y = f(x)$ đi qua các điểm $O(0; 0), A(2; 0), C(3; 0)$ suy ra $y = f(x) = ax(x - 2)(x - 3) = a(x^3 - 5x^2 + 6x)$ với $a > 0$.\nTa có : $y' = a(3x^2 - 10x + 6), y' = 0 \\Leftrightarrow \\left[ \\begin{array}{l} x = \\frac{5 + \\sqrt{7}}{3} \\\\ x = \\frac{5 - \\sqrt{7}}{3} \\end{array} \\right.$.\nTừ độ cao của đồi ta có tại vị trí điểm cực đại $x_{CĐ} = \\frac{5 - \\sqrt{7}}{3} ; y_{CĐ} = 0,528$ suy ra\n$a = \\frac{0,528}{\\left(\\frac{5 - \\sqrt{7}}{3}\\right)^3 - 5\\left(\\frac{5 - \\sqrt{7}}{3}\\right)^2 + 6\\left(\\frac{5 - \\sqrt{7}}{3}\\right)} \\approx 0,25$.\nĐiểm sâu nhất của hồ ứng với vị trí của điểm cực tiểu $x_{CT} = \\frac{5 + \\sqrt{7}}{3}, y_{CT} \\approx 0,1578$.\nVậy độ sâu của hồ tại điểm sâu nhất xấp xỉ $0,1578 \\text{ km}$ hay xấp xỉ $158 \\text{ m}$."
+    }
+  ]
+}

@@ -1,0 +1,803 @@
+/* =========================================================================
+   TRÌNH CHIẾU TRẮC NGHIỆM TOÁN HỌC — STYLE.CSS
+   -------------------------------------------------------------------------
+   Mục tiêu thiết kế:
+   - Tối ưu cho MÁY CHIẾU và BẢNG TƯƠNG TÁC (chữ to, tương phản cao).
+   - Layout toàn màn hình, không cuộn dọc khi trình chiếu câu hỏi.
+   - Hỗ trợ "sân khấu" (stage) xếp chồng các slide cùng 1 ô grid
+     => chuyển câu không nhảy layout, không gây giật MathJax.
+   - Phân cấp rõ: topbar / progress / stage / bottombar.
+   ========================================================================= */
+
+/* -------------------- 1. BIẾN TOÀN CỤC -------------------- */
+:root {
+  /* Màu chủ đạo */
+  --c-bg:          #0f172a;        /* nền tối, dịu mắt khi chiếu phòng học */
+  --c-surface:     #1e293b;        /* thẻ câu hỏi */
+  --c-surface-2:   #273449;        /* ô đáp án */
+  --c-surface-3:   #334155;        /* hover */
+  --c-border:      #475569;
+  --c-text:        #f1f5f9;
+  --c-text-dim:    #cbd5e1;
+  --c-text-mute:   #94a3b8;
+
+  /* Màu trạng thái */
+  --c-primary:     #3b82f6;        /* xanh dương — nút chính */
+  --c-primary-dim: #1d4ed8;
+  --c-success:     #22c55e;        /* xanh lá — đáp án đúng */
+  --c-success-bg:  rgba(34, 197, 94, 0.15);
+  --c-danger:      #ef4444;        /* đỏ — đáp án sai */
+  --c-danger-bg:   rgba(239, 68, 68, 0.15);
+  --c-warning:     #f59e0b;
+  --c-accent:      #a855f7;        /* tím — nút lời giải */
+
+  /* Kích thước & bán kính */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --gap-sm: 10px;
+  --gap-md: 18px;
+  --gap-lg: 26px;
+
+  /* Typography scale (dùng clamp để co giãn theo màn hình) */
+  --fs-title:   clamp(22px, 2.4vw, 34px);
+  --fs-body:    clamp(18px, 1.6vw, 26px);
+  --fs-answer:  clamp(18px, 1.7vw, 28px);
+  --fs-small:   clamp(13px, 1vw, 16px);
+
+  /* Bóng đổ nhẹ */
+  --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+/* -------------------- 2. RESET & BASE -------------------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;             /* Trình chiếu: KHÔNG cuộn trang */
+  background: var(--c-bg);
+  color: var(--c-text);
+  font-family: "Segoe UI", "Inter", "Roboto", system-ui, -apple-system,
+               "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
+}
+
+/* Ẩn/hiện tiện dụng */
+[hidden] { display: none !important; }
+
+/* -------------------- 3. LAYOUT ỨNG DỤNG -------------------- */
+.app {
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;  /* topbar / progress / stage / bottombar */
+  height: 100vh;
+  width: 100vw;
+}
+
+/* -------------------- 4. TOPBAR -------------------- */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gap-md);
+  padding: 12px 24px;
+  background: rgba(15, 23, 42, 0.96);
+  border-bottom: 1px solid var(--c-border);
+  z-index: 10;
+}
+
+.topbar__left  { min-width: 0; flex: 1 1 auto; }
+.topbar__right {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-sm);
+  flex-shrink: 0;
+}
+
+.topbar__title {
+  font-size: var(--fs-title);
+  font-weight: 700;
+  color: var(--c-text);
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topbar__meta {
+  font-size: var(--fs-small);
+  color: var(--c-text-mute);
+  margin-top: 2px;
+}
+
+/* Chip thông tin (học sinh, bộ đếm) */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: var(--fs-small);
+  font-weight: 600;
+  white-space: nowrap;
+  border: 1px solid var(--c-border);
+  background: var(--c-surface-2);
+  color: var(--c-text-dim);
+}
+
+.chip--student { background: rgba(59, 130, 246, 0.15); color: #93c5fd; border-color: #1e40af; }
+.chip--counter { background: rgba(168, 85, 247, 0.15); color: #d8b4fe; border-color: #6b21a8; }
+
+/* -------------------- 5. NÚT BẤM -------------------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-small);
+  font-weight: 600;
+  transition: all 0.16s ease;
+  user-select: none;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.btn--primary {
+  background: var(--c-primary);
+  color: #fff;
+}
+.btn--primary:hover:not(:disabled) { background: var(--c-primary-dim); }
+
+.btn--ghost {
+  background: transparent;
+  color: var(--c-text-dim);
+  border-color: var(--c-border);
+}
+.btn--ghost:hover:not(:disabled) { background: var(--c-surface-3); }
+
+.btn--ghost.is-active {
+  background: var(--c-accent);
+  color: #fff;
+  border-color: var(--c-accent);
+}
+
+.btn--nav {
+  background: var(--c-surface);
+  color: var(--c-text);
+  border: 1px solid var(--c-border);
+  padding: 12px 22px;
+  font-size: var(--fs-body);
+}
+.btn--nav:hover:not(:disabled) { background: var(--c-surface-3); }
+
+/* -------------------- 6. PROGRESS BAR -------------------- */
+.progress {
+  height: 6px;
+  background: var(--c-surface);
+  position: relative;
+  overflow: hidden;
+}
+
+.progress__bar {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--c-primary), var(--c-accent));
+  transition: width 0.3s ease;
+  border-radius: 0 3px 3px 0;
+}
+
+/* -------------------- 7. STAGE (SÂN KHẤU SLIDE) -------------------- */
+/* Các slide xếp chồng cùng 1 ô grid -> chiều cao ổn định,
+   MathJax không bị reflow khi chuyển câu. */
+.stage {
+  position: relative;
+  display: grid;
+  grid-template-areas: "slide";
+  overflow: hidden;
+  padding: var(--gap-lg);
+}
+
+.slide {
+  grid-area: slide;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-lg);
+  padding: var(--gap-lg) clamp(28px, 3vw, 56px);
+  overflow-y: auto;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+  border-radius: var(--radius-lg);
+  background: var(--c-surface);
+  box-shadow: var(--shadow-md);
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.slide.is-active {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+/* Thanh cuộn mảnh, không phô trương */
+.slide::-webkit-scrollbar { width: 8px; }
+.slide::-webkit-scrollbar-thumb {
+  background: var(--c-border);
+  border-radius: 4px;
+}
+
+/* -------------------- 8. NỘI DUNG CÂU HỎI -------------------- */
+.slide__header {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-sm);
+  padding-bottom: var(--gap-sm);
+  border-bottom: 1px solid var(--c-border);
+}
+
+.slide__index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 46px;
+  height: 46px;
+  padding: 0 14px;
+  background: var(--c-primary);
+  color: #fff;
+  font-weight: 800;
+  border-radius: var(--radius-md);
+  font-size: var(--fs-body);
+}
+
+.slide__type {
+  font-size: var(--fs-small);
+  color: var(--c-text-mute);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.slide__question {
+  font-size: var(--fs-body);
+  line-height: 1.65;
+  color: var(--c-text);
+}
+
+/* MathJax hiển thị công thức dạng block cần khoảng cách dễ đọc */
+.slide__question mjx-container[display="true"] {
+  margin: 12px 0 !important;
+}
+
+/* -------------------- 9. LƯỚI ĐÁP ÁN -------------------- */
+.answers {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--gap-md);
+}
+
+@media (max-width: 900px) {
+  .answers { grid-template-columns: 1fr; }
+}
+
+/* Ô đáp án: dạng button để có thể click & nhận focus bàn phím */
+.answer {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--gap-sm);
+  padding: 16px 20px;
+  border-radius: var(--radius-md);
+  background: var(--c-surface-2);
+  border: 2px solid transparent;
+  text-align: left;
+  font-size: var(--fs-answer);
+  color: var(--c-text);
+  transition: all 0.15s ease;
+  line-height: 1.5;
+  min-height: 78px;
+}
+
+.answer:hover {
+  background: var(--c-surface-3);
+  border-color: var(--c-border);
+  transform: translateY(-2px);
+}
+
+.answer:focus-visible {
+  outline: 3px solid var(--c-primary);
+  outline-offset: 2px;
+}
+
+.answer__label {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: var(--c-border);
+  color: #fff;
+  border-radius: var(--radius-sm);
+  font-weight: 800;
+  font-size: var(--fs-body);
+  transition: background 0.15s ease;
+}
+
+.answer__content {
+  flex: 1;
+  padding-top: 4px;
+  min-width: 0;
+  word-wrap: break-word;
+}
+
+/* --- Trạng thái đã chọn / đúng / sai (khi bật lời giải) --- */
+.answer.is-selected {
+  background: rgba(59, 130, 246, 0.16);
+  border-color: var(--c-primary);
+}
+.answer.is-selected .answer__label { background: var(--c-primary); }
+
+.answer.is-correct {
+  background: var(--c-success-bg);
+  border-color: var(--c-success);
+}
+.answer.is-correct .answer__label { background: var(--c-success); }
+
+.answer.is-wrong {
+  background: var(--c-danger-bg);
+  border-color: var(--c-danger);
+}
+.answer.is-wrong .answer__label { background: var(--c-danger); }
+
+/* -------------------- 10. LỜI GIẢI -------------------- */
+.solution {
+  padding: var(--gap-md);
+  border-radius: var(--radius-md);
+  background: rgba(168, 85, 247, 0.12);
+  border-left: 5px solid var(--c-accent);
+  font-size: var(--fs-body);
+  line-height: 1.65;
+  color: var(--c-text-dim);
+  animation: solutionFade 0.25s ease;
+}
+
+@keyframes solutionFade {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.solution__label {
+  display: inline-block;
+  font-weight: 700;
+  color: var(--c-accent);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  font-size: var(--fs-small);
+  letter-spacing: 0.06em;
+}
+
+/* -------------------- 11. BOTTOMBAR -------------------- */
+.bottombar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gap-md);
+  padding: 12px 24px;
+  background: rgba(15, 23, 42, 0.96);
+  border-top: 1px solid var(--c-border);
+}
+
+.bottombar__hint {
+  font-size: var(--fs-small);
+  color: var(--c-text-mute);
+  text-align: center;
+  flex: 1;
+}
+
+.bottombar__hint kbd {
+  display: inline-block;
+  padding: 2px 7px;
+  margin: 0 2px;
+  background: var(--c-surface-2);
+  border: 1px solid var(--c-border);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  font-family: "Consolas", monospace;
+  font-size: 0.9em;
+  color: var(--c-text-dim);
+}
+
+/* -------------------- 12. LOADING SCREEN -------------------- */
+.loading-screen {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  background: var(--c-bg);
+  z-index: 9999;
+}
+
+.loading-screen__spinner {
+  width: 56px;
+  height: 56px;
+  border: 5px solid var(--c-surface-2);
+  border-top-color: var(--c-primary);
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.loading-screen__text {
+  font-size: 18px;
+  color: var(--c-text-dim);
+  text-align: center;
+  max-width: 600px;
+  line-height: 1.6;
+}
+
+.loading-screen__text--error { color: var(--c-danger); }
+
+/* -------------------- 13. MODAL TỔNG KẾT -------------------- */
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+}
+
+.modal__box {
+  position: relative;
+  background: var(--c-surface);
+  border-radius: var(--radius-lg);
+  padding: var(--gap-lg);
+  width: min(760px, 100%);
+  max-height: 88vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--c-border);
+  animation: modalIn 0.22s ease;
+}
+
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.modal__title {
+  font-size: var(--fs-title);
+  margin-bottom: var(--gap-md);
+  color: var(--c-text);
+}
+
+.modal__body { margin-bottom: var(--gap-md); }
+
+.modal__footer { display: flex; justify-content: flex-end; }
+
+/* --- Thống kê trong modal --- */
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: var(--gap-sm);
+  margin-bottom: var(--gap-md);
+}
+
+.summary-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 16px 10px;
+  border-radius: var(--radius-md);
+  background: var(--c-surface-2);
+  border: 1px solid var(--c-border);
+}
+
+.summary-stat--ok     { border-color: var(--c-success); background: var(--c-success-bg); }
+.summary-stat--bad    { border-color: var(--c-danger);  background: var(--c-danger-bg); }
+.summary-stat--score  { border-color: var(--c-primary); background: rgba(59, 130, 246, 0.15); }
+
+.summary-stat__value {
+  font-size: clamp(24px, 2.4vw, 36px);
+  font-weight: 800;
+  line-height: 1;
+}
+
+.summary-stat__value small {
+  font-size: 0.55em;
+  color: var(--c-text-mute);
+  font-weight: 600;
+}
+
+.summary-stat__label {
+  font-size: var(--fs-small);
+  color: var(--c-text-dim);
+  font-weight: 600;
+}
+
+.summary-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-small);
+  margin-bottom: var(--gap-md);
+}
+
+.summary-table th,
+.summary-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--c-border);
+}
+
+.summary-table thead th {
+  background: var(--c-surface-2);
+  font-weight: 700;
+  color: var(--c-text-dim);
+  text-align: center;
+}
+
+.summary-table tbody tr:hover { background: var(--c-surface-2); }
+
+.ta-c { text-align: center; }
+
+.summary-note {
+  font-size: var(--fs-small);
+  color: var(--c-text-mute);
+  padding-top: 8px;
+  border-top: 1px solid var(--c-border);
+  line-height: 1.6;
+}
+
+.summary-note code {
+  background: var(--c-surface-2);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: "Consolas", monospace;
+}
+
+/* -------------------- 14. TOAST -------------------- */
+.toast {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%) translateY(30px);
+  padding: 14px 26px;
+  border-radius: 999px;
+  background: var(--c-surface);
+  color: var(--c-text);
+  font-size: var(--fs-body);
+  font-weight: 600;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--c-border);
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.25s ease;
+  z-index: 6000;
+  max-width: 90vw;
+  text-align: center;
+}
+
+.toast.is-visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.toast--success { background: var(--c-success); border-color: var(--c-success); color: #052e16; }
+.toast--error   { background: var(--c-danger);  border-color: var(--c-danger);  color: #450a0a; }
+.toast--warning { background: var(--c-warning); border-color: var(--c-warning); color: #451a03; }
+
+/* -------------------- 15. RESPONSIVE NHỎ -------------------- */
+@media (max-width: 720px) {
+  .topbar, .bottombar { padding: 10px 14px; }
+  .stage { padding: var(--gap-sm); }
+  .slide { padding: var(--gap-md); }
+  .bottombar__hint { display: none; }
+  .btn--nav { padding: 10px 16px; font-size: var(--fs-small); }
+}
+
+/* -------------------- 16. IN ẤN (tuỳ chọn) -------------------- */
+@media print {
+  html, body { overflow: visible; background: #fff; color: #000; }
+  .topbar, .bottombar, .progress { display: none; }
+  .slide { opacity: 1 !important; visibility: visible !important; pointer-events: auto !important;
+           page-break-after: always; box-shadow: none; background: #fff; color: #000; }
+  .answer { background: #f3f4f6; color: #000; }
+}
+/* =========================================================================
+   BỔ SUNG: STYLE CHO 3 LOẠI CÂU HỎI MỚI (định dạng 2025)
+   ========================================================================= */
+
+/* --------------------- TRUE / FALSE --------------------- */
+.tf-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.tf-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 14px 18px;
+  background: var(--c-surface-2);
+  border-radius: var(--radius-md);
+  border: 2px solid transparent;
+  transition: border-color 0.15s ease;
+}
+
+.tf-row:focus-within {
+  border-color: var(--c-primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18);
+}
+
+.tf-row__content {
+  flex: 1;
+  font-size: var(--fs-answer);
+  line-height: 1.55;
+  min-width: 0;
+  color: var(--c-text);
+}
+
+.tf-row__key {
+  font-weight: 800;
+  color: var(--c-primary);
+  margin-right: 6px;
+}
+
+.tf-row__buttons {
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.tf-btn {
+  width: 62px;
+  height: 62px;
+  border-radius: var(--radius-md);
+  font-size: 22px;
+  font-weight: 800;
+  background: var(--c-surface);
+  color: var(--c-text-dim);
+  border: 2px solid var(--c-border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.tf-btn:hover {
+  background: var(--c-surface-3);
+  color: var(--c-text);
+  transform: translateY(-2px);
+}
+
+.tf-btn:focus-visible {
+  outline: 3px solid var(--c-primary);
+  outline-offset: 2px;
+}
+
+.tf-btn--true.is-selected {
+  background: var(--c-success);
+  color: #052e16;
+  border-color: var(--c-success);
+}
+
+.tf-btn--false.is-selected {
+  background: var(--c-danger);
+  color: #fff;
+  border-color: var(--c-danger);
+}
+
+/* Khi bật lời giải: viền xanh/đỏ quanh nút đúng/sai */
+.tf-btn.is-correct {
+  box-shadow: 0 0 0 3px var(--c-success), 0 0 14px rgba(34, 197, 94, 0.5);
+}
+.tf-btn.is-wrong {
+  box-shadow: 0 0 0 3px var(--c-danger), 0 0 14px rgba(239, 68, 68, 0.5);
+}
+
+/* --------------------- SHORT ANSWER --------------------- */
+.sa-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 0 4px;
+}
+
+.sa-label {
+  font-size: var(--fs-body);
+  font-weight: 600;
+  color: var(--c-text-dim);
+}
+
+.sa-input {
+  font-family: inherit;
+  font-size: clamp(22px, 1.8vw, 32px);
+  padding: 16px 22px;
+  border-radius: var(--radius-md);
+  background: var(--c-surface-2);
+  color: var(--c-text);
+  border: 2px solid var(--c-border);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  width: 100%;
+  max-width: 560px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.sa-input::placeholder {
+  color: var(--c-text-mute);
+  font-weight: 400;
+}
+
+.sa-input:focus {
+  border-color: var(--c-primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.28);
+}
+
+.sa-input.is-correct {
+  border-color: var(--c-success);
+  background: var(--c-success-bg);
+  color: #bbf7d0;
+}
+
+.sa-input.is-wrong {
+  border-color: var(--c-danger);
+  background: var(--c-danger-bg);
+  color: #fecaca;
+}
+
+.sa-hint {
+  font-size: var(--fs-small);
+  color: var(--c-text-mute);
+  line-height: 1.5;
+}
+
+/* --------------------- RESPONSIVE --------------------- */
+@media (max-width: 720px) {
+  .tf-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .tf-row__buttons {
+    justify-content: flex-end;
+  }
+  .tf-btn { width: 54px; height: 54px; font-size: 20px; }
+}

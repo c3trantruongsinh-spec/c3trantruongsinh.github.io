@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Trình chiếu trắc nghiệm Toán học</title>
+
+  <link rel="stylesheet" href="css/style.css" />
+
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']],
+        processEscapes: true,
+        processEnvironments: true
+      },
+      options: {
+        skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'],
+        ignoreHtmlClass: 'tex2jax_ignore',
+        processHtmlClass: 'tex2jax_process'
+      },
+      svg: { fontCache: 'global' },
+      startup: {
+        typeset: false
+      }
+    };
+  </script>
+  <script id="MathJax-script" async
+          src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+</head>
+
+<body>
+
+  <div id="loading-screen" class="loading-screen">
+    <div class="loading-screen__spinner"></div>
+    <p class="loading-screen__text">Đang tải đề thi…</p>
+  </div>
+
+  <div id="app" class="app" hidden>
+
+    <header class="topbar">
+      <div class="topbar__left">
+        <h1 class="topbar__title" id="exam-title">Đang tải…</h1>
+        <p class="topbar__meta" id="exam-meta"></p>
+      </div>
+
+      <div class="topbar__right">
+        <span class="chip chip--student" id="student-chip" title="Mã học sinh"></span>
+        <span class="chip chip--counter" id="counter" aria-live="polite">1 / 1</span>
+        <button type="button" class="btn btn--ghost" id="btn-solution"
+                title="Bật/tắt lời giải (phím S)">💡 Lời giải</button>
+        <button type="button" class="btn btn--primary" id="btn-submit"
+                title="Nộp bài (Ctrl + Enter)">Nộp bài</button>
+      </div>
+    </header>
+
+    <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+      <div class="progress__bar" id="progress-bar"></div>
+    </div>
+
+    <main class="stage" id="stage"></main>
+
+    <footer class="bottombar">
+      <button type="button" class="btn btn--nav" id="btn-prev"
+              title="Câu trước (PageUp / ←)">◀ Câu trước</button>
+
+      <div class="bottombar__hint">
+        <kbd>PageDown</kbd>/<kbd>→</kbd> tiến · <kbd>PageUp</kbd>/<kbd>←</kbd> lùi ·
+        <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd> chọn ·
+        <kbd>S</kbd> lời giải
+      </div>
+
+      <button type="button" class="btn btn--nav" id="btn-next"
+              title="Câu sau (PageDown / →)">Câu sau ▶</button>
+    </footer>
+  </div>
+
+  <div class="modal" id="summary-modal" hidden>
+    <div class="modal__backdrop" data-close-modal></div>
+    <div class="modal__box" role="dialog" aria-modal="true" aria-labelledby="summary-title">
+      <h2 class="modal__title" id="summary-title">Kết quả bài làm</h2>
+      <div class="modal__body" id="summary-body"></div>
+      <div class="modal__footer">
+        <button type="button" class="btn btn--primary" data-close-modal>Đóng</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script type="module">
+    /* ---------------------------------------------------------
+       IMPORT — KHỚP CHÍNH XÁC VỚI CÁC NAMED EXPORT TRONG config.js
+       config.js export: FIREBASE_CONFIG, FIRESTORE, DATA_SOURCE,
+                         SCORING, KEYMAP, DEFAULTS, UI,
+                         getParam, DEBUG, log
+       --------------------------------------------------------- */
+    import { DEFAULTS, getParam } from './js/config.js';
+    import { loadExam }           from './js/data-loader.js';
+    import { SlideEngine }        from './js/slide-engine.js';
+    import { bindInput }          from './js/input-handler.js';
+    import { submitResult, flushPendingResults } from './js/firebase-sync.js';
+
+    /* ---------- 1. Đọc tham số URL ---------- */
+    const examId      = getParam('examId',    DEFAULTS.EXAM_ID);
+    const studentId   = getParam('studentId', DEFAULTS.STUDENT_ID);
+    const studentName = getParam('studentName', '');
+
+    /* ---------- 2. Tham chiếu DOM ---------- */
+    const $ = (id) => document.getElementById(id);
+    const dom = {
+      app:         $('app'),
+      loading:     $('loading-screen'),
+      stage:       $('stage'),
+      progressBar: $('progress-bar'),
+      progress:    document.querySelector('.progress'),
+      counter:     $('counter'),
+      examTitle:   $('exam-title'),
+      examMeta:    $('exam-meta'),
+      studentChip: $('student-chip'),
+      btnPrev:     $('btn-prev'),
+      btnNext:     $('btn-next'),
+      btnSubmit:   $('btn-submit'),
+      btnSolution: $('btn-solution'),
+      modal:       $('summary-modal'),
+      modalBody:   $('summary-body'),
+      toast:       $('toast')
+    };
+
+    dom.studentChip.textContent = studentName
+      ? studentName + ' (' + studentId + ')'
+      : studentId;
+
+    /* ---------- 3. Tiện ích UI ---------- */
+    let toastTimer = null;
+    function showToast(message, type, duration) {
+      type = type || 'info';
+      duration = duration || 2600;
+      dom.toast.textContent = message;
+      dom.toast.className = 'toast toast--' + type + ' is-visible';
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => dom.toast.classList.remove('is-visible'), duration);
+    }
+
+    /* ---------- 4. Khởi tạo Slide Engine ---------- */
+    const engine = new SlideEngine({
+      stageEl:       dom.stage,
+      progressBarEl: dom.progressBar,
+      progressEl:    dom.progress,
+      counterEl:     dom.counter,
+      titleEl:       dom.examTitle,
+      metaEl:        dom.examMeta,
+      context:       { examId: examId, studentId: studentId, studentName: studentName },
+      onStateChange: function (snapshot) {
+        dom.btnPrev.disabled = snapshot.isFirst;
+        dom.btnNext.disabled = snapshot.isLast;
+        dom.btnSolution.classList.toggle('is-active', snapshot.solutionVisible);
+      }
+    });
+
+    /* ---------- 5. Tải dữ liệu đề thi ---------- */
+    try {
+      const exam = await loadExam(examId);
+      engine.setExam(exam);
+      dom.loading.hidden = true;
+      dom.app.hidden = false;
+    } catch (err) {
+      console.error('[Bootstrap] Không tải được đề thi:', err);
+      dom.loading.innerHTML =
+        '<p class="loading-screen__text loading-screen__text--error">' +
+          '❌ Không tải được đề thi "<b>' + examId + '</b>".<br>' +
+          '<small>' + err.message + '</small><br><br>' +
+          '<small>Gợi ý: hãy chạy ứng dụng qua HTTP server (không mở trực tiếp file://).</small>' +
+        '</p>';
+      throw err;
+    }
+
+    /* ---------- 6. Nộp bài ---------- */
+    async function handleSubmit() {
+      const result  = engine.getResult();
+      const missing = result.totalQuestions - result.answeredCount;
+
+      const question = missing > 0
+        ? 'Bạn còn ' + missing + ' câu chưa trả lời. Vẫn nộp bài?'
+        : 'Nộp bài? Bạn đã hoàn thành ' + result.answeredCount + '/' + result.totalQuestions + ' câu.';
+      if (!window.confirm(question)) return;
+
+      dom.btnSubmit.disabled = true;
+      dom.btnSubmit.textContent = 'Đang nộp…';
+
+      const response = await submitResult(result);
+
+      dom.btnSubmit.disabled = false;
+      dom.btnSubmit.textContent = 'Nộp bài';
+
+      if (response.ok && !response.offline) {
+        showToast('✅ Đã nộp bài thành công!', 'success');
+      } else if (response.ok && response.offline) {
+        showToast('📴 Firebase đang tắt — bài làm đã lưu tạm trên máy.', 'warning', 3600);
+      } else {
+        showToast('⚠️ Lỗi mạng — bài làm đã lưu tạm, sẽ gửi lại sau.', 'error', 3600);
+      }
+
+      openSummary(result, response);
+    }
+
+    /* ---------- 7. Modal tổng kết (đã sửa cho 3 loại câu hỏi) ---------- */
+    function openSummary(result, response) {
+      const rows = result.details.map(function (d) {
+        let status;
+        if (!d.answered) {
+          status = '—';
+        } else if (d.isCorrect) {
+          status = '✅';
+        } else {
+          status = '❌';
+        }
+        return '<tr>' +
+          '<td class="ta-c">' + d.order + '</td>' +
+          '<td class="ta-c">' + d.chosenLabel + '</td>' +
+          '<td class="ta-c">' + d.correctLabel + '</td>' +
+          '<td class="ta-c">' + status + '</td>' +
+          '<td class="ta-c">' + d.earned + '</td>' +
+        '</tr>';
+      }).join('');
+
+      let noteHtml;
+      if (response && response.ok && !response.offline) {
+        noteHtml = 'Đã đồng bộ lên Firestore (mã: <code>' + response.id + '</code>).';
+      } else {
+        noteHtml = 'Bài làm đang được lưu tạm cục bộ và sẽ tự đồng bộ khi có mạng.';
+      }
+
+      dom.modalBody.innerHTML =
+        '<div class="summary-grid">' +
+          '<div class="summary-stat summary-stat--ok">' +
+            '<span class="summary-stat__value">' + result.correctCount + '</span>' +
+            '<span class="summary-stat__label">Câu đúng</span>' +
+          '</div>' +
+          '<div class="summary-stat summary-stat--bad">' +
+            '<span class="summary-stat__value">' + result.wrongCount + '</span>' +
+            '<span class="summary-stat__label">Câu sai</span>' +
+          '</div>' +
+          '<div class="summary-stat">' +
+            '<span class="summary-stat__value">' + result.unansweredCount + '</span>' +
+            '<span class="summary-stat__label">Chưa trả lời</span>' +
+          '</div>' +
+          '<div class="summary-stat summary-stat--score">' +
+            '<span class="summary-stat__value">' + result.score + '<small>/' + result.maxScore + '</small></span>' +
+            '<span class="summary-stat__label">Điểm (' + result.percent + '%)</span>' +
+          '</div>' +
+        '</div>' +
+        '<table class="summary-table">' +
+          '<thead>' +
+            '<tr><th>Câu</th><th>Chọn</th><th>Đáp án</th><th>KQ</th><th>Điểm</th></tr>' +
+          '</thead>' +
+          '<tbody>' + rows + '</tbody>' +
+        '</table>' +
+        '<p class="summary-note">' + noteHtml + '</p>';
+
+      dom.modal.hidden = false;
+    }
+
+    dom.modal.addEventListener('click', function (e) {
+      if (e.target.hasAttribute('data-close-modal')) dom.modal.hidden = true;
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && !dom.modal.hidden) dom.modal.hidden = true;
+    });
+
+    /* ---------- 8. Gắn bộ xử lý nhập liệu ---------- */
+    bindInput({
+      engine: engine,
+      elements: {
+        prevBtn:     dom.btnPrev,
+        nextBtn:     dom.btnNext,
+        submitBtn:   dom.btnSubmit,
+        solutionBtn: dom.btnSolution
+      },
+      onSubmitRequested: handleSubmit
+    });
+
+    /* ---------- 9. Gửi lại bài làm tồn đọng ---------- */
+    flushPendingResults().then(function (n) {
+      if (n > 0) showToast('📤 Đã đồng bộ ' + n + ' bài làm tồn đọng.', 'success');
+    });
+  </script>
+</body>
+</html>
