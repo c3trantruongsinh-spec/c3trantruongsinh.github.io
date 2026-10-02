@@ -63,7 +63,7 @@ async function renderDiscussions(meetingId, contentId, container, readOnly = fal
                             <input type="text" id="attachUrl_${formKey}" placeholder="https://drive.google.com/file/d/.../view" style="flex:2;min-width:200px;padding:8px 12px;border:2px solid var(--gray-200);border-radius:6px;font-size:13px;">
                             <input type="text" id="attachName_${formKey}" placeholder="Tên file (tùy chọn)" style="flex:1;min-width:120px;padding:8px 12px;border:2px solid var(--gray-200);border-radius:6px;font-size:13px;">
                             <button type="button" class="btn-secondary" style="padding:8px 14px;font-size:13px;" onclick="addAttachmentTagFromInput('${formKey}')">
-                                <i class="fas fa-plus"></i> Thêm link
+                                <i class="fas fa-paperclip"></i> Đính kèm link
                             </button>
                         </div>
                         <div id="attachList_${formKey}" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px;">
@@ -310,7 +310,7 @@ async function editDiscussion(meetingId, discussionId, contentId) {
                     <input type="text" id="attachUrl_${formKey}" placeholder="https://drive.google.com/file/d/.../view" style="flex:2;min-width:180px;padding:8px 12px;border:2px solid var(--gray-200);border-radius:6px;font-size:13px;">
                     <input type="text" id="attachName_${formKey}" placeholder="Tên file" style="flex:1;min-width:100px;padding:8px 12px;border:2px solid var(--gray-200);border-radius:6px;font-size:13px;">
                     <button type="button" class="btn-secondary" style="padding:8px 14px;font-size:13px;" onclick="addAttachmentTagFromInput('${formKey}', true)">
-                        <i class="fas fa-plus"></i> Thêm link
+                        <i class="fas fa-paperclip"></i> Đính kèm link
                     </button>
                 </div>
                 <p style="font-size:12px;color:var(--gray-500);margin-top:8px;">

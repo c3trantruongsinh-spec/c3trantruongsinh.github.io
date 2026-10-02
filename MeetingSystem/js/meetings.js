@@ -1181,6 +1181,13 @@ function buildMeetingActionPanel(meeting, options) {
  * @param {HTMLElement} container
  * @param {string} meetingId
  */
+/**
+ * Render meeting detail page
+ * ĐÃ KHÔI PHỤC: Nút Xóa cuộc họp (chỉ Admin hoặc người Chủ trì/Tạo cuộc họp)
+ * ĐIỀU KIỆN HIỂN THỊ: (!isClosed) && (isAdminUser || isChairmanOrCreator)
+ * @param {HTMLElement} container
+ * @param {string} meetingId
+ */
 async function renderMeetingDetail(container, meetingId) {
     if (!meetingId) {
         container.innerHTML = `<p>Không tìm thấy cuộc họp.</p>`;
@@ -1199,43 +1206,39 @@ async function renderMeetingDetail(container, meetingId) {
     await recordMeetingView(meetingId, uid);
     
     // ============================================================
-    // PHÂN QUYỀN — SỬA TRIỆT ĐỂ
+    // PHÂN QUYỀN
     // ============================================================
     const role = await getCurrentUserRole();
     const userTeamId = await getCurrentUserTeamId();
     
-    // Admin có toàn quyền trên mọi cuộc họp
     const isAdminUser = role === 'admin';
     
-    // Chỉ người chủ trì HOẶC người tạo cuộc họp mới là "leader" của cuộc họp này
-    // Dù user có role truong_to/to_pho/nhom_truong, nếu không phải chairman/creator
-    // thì vẫn KHÔNG có quyền quản lý cuộc họp này (VD: khách mời từ tổ khác)
     const isChairmanOrCreator = 
         (meeting.chairmanId && meeting.chairmanId === uid) 
         || (meeting.createdBy && meeting.createdBy === uid);
     
-    // Quyền quản lý cuộc họp = Admin HOẶC chủ trì/người tạo
     const canLeadThisMeeting = isAdminUser || isChairmanOrCreator;
     
-    // Quyền soạn thảo nội dung = leader HOẶC thư ký của cuộc họp này
     const isSecretary = (meeting.secretaryId && meeting.secretaryId === uid);
     const canEditContent = canLeadThisMeeting || isSecretary;
     
     const isClosed = meeting.status === 'CLOSED';
+    
+    // === ĐIỀU KIỆN HIỂN THỊ NÚT XÓA ===
+    // Chỉ hiện khi: chưa chốt VÀ (là admin HOẶC là người chủ trì/tạo cuộc họp)
+    const canDelete = !isClosed && (isAdminUser || isChairmanOrCreator);
     
     const contents = await getMeetingContents(meetingId);
     const tasks = await getTasks(meetingId);
     const confirmations = await getConfirmations(meetingId);
     const allDiscussions = await getDiscussions(meetingId);
     
-    // === ĐẾM SỐ THẢO LUẬN CHO TỪNG NỘI DUNG ===
     contents.forEach(c => {
         const liveCount = allDiscussions.filter(d => d.contentId === c.id).length;
         const storedCount = c.discussionCount || 0;
         c.discussionCount = liveCount > 0 ? liveCount : storedCount;
     });
     
-    // === TÍNH TOÁN THỐNG KÊ CHO ACTION PANEL ===
     const memberIds = Object.keys(meeting.memberIds || {});
     const totalMembers = memberIds.length;
     const confirmedMembers = memberIds.filter(mid => 
@@ -1282,6 +1285,16 @@ async function renderMeetingDetail(container, meetingId) {
                     ${!isClosed && canEditContent ? `
                         <button class="btn-secondary" style="padding:6px 14px;font-size:13px;" onclick="editMeeting('${meetingId}')">
                             <i class="fas fa-edit"></i> Sửa
+                        </button>
+                    ` : ''}
+                    ${canDelete ? `
+                        <button class="btn-danger" 
+                                style="padding:6px 14px;font-size:13px;background:#dc2626;color:#fff;border:none;border-radius:6px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all 0.2s;" 
+                                onclick="deleteMeeting('${meetingId}')"
+                                onmouseover="this.style.background='#b91c1c';"
+                                onmouseout="this.style.background='#dc2626';"
+                                title="Xóa vĩnh viễn cuộc họp này">
+                            <i class="fas fa-trash-alt"></i> Xóa cuộc họp
                         </button>
                     ` : ''}
                 </div>
@@ -1500,9 +1513,9 @@ function scrollToContent(contentId) {
 // ============================================================
 // ADD CONTENT - Google Drive URL version
 // ============================================================
-
 /**
- * Add content to meeting
+ * Thêm nội dung mới cho cuộc họp
+ * Đã đổi nhãn: "Đính kèm tài liệu thảo luận"
  * @param {string} meetingId
  */
 async function addContent(meetingId) {
@@ -1511,34 +1524,44 @@ async function addContent(meetingId) {
     if (!window._pendingLinks) window._pendingLinks = {};
     window._pendingLinks[formKey] = [];
     
-    showModal('Thêm nội dung', `
+    showModal('➕ Thêm nội dung cuộc họp', `
         <div class="form-group">
-            <label>Tiêu đề <span class="required">*</span></label>
-            <input type="text" id="newContentTitle" placeholder="Nhập tiêu đề">
+            <label>Tiêu đề nội dung <span class="required">*</span></label>
+            <input type="text" id="newContentTitle" placeholder="VD: Triển khai kế hoạch chuyên môn tháng 10">
         </div>
         <div class="form-group">
-            <label>Nội dung <span class="required">*</span></label>
-            <textarea id="newContentDesc" rows="4" placeholder="Mô tả nội dung..."></textarea>
+            <label>Nội dung trình bày <span class="required">*</span></label>
+            <textarea id="newContentDesc" rows="5" placeholder="Mô tả chi tiết nội dung cần thảo luận..."></textarea>
         </div>
-        <div class="form-group">
-            <label>🔗 Đính kèm tài liệu (Google Drive)</label>
-            <div style="padding:12px;background:var(--gray-50);border-radius:8px;">
-                <div id="attachList_${formKey}" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">
-                    <span style="font-size:13px;color:var(--gray-400);font-style:italic;">Chưa có tài liệu đính kèm.</span>
-                </div>
-                <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
-                    <input type="text" id="attachUrl_${formKey}" placeholder="https://drive.google.com/file/d/.../view" style="flex:2;min-width:180px;padding:8px 12px;border:2px solid var(--gray-200);border-radius:6px;font-size:13px;">
-                    <input type="text" id="attachName_${formKey}" placeholder="Tên file" style="flex:1;min-width:100px;padding:8px 12px;border:2px solid var(--gray-200);border-radius:6px;font-size:13px;">
-                    <button type="button" class="btn-secondary" style="padding:8px 14px;font-size:13px;" onclick="addAttachmentTagFromInput('${formKey}')">
-                        <button class="btn btn-secondary"><i class="fa fa-paperclip"></i> Xác nhận đính kèm
-                    </button>
-                </div>
+        
+        <div class="form-group" style="padding:14px;background:#f0fdf4;border:2px dashed #86efac;border-radius:10px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                <i class="fas fa-paperclip" style="color:#16a34a;font-size:16px;"></i>
+                <strong style="font-size:14px;color:#14532d;">+ Đính kèm tài liệu thảo luận</strong>
+                <span style="font-size:11px;color:#16a34a;background:#dcfce7;padding:2px 8px;border-radius:10px;font-weight:600;">
+                    Văn bản / Kế hoạch / Dự thảo
+                </span>
+            </div>
+            <div style="font-size:12px;color:#166534;margin-bottom:10px;">
+                Đính kèm tài liệu để giáo viên nghiên cứu trước khi thảo luận (Google Drive)
+            </div>
+            
+            <div id="attachList_${formKey}" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">
+                <span style="font-size:13px;color:var(--gray-400);font-style:italic;">Chưa có tài liệu đính kèm.</span>
+            </div>
+            
+            <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+                <input type="text" id="attachUrl_${formKey}" placeholder="https://drive.google.com/file/d/.../view" style="flex:2;min-width:180px;padding:8px 12px;border:2px solid var(--gray-200);border-radius:6px;font-size:13px;">
+                <input type="text" id="attachName_${formKey}" placeholder="Tên tài liệu" style="flex:1;min-width:120px;padding:8px 12px;border:2px solid var(--gray-200);border-radius:6px;font-size:13px;">
+                <button type="button" class="btn-secondary" style="padding:8px 14px;font-size:13px;background:#16a34a;color:#fff;border:none;" onclick="addAttachmentTagFromInput('${formKey}')">
+                    <i class="fas fa-paperclip"></i> Đính kèm link
+                </button>
             </div>
         </div>
     `, [
         { text: 'Hủy', class: 'btn-secondary', action: 'cancel' },
         {
-            text: 'Thêm',
+            text: 'Thêm nội dung',
             class: 'btn-primary',
             action: 'save',
             onClick: async (close) => {
@@ -1546,11 +1569,17 @@ async function addContent(meetingId) {
                 const desc = document.getElementById('newContentDesc').value.trim();
                 
                 if (!title || !desc) {
-                    showToast('Vui lòng nhập đầy đủ thông tin', 'warning');
+                    showToast('Vui lòng nhập đầy đủ tiêu đề và nội dung', 'warning');
                     return;
                 }
                 
                 try {
+                    const saveBtn = document.querySelector('.modal-footer button[data-action="save"]');
+                    if (saveBtn) {
+                        saveBtn.disabled = true;
+                        saveBtn.innerHTML = '<span class="spinner"></span> Đang lưu...';
+                    }
+                    
                     const contentId = await addMeetingContent(meetingId, {
                         title: title,
                         description: desc,
@@ -1574,9 +1603,10 @@ async function addContent(meetingId) {
                         }
                     }
                     
-                    showToast('Đã thêm nội dung!', 'success');
+                    showToast('✅ Đã thêm nội dung!', 'success');
                     resetPendingLinks(formKey);
                     close();
+                    
                     const container = document.getElementById('pageContainer');
                     await renderMeetingDetail(container, meetingId);
                 } catch (error) {
@@ -1586,16 +1616,19 @@ async function addContent(meetingId) {
         }
     ]);
 }
-
 /**
- * Edit content (chỉ thêm link mới, không sửa/xóa link cũ)
+ * Sửa nội dung cuộc họp
+ * Đã đổi nhãn: "Đính kèm tài liệu thảo luận"
  * @param {string} meetingId
  * @param {string} contentId
  */
 async function editContent(meetingId, contentId) {
     const contents = await getMeetingContents(meetingId);
     const content = contents.find(c => c.id === contentId);
-    if (!content) return;
+    if (!content) {
+        showToast('Không tìm thấy nội dung', 'error');
+        return;
+    }
     
     const formKey = `edit_content_${contentId}`;
     
@@ -1610,47 +1643,66 @@ async function editContent(meetingId, contentId) {
     if (!window._pendingLinks) window._pendingLinks = {};
     window._pendingLinks[formKey] = [...lockedLinks];
     
-    showModal('Sửa nội dung', `
+    showModal('✏️ Sửa nội dung cuộc họp', `
         <div class="form-group">
-            <label>Tiêu đề <span class="required">*</span></label>
+            <label>Tiêu đề nội dung <span class="required">*</span></label>
             <input type="text" id="editContentTitle" value="${escapeHtml(content.title)}">
         </div>
         <div class="form-group">
-            <label>Nội dung <span class="required">*</span></label>
-            <textarea id="editContentDesc" rows="4">${escapeHtml(content.description || '')}</textarea>
+            <label>Nội dung trình bày <span class="required">*</span></label>
+            <textarea id="editContentDesc" rows="5">${escapeHtml(content.description || '')}</textarea>
         </div>
-        <div class="form-group">
-            <label>🔗 Tài liệu đính kèm</label>
-            <div style="padding:12px;background:var(--gray-50);border-radius:8px;">
-                <div id="attachList_${formKey}" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">
-                    ${renderAttachmentTags(lockedLinks, formKey)}
-                </div>
-                <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px;">
-                    <input type="text" id="attachUrl_${formKey}" placeholder="https://drive.google.com/file/d/.../view" style="flex:2;min-width:180px;padding:8px 12px;border:2px solid var(--gray-200);border-radius:6px;font-size:13px;">
-                    <input type="text" id="attachName_${formKey}" placeholder="Tên file" style="flex:1;min-width:100px;padding:8px 12px;border:2px solid var(--gray-200);border-radius:6px;font-size:13px;">
-                    <button type="button" class="btn-secondary" style="padding:8px 14px;font-size:13px;" onclick="addAttachmentTagFromInput('${formKey}', true)">
-                          <button class="btn btn-secondary"><i class="fa fa-paperclip"></i> Xác nhận đính kèm
-                    </button>
-                </div>
-                <p style="font-size:12px;color:var(--gray-500);margin-top:8px;">
-                    <i class="fas fa-lock"></i> Link cũ đã khóa, chỉ có thể thêm link mới.
-                </p>
+        
+        <div class="form-group" style="padding:14px;background:#f0fdf4;border:2px dashed #86efac;border-radius:10px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                <i class="fas fa-paperclip" style="color:#16a34a;font-size:16px;"></i>
+                <strong style="font-size:14px;color:#14532d;">+ Đính kèm tài liệu thảo luận</strong>
+                <span style="font-size:11px;color:#16a34a;background:#dcfce7;padding:2px 8px;border-radius:10px;font-weight:600;">
+                    Văn bản / Kế hoạch / Dự thảo
+                </span>
+            </div>
+            <div style="font-size:12px;color:#166534;margin-bottom:10px;">
+                Đính kèm tài liệu để giáo viên nghiên cứu trước khi thảo luận (Google Drive)
+            </div>
+            
+            <div id="attachList_${formKey}" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">
+                ${renderAttachmentTags(lockedLinks, formKey)}
+            </div>
+            
+            <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+                <input type="text" id="attachUrl_${formKey}" placeholder="https://drive.google.com/file/d/.../view" style="flex:2;min-width:180px;padding:8px 12px;border:2px solid var(--gray-200);border-radius:6px;font-size:13px;">
+                <input type="text" id="attachName_${formKey}" placeholder="Tên tài liệu" style="flex:1;min-width:120px;padding:8px 12px;border:2px solid var(--gray-200);border-radius:6px;font-size:13px;">
+                <button type="button" class="btn-secondary" style="padding:8px 14px;font-size:13px;background:#16a34a;color:#fff;border:none;" onclick="addAttachmentTagFromInput('${formKey}', true)">
+                    <i class="fas fa-paperclip"></i> Đính kèm link
+                </button>
+            </div>
+            
+            <div style="font-size:12px;color:#64748b;margin-top:8px;">
+                <i class="fas fa-lock"></i> Link cũ đã khóa để đảm bảo tính toàn vẹn — chỉ có thể thêm link mới.
             </div>
         </div>
     `, [
         { text: 'Hủy', class: 'btn-secondary', action: 'cancel' },
         {
-            text: 'Lưu',
+            text: 'Lưu thay đổi',
             class: 'btn-primary',
             action: 'save',
             onClick: async (close) => {
                 const title = document.getElementById('editContentTitle').value.trim();
                 const desc = document.getElementById('editContentDesc').value.trim();
+                
                 if (!title || !desc) {
                     showToast('Vui lòng nhập đầy đủ thông tin', 'warning');
                     return;
                 }
+                
                 try {
+                    const saveBtn = document.querySelector('.modal-footer button[data-action="save"]');
+                    if (saveBtn) {
+                        saveBtn.disabled = true;
+                        saveBtn.innerHTML = '<span class="spinner"></span> Đang lưu...';
+                    }
+                    
                     await updateMeetingContent(meetingId, contentId, {
                         title: title,
                         description: desc
@@ -1674,9 +1726,10 @@ async function editContent(meetingId, contentId) {
                         }
                     }
                     
-                    showToast('Đã cập nhật!', 'success');
+                    showToast('✅ Đã cập nhật nội dung!', 'success');
                     resetPendingLinks(formKey);
                     close();
+                    
                     const container = document.getElementById('pageContainer');
                     await renderMeetingDetail(container, meetingId);
                 } catch (error) {
@@ -1686,9 +1739,9 @@ async function editContent(meetingId, contentId) {
         }
     ]);
 }
-
 /**
- * Conclude content
+ * Kết luận nội dung cuộc họp
+ * Đã đổi nhãn: "Đính kèm văn bản kết luận / Quyết định ban hành"
  * @param {string} meetingId
  * @param {string} contentId
  */
@@ -1698,39 +1751,57 @@ async function concludeContent(meetingId, contentId) {
     if (!window._pendingLinks) window._pendingLinks = {};
     window._pendingLinks[formKey] = [];
     
-    showModal('Kết luận nội dung', `
+    showModal('👨‍💼 Kết luận nội dung cuộc họp', `
         <div class="form-group">
-            <label>Kết luận <span class="required">*</span></label>
-            <textarea id="conclusionInput" rows="4" placeholder="Nhập kết luận..."></textarea>
+            <label>Nội dung kết luận <span class="required">*</span></label>
+            <textarea id="conclusionInput" rows="6" placeholder="Nhập kết luận của tổ trưởng cho nội dung này. VD: Tổ thống nhất triển khai chuyên đề vào tuần 3 tháng 10 năm 2026..."></textarea>
+            <div style="font-size:12px;color:var(--gray-500);margin-top:6px;">
+                💡 Kết luận sẽ được ghi vào hồ sơ và hiển thị nổi bật cho toàn thể thành viên.
+            </div>
         </div>
-        <div class="form-group">
-            <label>🔗 Đính kèm tài liệu (Google Drive, tùy chọn)</label>
-            <div style="padding:12px;background:var(--gray-50);border-radius:8px;">
-                <div id="attachList_${formKey}" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">
-                    <span style="font-size:13px;color:var(--gray-400);font-style:italic;">Chưa có tài liệu đính kèm.</span>
-                </div>
-                <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
-                    <input type="text" id="attachUrl_${formKey}" placeholder="https://drive.google.com/file/d/.../view" style="flex:2;min-width:180px;padding:8px 12px;border:2px solid var(--gray-200);border-radius:6px;font-size:13px;">
-                    <input type="text" id="attachName_${formKey}" placeholder="Tên file" style="flex:1;min-width:100px;padding:8px 12px;border:2px solid var(--gray-200);border-radius:6px;font-size:13px;">
-                    <button type="button" class="btn-secondary" style="padding:8px 14px;font-size:13px;" onclick="addAttachmentTagFromInput('${formKey}')">
-                          <button class="btn btn-secondary"><i class="fa fa-paperclip"></i> Xác nhận đính kèm
-                    </button>
-                </div>
+        
+        <div class="form-group" style="padding:14px;background:#eff6ff;border:2px dashed #93c5fd;border-radius:10px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                <i class="fas fa-file-signature" style="color:#1e40af;font-size:16px;"></i>
+                <strong style="font-size:14px;color:#1e3a8a;">+ Đính kèm văn bản kết luận / Quyết định ban hành</strong>
+            </div>
+            <div style="font-size:12px;color:#1e40af;margin-bottom:10px;">
+                Đính kèm văn bản chính thức sau khi kết luận (Google Drive)
+            </div>
+            
+            <div id="attachList_${formKey}" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">
+                <span style="font-size:13px;color:var(--gray-400);font-style:italic;">Chưa có văn bản đính kèm.</span>
+            </div>
+            
+            <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+                <input type="text" id="attachUrl_${formKey}" placeholder="https://drive.google.com/file/d/.../view" style="flex:2;min-width:180px;padding:8px 12px;border:2px solid var(--gray-200);border-radius:6px;font-size:13px;">
+                <input type="text" id="attachName_${formKey}" placeholder="Tên văn bản" style="flex:1;min-width:120px;padding:8px 12px;border:2px solid var(--gray-200);border-radius:6px;font-size:13px;">
+                <button type="button" class="btn-secondary" style="padding:8px 14px;font-size:13px;background:#1e40af;color:#fff;border:none;" onclick="addAttachmentTagFromInput('${formKey}')">
+                    <i class="fas fa-paperclip"></i> Đính kèm link
+                </button>
             </div>
         </div>
     `, [
         { text: 'Hủy', class: 'btn-secondary', action: 'cancel' },
         {
-            text: 'Kết luận',
+            text: '✅ Kết luận',
             class: 'btn-primary',
             action: 'save',
             onClick: async (close) => {
                 const conclusion = document.getElementById('conclusionInput').value.trim();
+                
                 if (!conclusion) {
-                    showToast('Vui lòng nhập kết luận', 'warning');
+                    showToast('Vui lòng nhập nội dung kết luận', 'warning');
                     return;
                 }
+                
                 try {
+                    const saveBtn = document.querySelector('.modal-footer button[data-action="save"]');
+                    if (saveBtn) {
+                        saveBtn.disabled = true;
+                        saveBtn.innerHTML = '<span class="spinner"></span> Đang lưu...';
+                    }
+                    
                     const uid = getCurrentUid();
                     await updateMeetingContent(meetingId, contentId, {
                         conclusion: conclusion,
@@ -1756,9 +1827,10 @@ async function concludeContent(meetingId, contentId) {
                         }
                     }
                     
-                    showToast('Đã kết luận!', 'success');
+                    showToast('✅ Đã kết luận nội dung thành công!', 'success');
                     resetPendingLinks(formKey);
                     close();
+                    
                     const container = document.getElementById('pageContainer');
                     await renderMeetingDetail(container, meetingId);
                 } catch (error) {
@@ -1792,7 +1864,7 @@ async function editConclusion(meetingId, contentId) {
     if (!window._pendingLinks) window._pendingLinks = {};
     window._pendingLinks[formKey] = [...lockedLinks];
     
-    showModal('Sửa kết luận', `
+       showModal('Sửa kết luận', `
         <div class="form-group">
             <label>Kết luận</label>
             <textarea id="editConclusionInput" rows="4">${escapeHtml(content.conclusion)}</textarea>
@@ -2229,26 +2301,191 @@ async function closeMeeting(meetingId) {
 }
 
 /**
- * Edit meeting
+ * Sửa cuộc họp — Cho phép thêm/gỡ thành viên khi DRAFT hoặc DISCUSSION
+ * Chỉ khóa hoàn toàn khi hồ sơ đã CLOSED
  * @param {string} meetingId
  */
 async function editMeeting(meetingId) {
     const meeting = await getMeeting(meetingId);
-    if (!meeting) return;
+    if (!meeting) {
+        showToast('Không tìm thấy cuộc họp', 'error');
+        return;
+    }
     
-    showModal('Sửa cuộc họp', `
+    // ============================================================
+    // KIỂM TRA TRẠNG THÁI — chỉ chặn khi đã CLOSED
+    // ============================================================
+    if (meeting.status === 'CLOSED') {
+        showToast('❌ Không thể sửa cuộc họp đã chốt. Đây là hồ sơ lưu trữ.', 'error', 5000);
+        return;
+    }
+    
+    const canEditMembers = meeting.status === 'DRAFT' || meeting.status === 'DISCUSSION';
+    
+    // ============================================================
+    // LOAD DANH SÁCH THÀNH VIÊN TỔ CỦA CUỘC HỌP
+    // ============================================================
+    const meetingTeamId = meeting.teamId;
+    let ownTeamMembers = [];
+    let otherTeamMembers = [];
+    
+    try {
+        const teamsSnap = await db.ref('teams').once('value');
+        const teamsData = teamsSnap.val() || {};
+        const teamNameMap = {};
+        Object.keys(teamsData).forEach(tid => {
+            teamNameMap[tid] = teamsData[tid].name || tid;
+        });
+        
+        const allUsersSnap = await db.ref('users').once('value');
+        const allUsers = allUsersSnap.val() || {};
+        
+        Object.keys(allUsers).forEach(otherUid => {
+            const u = allUsers[otherUid];
+            if (!u) return;
+            
+            if (u.teamId === meetingTeamId) {
+                ownTeamMembers.push({
+                    uid: otherUid,
+                    displayName: u.displayName || u.email || otherUid,
+                    email: u.email || '',
+                    role: u.role || 'giao_vien',
+                    teamId: meetingTeamId
+                });
+            } else {
+                otherTeamMembers.push({
+                    uid: otherUid,
+                    displayName: u.displayName || u.email || otherUid,
+                    email: u.email || '',
+                    role: u.role || 'giao_vien',
+                    teamId: u.teamId || '',
+                    teamName: u.teamId ? (teamNameMap[u.teamId] || u.teamId) : 'Chưa phân tổ'
+                });
+            }
+        });
+        
+        otherTeamMembers.sort((a, b) => {
+            const t = (a.teamName || '').localeCompare(b.teamName || '');
+            if (t !== 0) return t;
+            return (a.displayName || '').localeCompare(b.displayName || '');
+        });
+    } catch (e) {
+        console.error('Error loading members:', e);
+    }
+    
+    // Danh sách UID đã có trong meeting.memberIds
+    const currentMemberIds = Object.keys(meeting.memberIds || {});
+    
+    // ============================================================
+    // BUILD BLOCK CHỌN THÀNH VIÊN
+    // ============================================================
+    let memberSelectionHtml = '';
+    if (canEditMembers) {
+        memberSelectionHtml = `
+            <div class="form-group" style="margin-top:16px;padding:14px;background:#f0f9ff;border:2px dashed #7dd3fc;border-radius:10px;">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+                    <i class="fas fa-users" style="color:#0284c7;font-size:16px;"></i>
+                    <strong style="font-size:15px;color:#0c4a6e;">👥 Thành viên tham gia</strong>
+                    <span style="font-size:12px;color:#0284c7;font-weight:600;background:#e0f2fe;padding:2px 10px;border-radius:12px;">
+                        Có thể thêm/gỡ khi đang thảo luận
+                    </span>
+                </div>
+                
+                <div style="display:flex;gap:6px;margin-bottom:10px;">
+                    <button type="button" class="btn-secondary" style="padding:4px 10px;font-size:12px;" onclick="toggleAllMembers(true)">
+                        <i class="fas fa-check-double"></i> Chọn tất cả tổ mình
+                    </button>
+                    <button type="button" class="btn-secondary" style="padding:4px 10px;font-size:12px;" onclick="toggleAllMembers(false)">
+                        <i class="fas fa-times"></i> Bỏ chọn tổ mình
+                    </button>
+                </div>
+                
+                <div style="font-size:13px;font-weight:600;color:#0c4a6e;margin-bottom:6px;">
+                    Thành viên tổ ${escapeHtml(meetingTeamId || 'mình')} (${ownTeamMembers.length})
+                </div>
+                <div style="display:flex;flex-wrap:wrap;gap:8px;padding:8px 0 12px 0;">
+                    ${ownTeamMembers.length === 0 ? `
+                        <span style="color:var(--gray-500);font-style:italic;font-size:14px;">Chưa có thành viên trong tổ.</span>
+                    ` : ownTeamMembers.map(m => {
+                        const isChecked = currentMemberIds.includes(m.uid);
+                        return `
+                            <label style="display:flex;align-items:center;gap:6px;font-size:14px;background:${isChecked ? '#dcfce7' : '#ffffff'};border:1px solid ${isChecked ? '#86efac' : '#e2e8f0'};padding:6px 12px;border-radius:20px;cursor:pointer;transition:all 0.2s;">
+                                <input type="checkbox" class="member-checkbox" value="${m.uid}" ${isChecked ? 'checked' : ''}>
+                                ${escapeHtml(m.displayName)}
+                            </label>
+                        `;
+                    }).join('')}
+                </div>
+                
+                <div style="display:flex;gap:6px;margin-bottom:10px;">
+                    <button type="button" class="btn-secondary" style="padding:4px 10px;font-size:12px;" onclick="toggleAllGuests(true)">
+                        <i class="fas fa-check-double"></i> Chọn tất cả khách
+                    </button>
+                    <button type="button" class="btn-secondary" style="padding:4px 10px;font-size:12px;" onclick="toggleAllGuests(false)">
+                        <i class="fas fa-times"></i> Bỏ chọn khách
+                    </button>
+                </div>
+                
+                <div style="font-size:13px;font-weight:600;color:#0c4a6e;margin-bottom:6px;">
+                    🎫 Khách mời (Tổ khác) — ${otherTeamMembers.length} người
+                </div>
+                <div style="max-height:200px;overflow-y:auto;border:1px solid #cbd5e1;border-radius:8px;padding:8px;background:#ffffff;">
+                    ${otherTeamMembers.length === 0 ? `
+                        <div style="padding:8px;text-align:center;color:#64748b;font-style:italic;font-size:13px;">
+                            Không có giáo viên nào khác tổ.
+                        </div>
+                    ` : otherTeamMembers.map(m => {
+                        const isChecked = currentMemberIds.includes(m.uid);
+                        return `
+                            <label style="display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:8px 10px;border-radius:6px;cursor:pointer;background:${isChecked ? '#fef3c7' : '#ffffff'};margin-bottom:4px;border:1px solid ${isChecked ? '#fcd34d' : '#e2e8f0'};">
+                                <input type="checkbox" class="guest-checkbox" value="${m.uid}" ${isChecked ? 'checked' : ''}>
+                                <div style="min-width:0;">
+                                    <div style="font-weight:600;font-size:13px;color:#1e293b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                                        ${escapeHtml(m.displayName)}
+                                    </div>
+                                    <div style="font-size:11px;color:#64748b;">
+                                        ${escapeHtml(m.email)}${m.teamName ? ` • <span style="color:#0284c7;font-weight:500;">${escapeHtml(m.teamName)}</span>` : ''}
+                                    </div>
+                                </div>
+                                <span class="role-badge ${m.role}" style="font-size:10px;white-space:nowrap;">${escapeHtml(getRoleLabelForMeeting(m.role))}</span>
+                            </label>
+                        `;
+                    }).join('')}
+                </div>
+                
+                <div style="font-size:12px;color:#0369a1;margin-top:8px;font-style:italic;">
+                    💡 Khi sửa danh sách thành viên, số người sẽ tự động cập nhật lại trong trang chi tiết.
+                </div>
+            </div>
+        `;
+    } else {
+        memberSelectionHtml = `
+            <div class="form-group" style="margin-top:16px;padding:12px;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;">
+                <div style="font-size:13px;color:#92400e;line-height:1.6;">
+                    <i class="fas fa-lock"></i>
+                    <strong>Không thể thay đổi thành viên</strong> ở trạng thái hiện tại (${meeting.status}).
+                    Chỉ có thể sửa khi cuộc họp ở trạng thái <strong>Dự thảo</strong> hoặc <strong>Đang thảo luận</strong>.
+                </div>
+            </div>
+        `;
+    }
+    
+    // ============================================================
+    // RENDER MODAL
+    // ============================================================
+    showModal('✏️ Sửa cuộc họp', `
         <div class="form-group">
-            <label>Tên cuộc họp</label>
-            <input type="text" id="editMeetingTitle" value="${escapeHtml(meeting.title)}">
+            <label>Tên cuộc họp <span class="required">*</span></label>
+            <input type="text" id="editMeetingTitle" value="${escapeHtml(meeting.title)}" required>
         </div>
         <div class="form-row">
             <div class="form-group">
-                <label>Ngày họp</label>
-                <input type="date" id="editMeetingDate" value="${meeting.meetingDate || ''}">
+                <label>Ngày họp <span class="required">*</span></label>
+                <input type="date" id="editMeetingDate" value="${meeting.meetingDate || ''}" required>
             </div>
             <div class="form-group">
-                <label>Thời gian</label>
-                <input type="time" id="editMeetingTime" value="${meeting.meetingTime || ''}">
+                <label>Thời gian <span class="required">*</span></label>
+                <input type="time" id="editMeetingTime" value="${meeting.meetingTime || ''}" required>
             </div>
         </div>
         <div class="form-group">
@@ -2264,10 +2501,12 @@ async function editMeeting(meetingId) {
             <label>Mô tả</label>
             <textarea id="editMeetingDesc" rows="3">${escapeHtml(meeting.description || '')}</textarea>
         </div>
+        
+        ${memberSelectionHtml}
     `, [
         { text: 'Hủy', class: 'btn-secondary', action: 'cancel' },
         {
-            text: 'Lưu',
+            text: 'Lưu thay đổi',
             class: 'btn-primary',
             action: 'save',
             onClick: async (close) => {
@@ -2278,24 +2517,82 @@ async function editMeeting(meetingId) {
                 const description = document.getElementById('editMeetingDesc').value.trim();
                 
                 if (!title || !meetingDate) {
-                    showToast('Vui lòng nhập đầy đủ thông tin', 'warning');
+                    showToast('Vui lòng nhập đầy đủ thông tin bắt buộc', 'warning');
                     return;
                 }
                 
-                try {
-                    await updateMeeting(meetingId, {
-                        title: title,
-                        meetingDate: meetingDate,
-                        meetingTime: meetingTime,
-                        format: format,
-                        description: description
+                // Build memberIds mới nếu được phép sửa thành viên
+                let newMemberIds = null;
+                let addedCount = 0;
+                let removedCount = 0;
+                
+                if (canEditMembers) {
+                    newMemberIds = {};
+                    document.querySelectorAll('.member-checkbox:checked, .guest-checkbox:checked').forEach(cb => {
+                        newMemberIds[cb.value] = true;
                     });
-                    showToast('Đã cập nhật!', 'success');
+                    
+                    if (Object.keys(newMemberIds).length === 0) {
+                        showToast('Phải có ít nhất một thành viên hoặc khách mời', 'warning');
+                        return;
+                    }
+                    
+                    // Đếm số thay đổi
+                    Object.keys(newMemberIds).forEach(id => {
+                        if (!currentMemberIds.includes(id)) addedCount++;
+                    });
+                    currentMemberIds.forEach(id => {
+                        if (!newMemberIds[id]) removedCount++;
+                    });
+                }
+                
+                const updates = {
+                    title: title,
+                    meetingDate: meetingDate,
+                    meetingTime: meetingTime,
+                    format: format,
+                    description: description
+                };
+                
+                if (newMemberIds !== null) {
+                    updates.memberIds = newMemberIds;
+                }
+                
+                try {
+                    const saveBtn = document.querySelector('.modal-footer button[data-action="save"]');
+                    if (saveBtn) {
+                        saveBtn.disabled = true;
+                        saveBtn.innerHTML = '<span class="spinner"></span> Đang lưu...';
+                    }
+                    
+                    await updateMeeting(meetingId, updates);
+                    
+                    // Thông báo chi tiết
+                    let msg = '✅ Đã cập nhật cuộc họp!';
+                    if (addedCount > 0 || removedCount > 0) {
+                        const parts = [];
+                        if (addedCount > 0) parts.push(`thêm ${addedCount} người`);
+                        if (removedCount > 0) parts.push(`gỡ ${removedCount} người`);
+                        msg += ` (${parts.join(', ')})`;
+                    }
+                    showToast(msg, 'success', 4000);
+                    
                     close();
+                    
+                    // Refresh lại trang chi tiết
                     const container = document.getElementById('pageContainer');
-                    await renderMeetingDetail(container, meetingId);
+                    if (container) {
+                        await renderMeetingDetail(container, meetingId);
+                    }
                 } catch (error) {
+                    console.error('Save edit error:', error);
                     showToast('Lỗi: ' + error.message, 'error');
+                    
+                    const saveBtn = document.querySelector('.modal-footer button[data-action="save"]');
+                    if (saveBtn) {
+                        saveBtn.disabled = false;
+                        saveBtn.innerHTML = 'Lưu thay đổi';
+                    }
                 }
             }
         }
