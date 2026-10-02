@@ -1171,6 +1171,16 @@ function buildMeetingActionPanel(meeting, options) {
  * @param {HTMLElement} container
  * @param {string} meetingId
  */
+/**
+ * Render meeting detail page
+ * ĐÃ KHÔI PHỤC ĐẦY ĐỦ + SỬA PHÂN QUYỀN TRIỆT ĐỂ:
+ *   - Action Panel nổi bật ở đầu trang (thống kê + progress bar + nút chuyển trạng thái)
+ *   - Nút Xuất biên bản PDF hiển thị đúng chỗ (header khi CLOSED + Action Panel khi CLOSED)
+ *   - PHÂN QUYỀN: Chỉ Admin HOẶC chính người chủ trì/tạo cuộc họp mới thấy nút [Kết luận], [CHỐT HỒ SƠ]
+ *   - Luồng thảo luận Accordion giữ nguyên (toggle mở rộng, lazy load, cập nhật badge)
+ * @param {HTMLElement} container
+ * @param {string} meetingId
+ */
 async function renderMeetingDetail(container, meetingId) {
     if (!meetingId) {
         container.innerHTML = `<p>Không tìm thấy cuộc họp.</p>`;
@@ -1188,11 +1198,29 @@ async function renderMeetingDetail(container, meetingId) {
     
     await recordMeetingView(meetingId, uid);
     
+    // ============================================================
+    // PHÂN QUYỀN — SỬA TRIỆT ĐỂ
+    // ============================================================
     const role = await getCurrentUserRole();
-    const isLeader = role === 'truong_to' || role === 'admin' 
-                  || role === 'to_pho' || role === 'nhom_truong';
-    const isSecretary = role === 'thu_ky';
-    const canEdit = isLeader || isSecretary;
+    const userTeamId = await getCurrentUserTeamId();
+    
+    // Admin có toàn quyền trên mọi cuộc họp
+    const isAdminUser = role === 'admin';
+    
+    // Chỉ người chủ trì HOẶC người tạo cuộc họp mới là "leader" của cuộc họp này
+    // Dù user có role truong_to/to_pho/nhom_truong, nếu không phải chairman/creator
+    // thì vẫn KHÔNG có quyền quản lý cuộc họp này (VD: khách mời từ tổ khác)
+    const isChairmanOrCreator = 
+        (meeting.chairmanId && meeting.chairmanId === uid) 
+        || (meeting.createdBy && meeting.createdBy === uid);
+    
+    // Quyền quản lý cuộc họp = Admin HOẶC chủ trì/người tạo
+    const canLeadThisMeeting = isAdminUser || isChairmanOrCreator;
+    
+    // Quyền soạn thảo nội dung = leader HOẶC thư ký của cuộc họp này
+    const isSecretary = (meeting.secretaryId && meeting.secretaryId === uid);
+    const canEditContent = canLeadThisMeeting || isSecretary;
+    
     const isClosed = meeting.status === 'CLOSED';
     
     const contents = await getMeetingContents(meetingId);
@@ -1200,13 +1228,25 @@ async function renderMeetingDetail(container, meetingId) {
     const confirmations = await getConfirmations(meetingId);
     const allDiscussions = await getDiscussions(meetingId);
     
+    // === ĐẾM SỐ THẢO LUẬN CHO TỪNG NỘI DUNG ===
     contents.forEach(c => {
         const liveCount = allDiscussions.filter(d => d.contentId === c.id).length;
         const storedCount = c.discussionCount || 0;
         c.discussionCount = liveCount > 0 ? liveCount : storedCount;
     });
     
+    // === TÍNH TOÁN THỐNG KÊ CHO ACTION PANEL ===
     const memberIds = Object.keys(meeting.memberIds || {});
+    const totalMembers = memberIds.length;
+    const confirmedMembers = memberIds.filter(mid => 
+        confirmations[mid] && confirmations[mid].finalConfirmed === true
+    ).length;
+    const participatedMembers = memberIds.filter(mid => 
+        confirmations[mid] && confirmations[mid].participated === true
+    ).length;
+    const allContentsConcluded = contents.length > 0 
+        && contents.every(c => c.status === 'CONCLUDED');
+    const concludedContentsCount = contents.filter(c => c.status === 'CONCLUDED').length;
     
     let chairmanName = 'Chưa xác định';
     let secretaryName = 'Chưa có';
@@ -1239,7 +1279,7 @@ async function renderMeetingDetail(container, meetingId) {
                             <i class="fas fa-print"></i> Xuất biên bản (PDF)
                         </button>
                     ` : ''}
-                    ${!isClosed && canEdit ? `
+                    ${!isClosed && canEditContent ? `
                         <button class="btn-secondary" style="padding:6px 14px;font-size:13px;" onclick="editMeeting('${meetingId}')">
                             <i class="fas fa-edit"></i> Sửa
                         </button>
@@ -1271,6 +1311,18 @@ async function renderMeetingDetail(container, meetingId) {
             ` : ''}
         </div>
         
+        ${buildMeetingActionPanel(meeting, {
+            isLeader: canLeadThisMeeting,
+            isClosed: isClosed,
+            totalMembers: totalMembers,
+            confirmedMembers: confirmedMembers,
+            participatedMembers: participatedMembers,
+            contentsCount: contents.length,
+            concludedContentsCount: concludedContentsCount,
+            allContentsConcluded: allContentsConcluded,
+            tasksCount: tasks.length
+        })}
+        
         <div class="meeting-tabs">
             <button class="meeting-tab active" data-tab="contents">📋 Nội dung</button>
             <button class="meeting-tab" data-tab="tasks">📋 Nhiệm vụ</button>
@@ -1285,7 +1337,7 @@ async function renderMeetingDetail(container, meetingId) {
                         <div class="empty-state">
                             <i class="fas fa-file-alt"></i>
                             <p>Chưa có nội dung nào.</p>
-                            ${canEdit && !isClosed ? `
+                            ${canEditContent && !isClosed ? `
                                 <button class="btn-primary" style="margin-top:8px;" onclick="addContent('${meetingId}')">
                                     <i class="fas fa-plus"></i> Thêm nội dung
                                 </button>
@@ -1310,7 +1362,7 @@ async function renderMeetingDetail(container, meetingId) {
                                         <span class="status-badge ${c.status === 'CONCLUDED' ? 'concluded' : 'draft'}">
                                             ${c.status === 'CONCLUDED' ? '✅ Đã kết luận' : '📝 Dự thảo'}
                                         </span>
-                                        ${canEdit && !isClosed ? `
+                                        ${canEditContent && !isClosed ? `
                                             <button class="btn-secondary" style="padding:4px 10px;font-size:12px;" onclick="editContent('${meetingId}', '${c.id}')">
                                                 <i class="fas fa-edit"></i>
                                             </button>
@@ -1335,18 +1387,20 @@ async function renderMeetingDetail(container, meetingId) {
                                     ` : ''}
                                     
                                     <div class="content-actions">
-                                        <button class="discussion-toggle-btn" data-disc-toggle="${c.id}" onclick="toggleContentDiscussion('${meetingId}', '${c.id}')">
+                                        <button class="discussion-toggle-btn" 
+                                                data-disc-toggle="${c.id}"
+                                                onclick="toggleContentDiscussion('${meetingId}', '${c.id}')">
                                             <i class="fas fa-comments"></i>
                                             <span>Mời thảo luận</span>
                                             <span class="count-badge">${discussionCount}</span>
                                             <i class="fas fa-chevron-down toggle-icon"></i>
                                         </button>
-                                        ${isLeader && !isClosed && c.status !== 'CONCLUDED' ? `
+                                        ${canLeadThisMeeting && !isClosed && c.status !== 'CONCLUDED' ? `
                                             <button class="btn-primary" style="padding:8px 16px;font-size:13px;" onclick="concludeContent('${meetingId}', '${c.id}')">
                                                 <i class="fas fa-check-double"></i> Kết luận
                                             </button>
                                         ` : ''}
-                                        ${isLeader && !isClosed && c.status === 'CONCLUDED' ? `
+                                        ${canLeadThisMeeting && !isClosed && c.status === 'CONCLUDED' ? `
                                             <button class="btn-secondary" style="padding:8px 16px;font-size:13px;" onclick="editConclusion('${meetingId}', '${c.id}')">
                                                 <i class="fas fa-edit"></i> Sửa kết luận
                                             </button>
@@ -1368,7 +1422,7 @@ async function renderMeetingDetail(container, meetingId) {
                             </div>
                         `;
                     }).join('')}
-                    ${canEdit && !isClosed ? `
+                    ${canEditContent && !isClosed ? `
                         <button class="btn-primary" onclick="addContent('${meetingId}')" style="width:100%;justify-content:center;margin-top:4px;">
                             <i class="fas fa-plus"></i> Thêm nội dung
                         </button>
@@ -1382,7 +1436,7 @@ async function renderMeetingDetail(container, meetingId) {
                         <div class="empty-state">
                             <i class="fas fa-tasks"></i>
                             <p>Chưa có nhiệm vụ nào.</p>
-                            ${isLeader && !isClosed ? `
+                            ${canLeadThisMeeting && !isClosed ? `
                                 <button class="btn-primary" style="margin-top:8px;" onclick="showAssignTask('${meetingId}')">
                                     <i class="fas fa-plus"></i> Phân công nhiệm vụ
                                 </button>
@@ -1391,7 +1445,7 @@ async function renderMeetingDetail(container, meetingId) {
                     ` : `
                         ${tasks.map(t => renderTaskItem(t, true)).join('')}
                     `}
-                    ${isLeader && !isClosed ? `
+                    ${canLeadThisMeeting && !isClosed ? `
                         <button class="btn-primary" onclick="showAssignTask('${meetingId}')" style="margin-top:8px;">
                             <i class="fas fa-plus"></i> Phân công nhiệm vụ
                         </button>
@@ -1476,7 +1530,7 @@ async function addContent(meetingId) {
                     <input type="text" id="attachUrl_${formKey}" placeholder="https://drive.google.com/file/d/.../view" style="flex:2;min-width:180px;padding:8px 12px;border:2px solid var(--gray-200);border-radius:6px;font-size:13px;">
                     <input type="text" id="attachName_${formKey}" placeholder="Tên file" style="flex:1;min-width:100px;padding:8px 12px;border:2px solid var(--gray-200);border-radius:6px;font-size:13px;">
                     <button type="button" class="btn-secondary" style="padding:8px 14px;font-size:13px;" onclick="addAttachmentTagFromInput('${formKey}')">
-                        <i class="fas fa-plus"></i> Thêm link
+                        <button class="btn btn-secondary"><i class="fa fa-paperclip"></i> Xác nhận đính kèm
                     </button>
                 </div>
             </div>
@@ -1575,7 +1629,7 @@ async function editContent(meetingId, contentId) {
                     <input type="text" id="attachUrl_${formKey}" placeholder="https://drive.google.com/file/d/.../view" style="flex:2;min-width:180px;padding:8px 12px;border:2px solid var(--gray-200);border-radius:6px;font-size:13px;">
                     <input type="text" id="attachName_${formKey}" placeholder="Tên file" style="flex:1;min-width:100px;padding:8px 12px;border:2px solid var(--gray-200);border-radius:6px;font-size:13px;">
                     <button type="button" class="btn-secondary" style="padding:8px 14px;font-size:13px;" onclick="addAttachmentTagFromInput('${formKey}', true)">
-                        <i class="fas fa-plus"></i> Thêm link
+                          <button class="btn btn-secondary"><i class="fa fa-paperclip"></i> Xác nhận đính kèm
                     </button>
                 </div>
                 <p style="font-size:12px;color:var(--gray-500);margin-top:8px;">
@@ -1659,7 +1713,7 @@ async function concludeContent(meetingId, contentId) {
                     <input type="text" id="attachUrl_${formKey}" placeholder="https://drive.google.com/file/d/.../view" style="flex:2;min-width:180px;padding:8px 12px;border:2px solid var(--gray-200);border-radius:6px;font-size:13px;">
                     <input type="text" id="attachName_${formKey}" placeholder="Tên file" style="flex:1;min-width:100px;padding:8px 12px;border:2px solid var(--gray-200);border-radius:6px;font-size:13px;">
                     <button type="button" class="btn-secondary" style="padding:8px 14px;font-size:13px;" onclick="addAttachmentTagFromInput('${formKey}')">
-                        <i class="fas fa-plus"></i> Thêm link
+                          <button class="btn btn-secondary"><i class="fa fa-paperclip"></i> Xác nhận đính kèm
                     </button>
                 </div>
             </div>
@@ -1753,7 +1807,7 @@ async function editConclusion(meetingId, contentId) {
                     <input type="text" id="attachUrl_${formKey}" placeholder="https://drive.google.com/file/d/.../view" style="flex:2;min-width:180px;padding:8px 12px;border:2px solid var(--gray-200);border-radius:6px;font-size:13px;">
                     <input type="text" id="attachName_${formKey}" placeholder="Tên file" style="flex:1;min-width:100px;padding:8px 12px;border:2px solid var(--gray-200);border-radius:6px;font-size:13px;">
                     <button type="button" class="btn-secondary" style="padding:8px 14px;font-size:13px;" onclick="addAttachmentTagFromInput('${formKey}', true)">
-                        <i class="fas fa-plus"></i> Thêm link
+                        <i class="fa fa-paperclip"></i> Xác nhận đính kèm
                     </button>
                 </div>
                 <p style="font-size:12px;color:var(--gray-500);margin-top:8px;">
