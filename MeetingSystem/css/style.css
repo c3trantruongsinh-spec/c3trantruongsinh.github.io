@@ -2263,3 +2263,221 @@ input, textarea, select {
         min-width: unset;
     }
 }
+/* ============================================
+   DISCUSSION ACCORDION — Thảo luận trong từng nội dung
+   ============================================ */
+
+.discussion-accordion {
+    margin-top: 16px;
+    padding-top: 0;
+    border-top: 2px dashed var(--gray-200);
+    display: none;
+}
+
+.discussion-accordion.open {
+    display: block;
+    padding-top: 16px;
+    animation: accordionSlideDown 0.35s ease;
+}
+
+@keyframes accordionSlideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.discussion-accordion-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 14px;
+    padding: 12px 16px;
+    background: linear-gradient(135deg, #dbeafe 0%, #e0e7ff 100%);
+    border-radius: 10px;
+    border-left: 4px solid var(--primary);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--primary);
+}
+
+.discussion-accordion-header i {
+    color: var(--accent);
+    margin-right: 6px;
+}
+
+.discussion-accordion-body {
+    padding: 4px 0 0 0;
+}
+
+.discussion-accordion-body .empty-state {
+    padding: 24px 12px;
+    background: var(--gray-50);
+    border-radius: 8px;
+}
+
+.discussion-accordion-body .discussion-loading {
+    text-align: center;
+    padding: 24px;
+    color: var(--gray-500);
+    font-size: 13px;
+}
+
+.discussion-accordion-body .discussion-loading .loader {
+    width: 32px;
+    height: 32px;
+    border-width: 3px;
+    margin: 0 auto 8px auto;
+}
+
+/* Nút toggle thảo luận */
+.discussion-toggle-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.25s;
+    border: 1.5px solid transparent;
+    font-family: inherit;
+    background: var(--gray-100);
+    color: var(--gray-600);
+    position: relative;
+}
+
+.discussion-toggle-btn:hover {
+    background: var(--primary-bg);
+    color: var(--primary);
+    border-color: var(--primary-light);
+}
+
+.discussion-toggle-btn.open {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+    box-shadow: 0 2px 8px rgba(30, 58, 138, 0.25);
+}
+
+.discussion-toggle-btn .count-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 6px;
+    border-radius: 11px;
+    background: rgba(0, 0, 0, 0.08);
+    font-size: 11px;
+    font-weight: 800;
+    color: inherit;
+}
+
+.discussion-toggle-btn.open .count-badge {
+    background: rgba(255, 255, 255, 0.25);
+    color: #fff;
+}
+
+.discussion-toggle-btn .toggle-icon {
+    transition: transform 0.3s;
+    font-size: 11px;
+}
+
+.discussion-toggle-btn.open .toggle-icon {
+    transform: rotate(180deg);
+}
+
+/* Action row trong content card */
+.content-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--gray-100);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .discussion-accordion-header {
+        font-size: 13px;
+        padding: 10px 12px;
+    }
+    .discussion-toggle-btn {
+        font-size: 12px;
+        padding: 6px 12px;
+    }
+    .content-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .content-actions .discussion-toggle-btn,
+    .content-actions .btn-primary,
+    .content-actions .btn-secondary {
+        width: 100%;
+        justify-content: center;
+    }
+}
+/* Nút Mời thảo luận nổi bật */
+.discussion-toggle-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 18px;
+    border-radius: 10px;
+    font-size: 13.5px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    border: none;
+    font-family: inherit;
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.28);
+}
+
+.discussion-toggle-btn:hover {
+    background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(29, 78, 216, 0.38);
+    color: #ffffff;
+}
+
+/* Khi đang mở accordion */
+.discussion-toggle-btn.open {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%); /* Đổi sang màu xanh ngọc chốt mở */
+    box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
+}
+
+/* Huy hiệu số lượng ý kiến */
+.discussion-toggle-btn .count-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 6px;
+    border-radius: 11px;
+    background: rgba(255, 255, 255, 0.25);
+    font-size: 11.5px;
+    font-weight: 800;
+    color: #ffffff;
+}
+
+.discussion-toggle-btn .toggle-icon {
+    transition: transform 0.3s;
+    font-size: 11px;
+}
+
+.discussion-toggle-btn.open .toggle-icon {
+    transform: rotate(180deg);
+}

@@ -1162,6 +1162,15 @@ function buildMeetingActionPanel(meeting, options) {
  * @param {HTMLElement} container
  * @param {string} meetingId
  */
+/**
+ * Render meeting detail page
+ * ĐÃ NÂNG CẤP:
+ *   - Bỏ tab "Thảo luận" riêng
+ *   - Thảo luận được nhúng vào từng thẻ Nội dung dưới dạng accordion
+ *   - Nút "Xem thảo luận" toggle mở/đóng khu vực bình luận
+ * @param {HTMLElement} container
+ * @param {string} meetingId
+ */
 async function renderMeetingDetail(container, meetingId) {
     if (!meetingId) {
         container.innerHTML = `<p>Không tìm thấy cuộc họp.</p>`;
@@ -1191,25 +1200,13 @@ async function renderMeetingDetail(container, meetingId) {
     const confirmations = await getConfirmations(meetingId);
     const allDiscussions = await getDiscussions(meetingId);
     
-    // === ĐẾM SỐ THẢO LUẬN CHO TỪNG NỘI DUNG ===
     contents.forEach(c => {
         const liveCount = allDiscussions.filter(d => d.contentId === c.id).length;
         const storedCount = c.discussionCount || 0;
         c.discussionCount = liveCount > 0 ? liveCount : storedCount;
     });
     
-    // === TÍNH TOÁN THỐNG KÊ CHO ACTION PANEL ===
     const memberIds = Object.keys(meeting.memberIds || {});
-    const totalMembers = memberIds.length;
-    const confirmedMembers = memberIds.filter(mid => 
-        confirmations[mid] && confirmations[mid].finalConfirmed === true
-    ).length;
-    const participatedMembers = memberIds.filter(mid => 
-        confirmations[mid] && confirmations[mid].participated === true
-    ).length;
-    const allContentsConcluded = contents.length > 0 
-        && contents.every(c => c.status === 'CONCLUDED');
-    const concludedContentsCount = contents.filter(c => c.status === 'CONCLUDED').length;
     
     let chairmanName = 'Chưa xác định';
     let secretaryName = 'Chưa có';
@@ -1237,6 +1234,11 @@ async function renderMeetingDetail(container, meetingId) {
                 </div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
                     ${getStatusBadge(meeting.status)}
+                    ${isClosed ? `
+                        <button class="btn-primary" style="padding:6px 14px;font-size:13px;background:#7c3aed;border:none;font-weight:600;" onclick="exportMeetingMinutes('${meetingId}')">
+                            <i class="fas fa-print"></i> Xuất biên bản (PDF)
+                        </button>
+                    ` : ''}
                     ${!isClosed && canEdit ? `
                         <button class="btn-secondary" style="padding:6px 14px;font-size:13px;" onclick="editMeeting('${meetingId}')">
                             <i class="fas fa-edit"></i> Sửa
@@ -1269,21 +1271,8 @@ async function renderMeetingDetail(container, meetingId) {
             ` : ''}
         </div>
         
-        ${buildMeetingActionPanel(meeting, {
-            isLeader: isLeader,
-            isClosed: isClosed,
-            totalMembers: totalMembers,
-            confirmedMembers: confirmedMembers,
-            participatedMembers: participatedMembers,
-            contentsCount: contents.length,
-            concludedContentsCount: concludedContentsCount,
-            allContentsConcluded: allContentsConcluded,
-            tasksCount: tasks.length
-        })}
-        
         <div class="meeting-tabs">
             <button class="meeting-tab active" data-tab="contents">📋 Nội dung</button>
-            <button class="meeting-tab" data-tab="discussions">💬 Thảo luận (${allDiscussions.length})</button>
             <button class="meeting-tab" data-tab="tasks">📋 Nhiệm vụ</button>
             <button class="meeting-tab" data-tab="confirmations">✅ Xác nhận</button>
             <button class="meeting-tab" data-tab="logs">📜 Nhật ký</button>
@@ -1312,12 +1301,9 @@ async function renderMeetingDetail(container, meetingId) {
                             showFileId: true
                         });
                         const discussionCount = c.discussionCount || 0;
-                        const isDiscussionEmpty = discussionCount === 0;
-                        const discussionBadgeColor = isDiscussionEmpty ? 'var(--gray-400)' : 'var(--primary)';
-                        const discussionBadgeBg = isDiscussionEmpty ? 'var(--gray-100)' : 'var(--primary-bg)';
                         
                         return `
-                            <div class="section-card" style="margin-bottom:12px;">
+                            <div class="section-card" style="margin-bottom:16px;">
                                 <div class="section-header">
                                     <h3>📌 NỘI DUNG ${String(idx + 1).padStart(2, '0')}</h3>
                                     <div style="display:flex;gap:6px;align-items:center;">
@@ -1348,22 +1334,35 @@ async function renderMeetingDetail(container, meetingId) {
                                         </div>
                                     ` : ''}
                                     
-                                    <div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
-                                        <button class="btn-secondary" 
-                                            style="padding:6px 14px;font-size:13px;background:${discussionBadgeBg};color:${discussionBadgeColor};border:1px solid ${isDiscussionEmpty ? 'var(--gray-200)' : 'var(--primary-light)'};font-weight:600;" 
-                                            onclick="switchTab('discussions');scrollToContent('${c.id}')">
-                                            <i class="fas fa-comments"></i> Xem thảo luận (${discussionCount})
+                                    <div class="content-actions">
+                                        <button class="discussion-toggle-btn" data-disc-toggle="${c.id}" onclick="toggleContentDiscussion('${meetingId}', '${c.id}')">
+                                            <i class="fas fa-comments"></i>
+                                            <span>Mời thảo luận</span>
+                                            <span class="count-badge">${discussionCount}</span>
+                                            <i class="fas fa-chevron-down toggle-icon"></i>
                                         </button>
                                         ${isLeader && !isClosed && c.status !== 'CONCLUDED' ? `
-                                            <button class="btn-primary" style="padding:6px 14px;font-size:13px;" onclick="concludeContent('${meetingId}', '${c.id}')">
+                                            <button class="btn-primary" style="padding:8px 16px;font-size:13px;" onclick="concludeContent('${meetingId}', '${c.id}')">
                                                 <i class="fas fa-check-double"></i> Kết luận
                                             </button>
                                         ` : ''}
                                         ${isLeader && !isClosed && c.status === 'CONCLUDED' ? `
-                                            <button class="btn-secondary" style="padding:6px 14px;font-size:13px;" onclick="editConclusion('${meetingId}', '${c.id}')">
+                                            <button class="btn-secondary" style="padding:8px 16px;font-size:13px;" onclick="editConclusion('${meetingId}', '${c.id}')">
                                                 <i class="fas fa-edit"></i> Sửa kết luận
                                             </button>
                                         ` : ''}
+                                    </div>
+                                    
+                                    <div class="discussion-accordion" id="disc_accordion_${c.id}">
+                                        <div class="discussion-accordion-header">
+                                            <span><i class="fas fa-comments"></i> Thảo luận — ${escapeHtml(c.title)}</span>
+                                        </div>
+                                        <div class="discussion-accordion-body" id="discussions_${c.id}">
+                                            <div class="discussion-loading">
+                                                <div class="loader"></div>
+                                                <div>Đang tải thảo luận...</div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -1374,12 +1373,6 @@ async function renderMeetingDetail(container, meetingId) {
                             <i class="fas fa-plus"></i> Thêm nội dung
                         </button>
                     ` : ''}
-                </div>
-            </div>
-            
-            <div class="meeting-content-panel" data-panel="discussions">
-                <div id="discussionsContainer">
-                    <p>Đang tải thảo luận...</p>
                 </div>
             </div>
             
@@ -1422,7 +1415,6 @@ async function renderMeetingDetail(container, meetingId) {
     
     container.innerHTML = html;
     
-    // Gắn sự kiện cho tabs
     document.querySelectorAll('.meeting-tab').forEach(tab => {
         tab.addEventListener('click', function() {
             const tabName = this.dataset.tab;
@@ -1430,12 +1422,9 @@ async function renderMeetingDetail(container, meetingId) {
         });
     });
     
-    // Load nội dung cho các tab động
-    await renderDiscussions(meetingId, null, document.getElementById('discussionsContainer'));
     await renderConfirmations(meetingId, document.getElementById('confirmationSection'));
     await renderActivityLog(meetingId, document.getElementById('logsContainer'));
 }
-
 /**
  * Switch tab
  * @param {string} tabName
@@ -3075,7 +3064,59 @@ function toggleAllMembers(checked) {
         cb.checked = checked;
     });
 }
+/**
+ * Toggle mở/đóng khu vực thảo luận của một nội dung
+ * Lazy load danh sách ý kiến + form nhập khi mở lần đầu
+ * @param {string} meetingId
+ * @param {string} contentId
+ */
+async function toggleContentDiscussion(meetingId, contentId) {
+    const accordion = document.getElementById(`disc_accordion_${contentId}`);
+    const body = document.getElementById(`discussions_${contentId}`);
+    const toggleBtn = document.querySelector(`[data-disc-toggle="${contentId}"]`);
+    
+    if (!accordion || !body) {
+        console.error('Không tìm thấy accordion thảo luận cho content', contentId);
+        return;
+    }
+    
+    const isOpen = accordion.classList.contains('open');
+    
+    if (isOpen) {
+        accordion.classList.remove('open');
+        if (toggleBtn) toggleBtn.classList.remove('open');
+    } else {
+        accordion.classList.add('open');
+        if (toggleBtn) toggleBtn.classList.add('open');
+        
+        if (!body.dataset.loaded) {
+            body.innerHTML = `
+                <div class="discussion-loading">
+                    <div class="loader"></div>
+                    <div>Đang tải thảo luận...</div>
+                </div>
+            `;
+            try {
+                await renderDiscussions(meetingId, contentId, body);
+                body.dataset.loaded = 'true';
+            } catch (err) {
+                console.error('Lỗi tải thảo luận:', err);
+                body.innerHTML = `
+                    <div class="empty-state" style="padding:20px;text-align:center;color:var(--danger);">
+                        <i class="fas fa-exclamation-circle" style="font-size:24px;"></i>
+                        <p style="margin-top:8px;">Lỗi tải thảo luận: ${escapeHtml(err.message)}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        setTimeout(() => {
+            accordion.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }, 150);
+    }
+}
 
+window.toggleContentDiscussion = toggleContentDiscussion;
 // Export
 window.toggleAllMembers = toggleAllMembers;
 // ============================================================

@@ -224,21 +224,22 @@ async function submitDiscussion(meetingId, contentId, parentId = null) {
         input.value = '';
         resetPendingLinks(formKey);
         
-        const container = document.getElementById(`discussions_${inputKey}`)
-                       || document.getElementById('discussionsContainer');
-        
+                // Refresh đúng body của accordion (không refresh toàn trang)
+        const container = document.getElementById(`discussions_${inputKey}`);
         if (container && typeof renderDiscussions === 'function') {
-            await renderDiscussions(meetingId, contentId || null, container);
+            await renderDiscussions(meetingId, contentId, container);
+            container.dataset.loaded = 'true';
         }
         
-        const pageContainer = document.getElementById('pageContainer');
-        const isMeetingDetailPage = pageContainer && 
-            pageContainer.querySelector('.meeting-detail-header');
-        
-        if (isMeetingDetailPage && typeof renderMeetingDetail === 'function') {
-            await renderMeetingDetail(pageContainer, meetingId);
-            if (typeof switchTab === 'function') {
-                switchTab('discussions');
+        // Cập nhật số đếm ở nút toggle
+        if (contentId) {
+            const toggleBtn = document.querySelector(`[data-disc-toggle="${contentId}"]`);
+            if (toggleBtn) {
+                const badge = toggleBtn.querySelector('.count-badge');
+                if (badge) {
+                    const current = parseInt(badge.textContent) || 0;
+                    badge.textContent = current + 1;
+                }
             }
         }
     } catch (error) {

@@ -177,28 +177,7 @@ export function bindInput(opts) {
     });
   }
 
-  /* ---------- 6. Bút trình chiếu (keyCode dự phòng) ---------- */
-  document.addEventListener('keydown', function (event) {
-    if (isTypingContext(event.target)) return;
-
-    const code = event.keyCode;
-    if (code === 33) {
-      event.preventDefault();
-      engine.prev();
-    } else if (code === 34) {
-      event.preventDefault();
-      engine.next();
-    } else if (code === 37) {
-      event.preventDefault();
-      engine.prev();
-    } else if (code === 39) {
-      event.preventDefault();
-      engine.next();
-    }
-  });
-
-  log('Input handler đã gắn sự kiện (đa loại câu hỏi).');
-}
+ 
 
 /* =========================================================================
    HELPERS
