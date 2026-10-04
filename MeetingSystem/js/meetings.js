@@ -2610,7 +2610,26 @@ async function editMeeting(meetingId) {
  */
 /**
  * Xuất biên bản cuộc họp dưới dạng HTML in được (PDF)
- * Mở cửa sổ mới với layout biên bản hành chính chuẩn
+ * ĐÃ CẬP NHẬT:
+ *   1. BỎ HOÀN TOÀN slogan trường (header + footer)
+ *   2. FIX link đính kèm — tự sinh URL Google Drive từ fileId nếu url rỗng
+ *   3. GIỮ VỮNG chuẩn hành chính: tên tổ IN HOA, thư ký dòng chấm lửng, đen trắng
+ * @param {string} meetingId
+ */
+/**
+ * Xuất biên bản cuộc họp dưới dạng HTML in được (PDF)
+ * ĐÃ SỬA 3 LỖI HIỂN THỊ:
+ *   1. Tên Tổ: Trích xuất mã từ MỌI nguồn (teamCode, team, teamId, parse từ code)
+ *   2. Header: Mở rộng header-right lên 52%, nowrap dòng Quốc hiệu
+ *   3. Link đính kèm: Inline style đầy đủ + @media print cho link
+ * @param {string} meetingId
+ */
+/**
+ * Xuất biên bản cuộc họp dưới dạng HTML in được (PDF)
+ * ĐÃ SỬA 3 LỖI HIỂN THỊ:
+ *   1. Tên Tổ: Trích xuất mã từ MỌI nguồn (teamCode, team, teamId, parse từ code)
+ *   2. Header: Mở rộng header-right lên 52%, nowrap dòng Quốc hiệu
+ *   3. Link đính kèm: Inline style đầy đủ + @media print cho link
  * @param {string} meetingId
  */
 async function exportMeetingMinutes(meetingId) {
@@ -2628,13 +2647,67 @@ async function exportMeetingMinutes(meetingId) {
     
     showToast('Đang chuẩn bị biên bản...', 'info', 2000);
     
+    // ============================================================
+    // 1. THU THẬP DỮ LIỆU
+    // ============================================================
     const contents = await getMeetingContents(meetingId);
     const tasks = await getTasks(meetingId);
     const confirmations = await getConfirmations(meetingId);
     const allDiscussions = await getDiscussions(meetingId);
     
+    // ============================================================
+    // FIX #1: ÁNH XẠ MÃ TỔ — Mở rộng thêm nhiều biến thể
+    // ============================================================
+    const TEAM_CODE_MAP = {
+        'van': 'NGỮ VĂN',
+        'nguvan': 'NGỮ VĂN',
+        'ngu_van': 'NGỮ VĂN',
+        'toan': 'TOÁN',
+        'toan_tin': 'TOÁN - TIN HỌC',
+        'toantin': 'TOÁN - TIN HỌC',
+        'tin': 'TIN HỌC',
+        'tinhoc': 'TIN HỌC',
+        'tin_hoc': 'TIN HỌC',
+        'anh': 'TIẾNG ANH',
+        'tienganh': 'TIẾNG ANH',
+        'tieng_anh': 'TIẾNG ANH',
+        'ly': 'VẬT LÝ',
+        'vatly': 'VẬT LÝ',
+        'vat_ly': 'VẬT LÝ',
+        'hoa': 'HÓA HỌC',
+        'hoahoc': 'HÓA HỌC',
+        'hoa_hoc': 'HÓA HỌC',
+        'sinh': 'SINH HỌC',
+        'sinhhoc': 'SINH HỌC',
+        'sinh_hoc': 'SINH HỌC',
+        'khtn': 'KHOA HỌC TỰ NHIÊN',
+        'khxh': 'KHOA HỌC XÃ HỘI',
+        'su': 'LỊCH SỬ',
+        'lichsu': 'LỊCH SỬ',
+        'lich_su': 'LỊCH SỬ',
+        'dia': 'ĐỊA LÝ',
+        'dialy': 'ĐỊA LÝ',
+        'dia_ly': 'ĐỊA LÝ',
+        'gdcd': 'GIÁO DỤC CÔNG DÂN',
+        'the_duc': 'THỂ DỤC',
+        'theduc': 'THỂ DỤC',
+        'gdtc_nt': 'GIÁO DỤC THỂ CHẤT - NGHỆ THUẬT',
+        'cong_nghe': 'CÔNG NGHỆ',
+        'congnghe': 'CÔNG NGHỆ',
+        'van_phong': 'VĂN PHÒNG',
+        'vanphong': 'VĂN PHÒNG',
+        'am_nhac': 'ÂM NHẠC',
+        'amnhac': 'ÂM NHẠC',
+        'my_thuat': 'MỸ THUẬT',
+        'mythuat': 'MỸ THUẬT',
+        'demo': 'TỔ DEMO'
+    };
+    
+    // === THU THẬP teamName từ nhiều nguồn ===
     let teamName = '';
     let teamCode = '';
+    
+    // Nguồn 1: teams/{teamId}
     if (meeting.teamId) {
         try {
             const snap = await db.ref(`teams/${meeting.teamId}`).once('value');
@@ -2646,46 +2719,112 @@ async function exportMeetingMinutes(meetingId) {
         } catch (e) {}
     }
     
+    // Nguồn 2: meeting.teamName / meeting.team
+    if (!teamName && meeting.teamName && String(meeting.teamName).trim()) {
+        teamName = String(meeting.teamName).trim();
+    }
+    if (!teamName && meeting.team && String(meeting.team).trim()) {
+        teamName = String(meeting.team).trim();
+    }
+    
+    // === FIX #1: TRÍCH XUẤT MÃ TỔ TỪ MỌI NGUỒN CÓ THỂ ===
+    let rawCode = '';
+    
+    // Nguồn 1: teamCode trực tiếp
+    if (meeting.teamCode) {
+        rawCode = String(meeting.teamCode).trim();
+    }
+    // Nguồn 2: team trực tiếp
+    else if (meeting.team) {
+        rawCode = String(meeting.team).trim();
+    }
+    // Nguồn 3: teamId
+    else if (meeting.teamId) {
+        rawCode = String(meeting.teamId).trim();
+    }
+    // Nguồn 4: teamCode từ team object
+    else if (teamCode) {
+        rawCode = String(teamCode).trim();
+    }
+    // Nguồn 5: Parse từ meeting.code dạng HS-VAN-2026-09-001
+    else if (meeting.code && typeof meeting.code === 'string') {
+        const parts = meeting.code.split('-');
+        if (parts.length >= 2 && parts[1]) {
+            rawCode = parts[1].trim();
+        }
+    }
+    
+    // Chuẩn hóa rawCode về lowercase để tra map
+    const rawCodeLower = rawCode.toLowerCase().replace(/\s+/g, '');
+    
+    // Xác định displayTeamName theo thứ tự ưu tiên
+    let displayTeamName = '..................';
+    if (rawCodeLower && TEAM_CODE_MAP[rawCodeLower]) {
+        // Ưu tiên 1: Ánh xạ từ mã đã trích xuất
+        displayTeamName = TEAM_CODE_MAP[rawCodeLower];
+    } else if (teamName && teamName.trim()) {
+        // Ưu tiên 2: teamName từ database
+        displayTeamName = teamName.trim().toUpperCase();
+    } else if (rawCode) {
+        // Ưu tiên 3: Dùng raw code viết hoa
+        displayTeamName = rawCode.toUpperCase();
+    }
+    
+    // Chủ trì
+    const BLANK_LINE = '..........................................';
     let chairmanName = '';
-    let secretaryName = '';
     if (meeting.chairmanId) {
         try {
             const snap = await db.ref(`users/${meeting.chairmanId}/displayName`).once('value');
             chairmanName = snap.val() || '';
         } catch (e) {}
     }
+    if (!chairmanName || !chairmanName.trim()) {
+        chairmanName = BLANK_LINE;
+    }
+    
+    // Thư ký — dòng chấm lửng nếu chưa phân công
+    let secretaryName = BLANK_LINE;
     if (meeting.secretaryId) {
         try {
             const snap = await db.ref(`users/${meeting.secretaryId}/displayName`).once('value');
-            secretaryName = snap.val() || '';
-        } catch (e) {}
+            const val = snap.val();
+            if (val && val.trim()) {
+                secretaryName = val.trim();
+            }
+        } catch (e) {
+            secretaryName = BLANK_LINE;
+        }
     }
     
-    let closedByName = 'Tổ trưởng';
+    // Người chốt
+    let closedByName = BLANK_LINE;
     if (meeting.closedBy) {
         try {
             const snap = await db.ref(`users/${meeting.closedBy}/displayName`).once('value');
             const val = snap.val();
             if (val && val.trim()) {
-                closedByName = val;
+                closedByName = val.trim();
             }
         } catch (e) {
-            closedByName = 'Tổ trưởng';
+            closedByName = BLANK_LINE;
         }
     }
     
+    // Người kết luận map
     let concludedByNameMap = {};
     for (const c of contents) {
         if (c.concludedBy && !concludedByNameMap[c.concludedBy]) {
             try {
                 const snap = await db.ref(`users/${c.concludedBy}/displayName`).once('value');
-                concludedByNameMap[c.concludedBy] = snap.val() || 'Tổ trưởng';
+                concludedByNameMap[c.concludedBy] = snap.val() || BLANK_LINE;
             } catch (e) {
-                concludedByNameMap[c.concludedBy] = 'Tổ trưởng';
+                concludedByNameMap[c.concludedBy] = BLANK_LINE;
             }
         }
     }
     
+    // Thành viên + xác nhận
     const memberIds = Object.keys(meeting.memberIds || {});
     const memberList = [];
     for (const mid of memberIds) {
@@ -2713,6 +2852,7 @@ async function exportMeetingMinutes(meetingId) {
         authorNameMap[m.uid] = m.name;
     });
     
+    // Tasks chi tiết
     const tasksDetailed = [];
     for (const t of tasks) {
         let assigneeName = t.assignedByName || 'Chưa rõ';
@@ -2728,6 +2868,9 @@ async function exportMeetingMinutes(meetingId) {
     
     contents.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
     
+    // ============================================================
+    // 2. HÀM TIỆN ÍCH
+    // ============================================================
     function toRoman(num) {
         const map = [
             [1000, 'M'], [900, 'CM'], [500, 'D'], [400, 'CD'],
@@ -2763,15 +2906,6 @@ async function exportMeetingMinutes(meetingId) {
         return `${h} giờ ${m} phút`;
     }
     
-    function formatTimeShort(dateVal) {
-        if (!dateVal) return '';
-        const d = new Date(dateVal);
-        if (isNaN(d.getTime())) return '';
-        const h = String(d.getHours()).padStart(2, '0');
-        const m = String(d.getMinutes()).padStart(2, '0');
-        return `${h}:${m}`;
-    }
-    
     function formatDateTimeShort(dateVal) {
         if (!dateVal) return '';
         const d = new Date(dateVal);
@@ -2799,15 +2933,9 @@ async function exportMeetingMinutes(meetingId) {
     }
     
     function getAuthorName(disc) {
-        if (disc.authorName && disc.authorName.trim()) {
-            return disc.authorName;
-        }
-        if (disc.authorId && authorNameMap[disc.authorId]) {
-            return authorNameMap[disc.authorId];
-        }
-        if (disc.userId && authorNameMap[disc.userId]) {
-            return authorNameMap[disc.userId];
-        }
+        if (disc.authorName && disc.authorName.trim()) return disc.authorName;
+        if (disc.authorId && authorNameMap[disc.authorId]) return authorNameMap[disc.authorId];
+        if (disc.userId && authorNameMap[disc.userId]) return authorNameMap[disc.userId];
         return 'Giáo viên';
     }
     
@@ -2821,30 +2949,66 @@ async function exportMeetingMinutes(meetingId) {
         return map[fmt] || fmt || 'Không xác định';
     }
     
-    function renderAttachListHTML(attachments) {
+    // Tự sinh URL từ fileId
+    function resolveAttachmentUrl(att) {
+        if (!att) return { finalUrl: '', fileId: '' };
+        
+        let finalUrl = att.url ? String(att.url).trim() : '';
+        const fid = att.fileId || att.fid || '';
+        const fileIdStr = fid ? String(fid).trim() : '';
+        
+        if (!finalUrl && fileIdStr) {
+            finalUrl = `https://drive.google.com/file/d/${fileIdStr}/view?usp=sharing`;
+        } else if (finalUrl && !finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
+            finalUrl = 'https://' + finalUrl;
+        }
+        
+        return { finalUrl: finalUrl, fileId: fileIdStr };
+    }
+    
+    // ============================================================
+    // FIX #3: RENDER ATTACHMENT — Link inline style đầy đủ
+    // ============================================================
+    function renderAttachList(attachments) {
         if (!attachments || Object.keys(attachments).length === 0) {
             return '';
         }
         const items = Object.values(attachments).map(att => {
             const fileName = att.fileName || att.name || 'Tài liệu';
-            const fid = att.fileId || '';
             const desc = att.description || att.note || '';
-            const url = att.url || '';
+            const resolved = resolveAttachmentUrl(att);
+            const finalUrl = resolved.finalUrl;
+            const fileId = resolved.fileId;
             
             let sub = '';
-            if (fid) {
-                sub += `<div style="font-size:11pt;color:#475569;font-style:italic;">File ID: <code style="font-family:Consolas,monospace;font-style:normal;background:#f1f5f9;padding:1px 4px;border-radius:3px;">${esc(fid)}</code></div>`;
+            if (fileId) {
+                sub += `<div style="font-size:10pt;color:#000000;font-style:italic;margin-top:2px;">
+                    File ID: <code style="font-family:Consolas,monospace;font-style:normal;background:#f0f0f0;padding:1px 4px;border-radius:3px;color:#000000;">${esc(fileId)}</code>
+                </div>`;
             }
             if (desc) {
-                sub += `<div style="font-size:11pt;color:#334155;margin-top:2px;"><span style="color:#64748b;">Mô tả:</span> ${esc(desc)}</div>`;
+                sub += `<div style="font-size:10pt;color:#000000;margin-top:2px;">
+                    <span style="font-style:italic;">Mô tả:</span> ${esc(desc)}
+                </div>`;
             }
-            if (url) {
-                sub += `<div style="font-size:11pt;margin-top:2px;"><a href="${esc(url)}" style="color:#0369a1;text-decoration:none;border-bottom:1px dotted #0369a1;" target="_blank" rel="noopener noreferrer">🔗 Link truy cập</a></div>`;
+            if (finalUrl) {
+                sub += `<div style="margin-top:4px;font-size:10pt;">
+                    <a href="${esc(finalUrl)}" 
+                       target="_blank" 
+                       rel="noopener noreferrer" 
+                       class="attachment-link"
+                       style="color:#000000;text-decoration:underline;font-weight:bold;cursor:pointer;">
+                        Xem tài liệu trực tuyến
+                    </a>
+                </div>`;
+                sub += `<div style="font-size:8.5pt;color:#333333;margin-top:2px;word-break:break-all;font-family:Consolas,monospace;">
+                    URL: ${esc(finalUrl)}
+                </div>`;
             }
             
             return `
-                <li style="margin-bottom:8px;line-height:1.5;">
-                    <div style="font-weight:bold;font-size:12pt;">📄 ${esc(fileName)}</div>
+                <li style="margin-bottom:10px;line-height:1.5;page-break-inside:auto;break-inside:auto;">
+                    <div style="font-weight:bold;font-size:11pt;color:#000000;">• ${esc(fileName)}</div>
                     ${sub}
                 </li>
             `;
@@ -2853,17 +3017,10 @@ async function exportMeetingMinutes(meetingId) {
         return `<ul style="margin:6px 0 0 20px;padding:0;list-style:none;">${items}</ul>`;
     }
     
-    function renderDiscussionBlock(discussions, blockTitle, colorTheme) {
+    function renderDiscussionBlock(discussions, blockTitle) {
         if (!discussions || discussions.length === 0) {
             return '';
         }
-        
-        const theme = colorTheme || 'yellow';
-        const themeMap = {
-            yellow: { bg: '#fffbeb', border: '#fde68a', titleColor: '#92400e', itemBg: '#fef3c7', itemBorder: '#fcd34d' },
-            blue: { bg: '#eff6ff', border: '#bfdbfe', titleColor: '#1e40af', itemBg: '#dbeafe', itemBorder: '#93c5fd' }
-        };
-        const t = themeMap[theme] || themeMap.yellow;
         
         const rootDiscs = discussions.filter(d => !d.parentId);
         const replyMap = {};
@@ -2886,16 +3043,18 @@ async function exportMeetingMinutes(meetingId) {
             if (disc.attachments && Object.keys(disc.attachments).length > 0) {
                 Object.values(disc.attachments).forEach(att => {
                     const fileName = att.fileName || att.name || 'Tài liệu';
-                    const fid = att.fileId || '';
-                    const url = att.url || '';
-                    if (url) {
+                    const resolved = resolveAttachmentUrl(att);
+                    const finalUrl = resolved.finalUrl;
+                    if (finalUrl) {
                         attList.push(`
-                            <div style="font-size:11pt;margin-top:2px;padding-left:12px;">
-                                <span style="color:#64748b;">📎</span>
-                                <a href="${esc(url)}" style="color:#0369a1;text-decoration:none;border-bottom:1px dotted #0369a1;" target="_blank" rel="noopener noreferrer">
+                            <div style="font-size:10pt;margin-top:3px;padding-left:12px;">
+                                <span>Đính kèm:</span>
+                                <a href="${esc(finalUrl)}" 
+                                   target="_blank" 
+                                   rel="noopener noreferrer"
+                                   style="color:#000000;text-decoration:underline;font-weight:bold;cursor:pointer;">
                                     ${esc(fileName)}
                                 </a>
-                                ${fid ? `<span style="font-size:10pt;color:#64748b;font-style:italic;"> (ID: ${esc(fid.substring(0, 12))}…)</span>` : ''}
                             </div>
                         `);
                     }
@@ -2904,16 +3063,19 @@ async function exportMeetingMinutes(meetingId) {
             
             const replies = replyMap[disc.id] || [];
             replies.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
-            
             const repliesHtml = replies.map(r => renderOne(r, true)).join('');
             
+            const itemStyle = isReply 
+                ? 'margin-left:20px;padding-left:10px;border-left:1px solid #666666;margin-bottom:8px;' 
+                : 'padding:6px 0;border-bottom:1px dotted #999999;margin-bottom:6px;';
+            
             return `
-                <div style="margin-bottom:8px;${isReply ? 'margin-left:20px;padding-left:10px;border-left:2px solid #cbd5e1;' : `padding:8px 10px;background:${t.itemBg};border-left:3px solid ${t.itemBorder};border-radius:3px;`}">
-                    <div style="font-size:11pt;line-height:1.5;">
-                        <strong style="color:#0f172a;">👤 ${esc(authorName)}</strong>
-                        <span style="color:#64748b;font-style:italic;"> (${esc(timeStr)})${isEdited ? ' ✏️ đã chỉnh sửa' : ''}${isReply ? ' — phản hồi' : ''}:</span>
+                <div style="page-break-inside:auto;break-inside:auto;${itemStyle}">
+                    <div style="font-size:10.5pt;line-height:1.5;">
+                        <strong style="color:#000000;">${esc(authorName)}</strong>
+                        <span style="color:#000000;font-style:italic;"> (${esc(timeStr)})${isEdited ? ' [đã chỉnh sửa]' : ''}${isReply ? ' [phản hồi]' : ''}:</span>
                     </div>
-                    <div style="font-size:11pt;line-height:1.6;margin-top:2px;color:#1e293b;white-space:pre-wrap;">${contentHtml}</div>
+                    <div style="font-size:10.5pt;line-height:1.6;margin-top:2px;color:#000000;white-space:pre-wrap;">${contentHtml}</div>
                     ${attList.length > 0 ? `<div style="margin-top:3px;">${attList.join('')}</div>` : ''}
                     ${repliesHtml}
                 </div>
@@ -2923,17 +3085,18 @@ async function exportMeetingMinutes(meetingId) {
         const itemsHtml = rootDiscs.map(d => renderOne(d, false)).join('');
         
         return `
-            <div style="margin-top:12px;padding:10px 12px;background:${t.bg};border:1px solid ${t.border};border-radius:4px;">
-                <div style="font-weight:bold;font-size:12pt;color:${t.titleColor};margin-bottom:6px;">
+            <div style="margin-top:12px;padding:8px 0 4px 0;border-top:1px solid #000000;page-break-inside:auto;break-inside:auto;">
+                <div style="font-weight:bold;font-style:italic;font-size:11pt;color:#000000;margin-bottom:6px;page-break-after:avoid;break-after:avoid;">
                     ${blockTitle} (${discussions.length} ý kiến):
                 </div>
-                <div>
-                    ${itemsHtml}
-                </div>
+                <div>${itemsHtml}</div>
             </div>
         `;
     }
     
+    // ============================================================
+    // 3. BUILD HTML
+    // ============================================================
     const meetingDateStr = formatDateVN(meeting.meetingDate || meeting.createdAt);
     const closedDateStr = meeting.closedAt ? formatDateVN(meeting.closedAt) : '';
     
@@ -2942,53 +3105,55 @@ async function exportMeetingMinutes(meetingId) {
     
     const membersHtml = memberList.map((m, idx) => {
         const status = m.finalConfirmed
-            ? '<span style="color:#15803d;">✅ Đã xác nhận</span>'
-            : '<span style="color:#b91c1c;">❌ Chưa xác nhận</span>';
+            ? '<span style="color:#000000;font-weight:bold;">[Đã xác nhận]</span>'
+            : '<span style="color:#000000;font-style:italic;">[Chưa xác nhận]</span>';
         return `
             <tr>
-                <td style="text-align:center;padding:4px 8px;border:1px solid #cbd5e1;">${idx + 1}</td>
-                <td style="padding:4px 8px;border:1px solid #cbd5e1;">${esc(m.name)}</td>
-                <td style="padding:4px 8px;border:1px solid #cbd5e1;">${esc(m.email)}</td>
-                <td style="padding:4px 8px;border:1px solid #cbd5e1;text-align:center;">${status}</td>
+                <td style="text-align:center;padding:3px 6px;border:1px solid #000000;font-size:11px;line-height:1.25;color:#000000;">${idx + 1}</td>
+                <td style="padding:3px 6px;border:1px solid #000000;font-size:11px;line-height:1.25;color:#000000;">${esc(m.name)}</td>
+                <td style="padding:3px 6px;border:1px solid #000000;font-size:11px;line-height:1.25;color:#000000;">${esc(m.email)}</td>
+                <td style="padding:3px 6px;border:1px solid #000000;text-align:center;font-size:11px;line-height:1.25;color:#000000;">${status}</td>
             </tr>
         `;
     }).join('');
     
     const contentsHtml = contents.length === 0
-        ? `<p style="font-style:italic;color:#64748b;">Chưa có nội dung nào.</p>`
+        ? `<p style="font-style:italic;color:#000000;">Chưa có nội dung nào.</p>`
         : contents.map((c, idx) => {
             const romanIdx = toRoman(idx + 1);
             
-            const attachHtml = renderAttachListHTML(c.attachments);
+            const attachHtml = renderAttachList(c.attachments);
             const attachBlock = attachHtml ? `
-                <div style="margin-top:8px;">
-                    <strong>📎 Tài liệu đính kèm:</strong>
+                <div style="margin-top:8px;page-break-inside:auto;break-inside:auto;">
+                    <div style="font-weight:bold;font-size:10.5pt;color:#000000;page-break-after:avoid;break-after:avoid;">Tài liệu thảo luận đính kèm:</div>
                     ${attachHtml}
                 </div>
             ` : '';
             
             const contentDiscussions = allDiscussions.filter(d => d.contentId === c.id);
-            const discussionBlock = renderDiscussionBlock(contentDiscussions, '📢 Ý kiến thảo luận', 'yellow');
+            const discussionBlock = renderDiscussionBlock(contentDiscussions, 'Ý kiến thảo luận');
             
             let conclusionBlock = '';
             if (c.conclusion) {
-                const conclusionAttachHtml = renderAttachListHTML(c.conclusionAttachments);
+                const conclusionAttachHtml = renderAttachList(c.conclusionAttachments);
                 const conclusionAttachBlock = conclusionAttachHtml ? `
-                    <div style="margin-top:8px;">
-                        <strong>📎 Tài liệu kèm kết luận:</strong>
+                    <div style="margin-top:8px;page-break-inside:auto;break-inside:auto;">
+                        <div style="font-weight:bold;font-size:10.5pt;color:#000000;page-break-after:avoid;break-after:avoid;">Văn bản kết luận / Quyết định ban hành:</div>
                         ${conclusionAttachHtml}
                     </div>
                 ` : '';
                 
                 const concludedByName = c.concludedBy
-                    ? (concludedByNameMap[c.concludedBy] || 'Tổ trưởng')
-                    : 'Tổ trưởng';
+                    ? (concludedByNameMap[c.concludedBy] || BLANK_LINE)
+                    : BLANK_LINE;
                 
                 conclusionBlock = `
-                    <div style="margin-top:10px;padding:10px 12px;background:#eff6ff;border-left:3px solid #2563eb;">
-                        <div style="font-weight:bold;margin-bottom:4px;">➤ Kết luận của tổ trưởng:</div>
-                        <div style="white-space:pre-wrap;line-height:1.6;">${esc(c.conclusion)}</div>
-                        <div style="font-size:11pt;color:#475569;margin-top:6px;font-style:italic;">
+                    <div style="margin-top:10px;padding:8px 0 8px 12px;border-left:2px solid #000000;page-break-inside:auto;break-inside:auto;">
+                        <div style="font-weight:bold;margin-bottom:4px;color:#000000;font-size:10.5pt;page-break-after:avoid;break-after:avoid;">
+                            KẾT LUẬN CỦA TỔ TRƯỞNG:
+                        </div>
+                        <div style="white-space:pre-wrap;line-height:1.6;font-size:10.5pt;color:#000000;">${esc(c.conclusion)}</div>
+                        <div style="font-size:9.5pt;color:#000000;margin-top:6px;font-style:italic;">
                             Người kết luận: ${esc(concludedByName)} — ${formatDateVN(c.concludedAt)}
                         </div>
                         ${conclusionAttachBlock}
@@ -2996,24 +3161,19 @@ async function exportMeetingMinutes(meetingId) {
                 `;
             } else {
                 conclusionBlock = `
-                    <div style="margin-top:10px;padding:8px 12px;background:#fef3c7;border-left:3px solid #f59e0b;">
-                        <em>Nội dung này chưa có kết luận chính thức.</em>
+                    <div style="margin-top:10px;padding:6px 0;border-top:1px dotted #999999;page-break-inside:auto;break-inside:auto;">
+                        <em style="font-size:10.5pt;color:#000000;">Nội dung này chưa có kết luận chính thức.</em>
                     </div>
                 `;
             }
             
             return `
-                <div style="margin-top:16px;page-break-inside:avoid;">
-                    <div style="font-weight:bold;font-size:14px;margin-bottom:6px;">
+                <div style="margin-top:14px;page-break-inside:auto;break-inside:auto;">
+                    <div style="font-weight:bold;font-size:12pt;margin-bottom:6px;color:#000000;page-break-after:avoid;break-after:avoid;">
                         ${romanIdx}. ${esc(c.title)}
                     </div>
-                    <div style="margin-left:20px;">
-                        <div style="margin-bottom:6px;">
-                            <strong>Nội dung trình bày:</strong>
-                        </div>
-                        <div style="white-space:pre-wrap;line-height:1.6;padding-left:8px;border-left:2px solid #e2e8f0;">
-                            ${esc(c.description || '(Không có mô tả)')}
-                        </div>
+                    <div style="margin-left:16px;">
+                        <div style="white-space:pre-wrap;line-height:1.6;font-size:10.5pt;color:#000000;">${esc(c.description || '(Không có mô tả)')}</div>
                         ${attachBlock}
                         ${discussionBlock}
                         ${conclusionBlock}
@@ -3023,31 +3183,31 @@ async function exportMeetingMinutes(meetingId) {
         }).join('');
     
     const generalDiscussions = allDiscussions.filter(d => !d.contentId);
-    const generalDiscussionBlock = renderDiscussionBlock(generalDiscussions, '📢 Ý kiến thảo luận chung', 'blue');
+    const generalDiscussionBlock = renderDiscussionBlock(generalDiscussions, 'Ý kiến thảo luận chung');
     
     let tasksHtml = '';
     if (tasksDetailed.length === 0) {
-        tasksHtml = `<p style="font-style:italic;color:#64748b;">Chưa có nhiệm vụ nào được phân công.</p>`;
+        tasksHtml = `<p style="font-style:italic;color:#000000;">Chưa có nhiệm vụ nào được phân công.</p>`;
     } else {
         tasksHtml = `
-            <table style="width:100%;border-collapse:collapse;margin-top:8px;font-size:13px;">
+            <table style="width:100%;border-collapse:collapse;margin-top:8px;font-size:11pt;page-break-inside:auto;break-inside:auto;">
                 <thead>
-                    <tr style="background:#f1f5f9;">
-                        <th style="border:1px solid #cbd5e1;padding:6px;width:40px;">STT</th>
-                        <th style="border:1px solid #cbd5e1;padding:6px;">Họ và tên</th>
-                        <th style="border:1px solid #cbd5e1;padding:6px;">Nội dung nhiệm vụ</th>
-                        <th style="border:1px solid #cbd5e1;padding:6px;width:90px;">Hạn</th>
-                        <th style="border:1px solid #cbd5e1;padding:6px;">Sản phẩm cần nộp</th>
+                    <tr>
+                        <th style="border:1px solid #000000;padding:4px;width:35px;font-size:10.5pt;background:#f0f0f0;color:#000000;">STT</th>
+                        <th style="border:1px solid #000000;padding:4px;font-size:10.5pt;background:#f0f0f0;color:#000000;">Người thực hiện</th>
+                        <th style="border:1px solid #000000;padding:4px;font-size:10.5pt;background:#f0f0f0;color:#000000;">Nội dung</th>
+                        <th style="border:1px solid #000000;padding:4px;width:85px;font-size:10.5pt;background:#f0f0f0;color:#000000;">Hạn</th>
+                        <th style="border:1px solid #000000;padding:4px;font-size:10.5pt;background:#f0f0f0;color:#000000;">Sản phẩm</th>
                     </tr>
                 </thead>
                 <tbody>
                     ${tasksDetailed.map((t, i) => `
                         <tr>
-                            <td style="border:1px solid #cbd5e1;padding:6px;text-align:center;">${i + 1}</td>
-                            <td style="border:1px solid #cbd5e1;padding:6px;">${esc(t.assigneeName)}</td>
-                            <td style="border:1px solid #cbd5e1;padding:6px;">${esc(t.title || '')}${t.description ? `<br><em style="color:#64748b;font-size:12px;">${esc(t.description)}</em>` : ''}</td>
-                            <td style="border:1px solid #cbd5e1;padding:6px;text-align:center;">${formatDeadlineVN(t.deadline)}</td>
-                            <td style="border:1px solid #cbd5e1;padding:6px;">${esc(t.product || 'Chưa xác định')}</td>
+                            <td style="border:1px solid #000000;padding:4px;text-align:center;font-size:10.5pt;color:#000000;">${i + 1}</td>
+                            <td style="border:1px solid #000000;padding:4px;font-size:10.5pt;color:#000000;">${esc(t.assigneeName)}</td>
+                            <td style="border:1px solid #000000;padding:4px;font-size:10.5pt;color:#000000;">${esc(t.title || '')}${t.description ? `<br><em style="color:#000000;font-size:10pt;">${esc(t.description)}</em>` : ''}</td>
+                            <td style="border:1px solid #000000;padding:4px;text-align:center;font-size:10.5pt;color:#000000;">${formatDeadlineVN(t.deadline)}</td>
+                            <td style="border:1px solid #000000;padding:4px;font-size:10.5pt;color:#000000;">${esc(t.product || '—')}</td>
                         </tr>
                     `).join('')}
                 </tbody>
@@ -3058,10 +3218,10 @@ async function exportMeetingMinutes(meetingId) {
     let forceCloseBlock = '';
     if (meeting.forceCloseReason) {
         forceCloseBlock = `
-            <div style="margin-top:12px;padding:10px 12px;background:#fef3c7;border:1px solid #fcd34d;">
-                <strong>⚠️ Ghi chú chốt ngoại lệ:</strong>
-                <div style="margin-top:4px;line-height:1.6;">${esc(meeting.forceCloseReason)}</div>
-                <div style="font-size:12px;color:#92400e;margin-top:4px;font-style:italic;">
+            <div style="margin-top:12px;padding:8px 12px;border:1px solid #000000;page-break-inside:auto;break-inside:auto;">
+                <strong style="color:#000000;">Ghi chú chốt ngoại lệ:</strong>
+                <div style="margin-top:4px;line-height:1.6;color:#000000;">${esc(meeting.forceCloseReason)}</div>
+                <div style="font-size:10pt;color:#000000;margin-top:4px;font-style:italic;">
                     (Chốt ngày ${meeting.forceClosedAt ? formatDateVN(meeting.forceClosedAt) : closedDateStr})
                 </div>
             </div>
@@ -3072,6 +3232,9 @@ async function exportMeetingMinutes(meetingId) {
     const meetingMonthNum = meeting.meetingDate ? (new Date(meeting.meetingDate).getMonth() + 1) : '...';
     const meetingYearNum = meeting.meetingDate ? new Date(meeting.meetingDate).getFullYear() : '......';
     
+    // ============================================================
+    // 4. BUILD HTML DOCUMENT — FIX HEADER + LINK
+    // ============================================================
     const documentHtml = `
 <!DOCTYPE html>
 <html lang="vi">
@@ -3081,104 +3244,148 @@ async function exportMeetingMinutes(meetingId) {
     <style>
         @page {
             size: A4;
-            margin: 20mm 15mm 15mm 15mm;
+            margin: 12mm 12mm 12mm 12mm;
         }
+        
         * { box-sizing: border-box; }
+        
         body {
             font-family: "Times New Roman", "Liberation Serif", serif;
-            font-size: 13pt;
+            font-size: 12pt;
             line-height: 1.5;
-            color: #000;
+            color: #000000;
+            background: #ffffff;
             margin: 0;
             padding: 0;
         }
-        .page {
-            max-width: 210mm;
-            margin: 0 auto;
-            padding: 10mm 0;
+        
+        table, thead, tbody, tr, td, th, div, section, article, ul, ol, li, p {
+            page-break-inside: auto !important;
+            break-inside: auto !important;
         }
+        
+        h1, h2, h3, h4, h5, h6, .section-title, .section-heading {
+            page-break-after: avoid !important;
+            break-after: avoid !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+        }
+        
+        .members-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+            line-height: 1.25;
+        }
+        .members-table th,
+        .members-table td {
+            padding: 3px 6px !important;
+            border: 1px solid #000000;
+            color: #000000;
+        }
+        .members-table th {
+            background: #f0f0f0;
+            font-weight: bold;
+            text-align: left;
+            font-size: 11px;
+        }
+        
+        a {
+            color: #000000;
+            text-decoration: underline;
+        }
+        
+        /* ============================================================
+           FIX #2: HEADER — Mở rộng header-right lên 52%
+           ============================================================ */
         .header {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            margin-bottom: 8px;
+            margin-bottom: 12px;
             font-size: 12pt;
-            gap: 10px;
+            gap: 8px;
         }
         .header-left {
+            flex: 0 0 48%;
+            max-width: 48%;
             text-align: center;
-            flex: 0 0 55%;
-            max-width: 53%;
             line-height: 1.4;
         }
         .header-right {
+            flex: 0 0 52%;
+            max-width: 52%;
             text-align: center;
-            flex: 0 0 45%;
-            max-width: 47%;
             line-height: 1.4;
         }
         .header-left strong,
         .header-right strong {
             display: block;
+            color: #000000;
         }
         .header-school {
             white-space: nowrap;
             font-size: 12pt;
         }
+        .header-right strong {
+            white-space: nowrap;
+            font-size: 11.5pt;
+        }
         .header-sub {
             font-weight: normal;
             font-size: 11pt;
+            color: #000000;
         }
-        .header-divider {
-            display: inline-block;
-            border-bottom: 1px solid #000;
-            width: 60%;
-            margin-top: 2px;
-        }
+        
         .title {
             text-align: center;
-            margin: 24px 0 4px 0;
-            font-size: 16pt;
+            margin: 20px 0 4px 0;
+            font-size: 15pt;
             font-weight: bold;
             letter-spacing: 1px;
+            color: #000000;
+            page-break-after: avoid;
+            break-after: avoid;
         }
         .subtitle {
             text-align: center;
-            font-size: 12pt;
+            font-size: 11pt;
             font-style: italic;
-            margin-bottom: 20px;
+            margin-bottom: 16px;
+            color: #000000;
+            page-break-after: avoid;
+            break-after: avoid;
         }
+        
         .meta-table {
             width: 100%;
-            font-size: 12pt;
-            margin-bottom: 16px;
+            font-size: 11pt;
+            margin-bottom: 14px;
+            color: #000000;
         }
         .meta-table td {
             vertical-align: top;
             padding: 2px 4px;
+            color: #000000;
         }
-        .meta-table td:first-child {
-            width: 140px;
-        }
-        .meta-table td:nth-child(2) {
-            width: 8px;
-        }
+        
         .section-heading {
             font-weight: bold;
-            font-size: 13pt;
-            margin: 18px 0 8px 0;
+            font-size: 12pt;
+            margin: 14px 0 8px 0;
             text-transform: uppercase;
-            border-bottom: 1px solid #94a3b8;
-            padding-bottom: 2px;
+            border-bottom: 1px solid #000000;
+            padding-bottom: 3px;
+            color: #000000;
         }
-        table {
-            font-family: "Times New Roman", serif;
-        }
+        
         .signature-block {
             margin-top: 30px;
             display: flex;
             justify-content: space-around;
             page-break-inside: avoid;
+            break-inside: avoid;
+            color: #000000;
         }
         .signature-col {
             width: 45%;
@@ -3188,35 +3395,55 @@ async function exportMeetingMinutes(meetingId) {
             font-weight: bold;
             font-size: 12pt;
             margin-bottom: 4px;
+            color: #000000;
         }
         .signature-note {
-            font-size: 11pt;
+            font-size: 10.5pt;
             font-style: italic;
             margin-bottom: 60px;
+            color: #000000;
         }
         .signature-name {
             font-size: 12pt;
             font-weight: bold;
+            color: #000000;
         }
+        
         .footer-note {
             text-align: center;
             font-size: 10pt;
-            color: #475569;
-            margin-top: 24px;
+            color: #000000;
+            margin-top: 20px;
             font-style: italic;
         }
+        
+        /* ============================================================
+           FIX #3: CSS PRINT CHO LINK
+           ============================================================ */
         @media print {
-            body { font-size: 12pt; }
-            .page { padding: 0; }
+            .print-toolbar { display: none !important; }
+            .page-wrapper { padding-top: 0 !important; }
             .no-print { display: none !important; }
+            
+            a {
+                text-decoration: underline !important;
+                color: #000000 !important;
+            }
+            
+            .attachment-link {
+                text-decoration: underline !important;
+                color: #000000 !important;
+                font-weight: bold !important;
+            }
         }
+        
         .print-toolbar {
             position: fixed;
             top: 0;
             left: 0;
             right: 0;
-            background: #1e293b;
-            color: #fff;
+            background: #333333;
+            color: #ffffff;
             padding: 10px 16px;
             display: flex;
             justify-content: space-between;
@@ -3226,9 +3453,9 @@ async function exportMeetingMinutes(meetingId) {
             font-size: 14px;
         }
         .print-toolbar button {
-            background: #2563eb;
-            color: #fff;
-            border: none;
+            background: #000000;
+            color: #ffffff;
+            border: 1px solid #ffffff;
             border-radius: 6px;
             padding: 8px 16px;
             font-size: 14px;
@@ -3236,13 +3463,23 @@ async function exportMeetingMinutes(meetingId) {
             cursor: pointer;
             margin-left: 8px;
         }
-        .print-toolbar button:hover { background: #1d4ed8; }
-        .print-toolbar button.secondary { background: #64748b; }
-        .print-toolbar button.secondary:hover { background: #475569; }
+        .print-toolbar button:hover { background: #444444; }
+        .print-toolbar button.secondary { background: #666666; }
+        .print-toolbar button.secondary:hover { background: #555555; }
         .page-wrapper { padding-top: 60px; }
-        @media print {
-            .print-toolbar { display: none !important; }
-            .page-wrapper { padding-top: 0 !important; }
+        
+        @media screen {
+            body {
+                background: #f1f5f9;
+            }
+            .page-wrapper {
+                max-width: 210mm;
+                margin: 0 auto;
+                background: #ffffff;
+                padding: 60px 15mm 15mm 15mm;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+                min-height: 100vh;
+            }
         }
     </style>
 </head>
@@ -3257,70 +3494,48 @@ async function exportMeetingMinutes(meetingId) {
     </div>
 
     <div class="page-wrapper">
-    <div class="page">
 
-       <!-- KHUNG TIÊU NGỮ 2 CỘT (CỐ ĐỊNH KHÔNG BỊ RỚT DÒNG) -->
-        <table style="width: 100%; border-collapse: collapse; border: none; margin-bottom: 16px; table-layout: fixed;">
-            <tr>
-                <td style="width: 42%; text-align: center; vertical-align: top; padding: 0; padding-right: 8px;">
-                    <div style="font-family: 'Times New Roman', serif; font-size: 11pt; text-transform: uppercase; line-height: 1.35; white-space: nowrap;">SỞ GIÁO DỤC VÀ ĐÀO TẠO VĨNH LONG</div>
-                    <div style="font-family: 'Times New Roman', serif; font-size: 11.5pt; font-weight: bold; text-transform: uppercase; line-height: 1.35; white-space: nowrap;">TRƯỜNG THCS&THPT TRẦN TRƯỜNG SINH</div>
-                    <div style="display: inline-block; width: 42%; height: 0; border-bottom: 1px solid #000; margin-top: 3px; margin-bottom: 5px;"></div>
-                   
-                    <div style="font-size:11pt;margin-top:2px;white-space:nowrap;">Số: <strong>${esc(meeting.code || '.......')}</strong></div>
-                </td>
-                <td style="width: 58%; text-align: center; vertical-align: top; padding: 0; padding-left: 8px;">
-                    <div style="font-family: 'Times New Roman', serif; font-size: 12pt; font-weight: bold; text-transform: uppercase; line-height: 1.35; white-space: nowrap;">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
-                    <div style="font-family: 'Times New Roman', serif; font-size: 12.5pt; font-weight: bold; line-height: 1.35; white-space: nowrap;">Độc lập - Tự do - Hạnh phúc</div>
-                    <div style="display: inline-block; width: 42%; height: 0; border-bottom: 1px solid #000; margin-top: 3px; margin-bottom: 5px;"></div>
-                    <div style="font-family: 'Times New Roman', serif; font-size: 11.5pt; font-style: italic; line-height: 1.4; white-space: nowrap;">Thạnh Phong, ngày ${meetingDayNum} tháng ${meetingMonthNum} năm ${meetingYearNum}</div>
-                </td>
-            </tr>
-        </table>
+        <div class="header">
+            <div class="header-left">
+                <strong>SỞ GIÁO DỤC VÀ ĐÀO TẠO VĨNH LONG</strong>
+                <strong class="header-school">TRƯỜNG THCS&THPT TRẦN TRƯỜNG SINH</strong>
+                <div class="header-sub">TỔ: ${esc(displayTeamName)}</div>
+                <div class="header-sub">─────────</div>
+                <div style="font-size:11pt;margin-top:4px;color:#000000;">Số: <strong>${esc(meeting.code || '.......')}</strong></div>
+            </div>
+            <div class="header-right">
+                <strong>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</strong>
+                <div style="font-weight:bold;color:#000000;white-space:nowrap;">Độc lập - Tự do - Hạnh phúc</div>
+                <div class="header-sub">─────────</div>
+                <div style="font-size:11pt;margin-top:4px;font-style:italic;color:#000000;">
+                    Thạnh Phong, ngày ${meetingDayNum} tháng ${meetingMonthNum} năm ${meetingYearNum}
+                </div>
+            </div>
+        </div>
 
-        <div class="title">BIÊN BẢN </div>
-        <div class="subtitle">( ${esc(meeting.title || '')})</div>
+        <div class="title">BIÊN BẢN SINH HOẠT TỔ CHUYÊN MÔN</div>
+        <div class="subtitle">(Về việc: ${esc(meeting.title || '')})</div>
 
         <table class="meta-table">
-            <tr>
-                <td>Mã hồ sơ:</td>
-                <td>:</td>
-                <td><strong>${esc(meeting.code || '..............')}</strong></td>
-            </tr>
-            <tr>
-                <td>Thời gian:</td>
-                <td>:</td>
-                <td>${esc(formatTimeOnly(meeting.createdAt || meeting.meetingDate))} — ngày ${esc(meetingDateStr)}</td>
-            </tr>
-            <tr>
-                <td>Hình thức:</td>
-                <td>:</td>
-                <td>${esc(formatLabel(meeting.format))}</td>
-            </tr>
-            <tr>
-                <td>Người chủ trì:</td>
-                <td>:</td>
-                <td>${esc(chairmanName || '........................')}</td>
-            </tr>
-            <tr>
-                <td>Thư ký:</td>
-                <td>:</td>
-                <td>${esc(secretaryName || '........................')}</td>
-            </tr>
+            <tr><td style="width:130px;padding:2px 4px;">Mã hồ sơ:</td><td style="width:10px;">:</td><td><strong>${esc(meeting.code || '—')}</strong></td></tr>
+            <tr><td style="padding:2px 4px;">Thời gian:</td><td>:</td><td>${formatTimeOnly(meeting.createdAt || meeting.meetingDate)} — ngày ${esc(meetingDateStr)}</td></tr>
+            <tr><td style="padding:2px 4px;">Hình thức:</td><td>:</td><td>${formatLabel(meeting.format)}</td></tr>
+            <tr><td style="padding:2px 4px;">Người chủ trì:</td><td>:</td><td>${esc(chairmanName)}</td></tr>
+            <tr><td style="padding:2px 4px;">Thư ký:</td><td>:</td><td>${esc(secretaryName)}</td></tr>
         </table>
 
         <div class="section-heading">I. Thành phần tham dự</div>
-        <p style="margin:0 0 6px 0;">
+        <p style="margin:0 0 6px 0;font-size:11pt;color:#000000;">
             Tổng số thành viên được triệu tập: <strong>${totalMembers}</strong> người.
             Đã xác nhận: <strong>${confirmedCount}</strong>/${totalMembers} người.
         </p>
-        <table style="width:100%;border-collapse:collapse;font-size:12pt;">
+        <table class="members-table">
             <thead>
-                <tr style="background:#e2e8f0;">
-                    <th style="border:1px solid #cbd5e1;padding:6px;width:40px;">STT</th>
-                    <th style="border:1px solid #cbd5e1;padding:6px;">Họ và tên</th>
-                    <th style="border:1px solid #cbd5e1;padding:6px;">Email</th>
-                    <th style="border:1px solid #cbd5e1;padding:6px;width:130px;">Trạng thái</th>
+                <tr>
+                    <th style="width:40px;text-align:center;">STT</th>
+                    <th>Họ và tên</th>
+                    <th>Email</th>
+                    <th style="width:130px;text-align:center;">Trạng thái</th>
                 </tr>
             </thead>
             <tbody>
@@ -3340,8 +3555,8 @@ async function exportMeetingMinutes(meetingId) {
             ${forceCloseBlock}
         ` : ''}
 
-        <p style="margin-top:20px;font-style:italic;">
-            Biên bản kết thúc vào ${esc(formatTimeOnly(meeting.closedAt))} — ngày ${esc(closedDateStr || meetingDateStr)}.
+        <p style="margin-top:16px;font-style:italic;font-size:11pt;color:#000000;">
+            Biên bản kết thúc vào ${formatTimeOnly(meeting.closedAt)} — ngày ${esc(closedDateStr || meetingDateStr)}.
             ${meeting.closedBy ? `Hồ sơ được chốt bởi <strong>${esc(closedByName)}</strong>.` : ''}
         </p>
 
@@ -3349,21 +3564,25 @@ async function exportMeetingMinutes(meetingId) {
             <div class="signature-col">
                 <div class="signature-title">CHỦ TỌA CUỘC HỌP</div>
                 <div class="signature-note">(Ký, ghi rõ họ tên)</div>
-                <div class="signature-name">${esc(chairmanName || '........................')}</div>
+                <div class="signature-name">${esc(chairmanName)}</div>
             </div>
             <div class="signature-col">
                 <div class="signature-title">THƯ KÝ</div>
                 <div class="signature-note">(Ký, ghi rõ họ tên)</div>
-                <div class="signature-name">${esc(secretaryName || '........................')}</div>
+                <div class="signature-name">${esc(secretaryName)}</div>
             </div>
         </div>
 
         <div class="footer-note">
             — Hết biên bản —
-            <br>Trích xuất từ Hệ thống Quản lý Sinh hoạt Tổ chuyên môn lúc ${esc(formatDateVN(Date.now()))} ${esc(formatTimeOnly(Date.now()))}
+            <div style="margin-top:6px;font-size:9pt;color:#000000;">
+                Trường THCS-THPT Trần Trường Sinh — Hệ thống Quản lý Sinh hoạt Chuyên môn
+            </div>
+            <div style="margin-top:2px;font-size:8pt;color:#333333;">
+                Trích xuất lúc ${formatDateVN(Date.now())} ${formatTimeOnly(Date.now())}
+            </div>
         </div>
 
-    </div>
     </div>
 
     <script>
@@ -3375,7 +3594,7 @@ async function exportMeetingMinutes(meetingId) {
                 } catch (e) {
                     console.warn('Không thể tự động in:', e);
                 }
-            }, 400);
+            }, 500);
         });
     <\/script>
 
@@ -3383,6 +3602,9 @@ async function exportMeetingMinutes(meetingId) {
 </html>
     `.trim();
     
+    // ============================================================
+    // 5. MỞ CỬA SỔ MỚI VÀ IN
+    // ============================================================
     const win = window.open('', '_blank');
     if (!win) {
         showToast('Trình duyệt đã chặn cửa sổ Pop-up. Vui lòng cho phép Pop-up và thử lại.', 'error', 6000);
