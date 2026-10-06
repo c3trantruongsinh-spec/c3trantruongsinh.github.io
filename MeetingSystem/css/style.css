@@ -1076,26 +1076,150 @@ input, textarea, select {
     gap: 6px;
 }
 
+/* ============================================
+   MEETING TABS — Pills nổi bật, hiện đại
+   ============================================ */
 .meeting-tabs {
     display: flex;
-    gap: 4px;
-    background: var(--gray-100);
-    border-radius: var(--radius-sm);
-    padding: 4px;
-    margin-bottom: 20px;
+    gap: 12px;
+    margin-bottom: 24px;
+    padding: 8px 0 6px 0;
     overflow-x: auto;
     flex-wrap: nowrap;
+    scrollbar-width: thin;
+    scrollbar-color: var(--gray-300) transparent;
+}
+
+.meeting-tabs::-webkit-scrollbar {
+    height: 5px;
+}
+
+.meeting-tabs::-webkit-scrollbar-thumb {
+    background: var(--gray-300);
+    border-radius: 4px;
+}
+
+.meeting-tabs::-webkit-scrollbar-track {
+    background: transparent;
 }
 
 .meeting-tab {
-    padding: 8px 16px;
-    border-radius: 6px;
-    font-weight: 500;
-    font-size: 14px;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 26px;
+    border-radius: 14px;
+    font-weight: 700;
+    font-size: 15px;
     color: var(--gray-600);
-    background: transparent;
-    transition: all var(--transition);
+    background: #ffffff;
+    border: 2px solid var(--gray-200);
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     white-space: nowrap;
+    flex-shrink: 0;
+    box-shadow: 0 1px 3px rgba(30, 58, 138, 0.04);
+    font-family: inherit;
+    position: relative;
+    overflow: hidden;
+}
+
+.meeting-tab .tab-icon {
+    font-size: 18px;
+    line-height: 1;
+    transition: transform 0.3s ease;
+    display: inline-block;
+}
+
+.meeting-tab .tab-label {
+    letter-spacing: 0.2px;
+}
+
+/* === HOVER === */
+.meeting-tab:hover {
+    color: var(--primary);
+    border-color: var(--primary-light);
+    background: #eff6ff;
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(30, 58, 138, 0.15);
+}
+
+.meeting-tab:hover .tab-icon {
+    transform: scale(1.2);
+}
+
+/* === ACTIVE === */
+.meeting-tab.active {
+    background: linear-gradient(135deg, #1e3a8a 0%, #172554 100%);
+    color: #ffffff;
+    border-color: #1e3a8a;
+    box-shadow: 0 10px 24px rgba(30, 58, 138, 0.4);
+    transform: translateY(-3px);
+}
+
+.meeting-tab.active .tab-icon {
+    filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.6));
+    transform: scale(1.2);
+}
+
+/* Dải vàng đồng accent dưới tab active */
+.meeting-tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #fbbf24 0%, #d97706 100%);
+    border-radius: 0 0 14px 14px;
+}
+
+/* Hiệu ứng click */
+.meeting-tab:active {
+    transform: translateY(-1px) scale(0.98);
+    transition: transform 0.1s;
+}
+
+/* === RESPONSIVE === */
+@media (max-width: 768px) {
+    .meeting-tabs {
+        gap: 8px;
+        padding: 4px 0;
+        margin-bottom: 16px;
+    }
+
+    .meeting-tab {
+        padding: 10px 16px;
+        font-size: 13px;
+        border-radius: 12px;
+        gap: 6px;
+        box-shadow: 0 1px 3px rgba(30, 58, 138, 0.06);
+    }
+
+    .meeting-tab .tab-icon {
+        font-size: 15px;
+    }
+
+    .meeting-tab:hover,
+    .meeting-tab.active {
+        transform: translateY(-2px);
+    }
+
+    .meeting-tab.active::after {
+        border-radius: 0 0 12px 12px;
+    }
+}
+
+@media (max-width: 480px) {
+    .meeting-tab {
+        padding: 8px 12px;
+        font-size: 12px;
+        gap: 4px;
+    }
+
+    .meeting-tab .tab-icon {
+        font-size: 14px;
+    }
 }
 
 .meeting-tab:hover {

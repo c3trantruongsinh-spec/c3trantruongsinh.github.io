@@ -1303,11 +1303,23 @@ async function renderMeetingDetail(container, meetingId) {
             tasksCount: tasks.length
         })}
         
-        <div class="meeting-tabs">
-            <button class="meeting-tab active" data-tab="contents">📋 Nội dung</button>
-            <button class="meeting-tab" data-tab="tasks">📋 Nhiệm vụ</button>
-            <button class="meeting-tab" data-tab="confirmations">✅ Xác nhận</button>
-            <button class="meeting-tab" data-tab="logs">📜 Nhật ký</button>
+            <div class="meeting-tabs">
+            <button class="meeting-tab active" data-tab="contents">
+                <span class="tab-icon">📋</span>
+                <span class="tab-label">Nội dung</span>
+            </button>
+            <button class="meeting-tab" data-tab="tasks">
+                <span class="tab-icon">📌</span>
+                <span class="tab-label">Nhiệm vụ</span>
+            </button>
+            <button class="meeting-tab" data-tab="confirmations">
+                <span class="tab-icon">✅</span>
+                <span class="tab-label">Xác nhận</span>
+            </button>
+            <button class="meeting-tab" data-tab="logs">
+                <span class="tab-icon">📜</span>
+                <span class="tab-label">Nhật ký</span>
+            </button>
         </div>
         
         <div id="tabContents">
