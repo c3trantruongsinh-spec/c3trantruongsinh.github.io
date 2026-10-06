@@ -14,9 +14,11 @@ async function renderDiscussions(meetingId, contentId, container, readOnly = fal
         const discussions = await getDiscussions(meetingId, contentId);
         const uid = getCurrentUid();
         const role = await getCurrentUserRole();
-        const isLeader = role === 'truong_to' || role === 'admin';
+        const isLeader = role === 'truong_to' || role === 'admin' 
+                      || role === 'to_pho' || role === 'nhom_truong';
+        const meeting = await getMeeting(meetingId);
+        const isClosed = meeting && meeting.status === 'CLOSED';
         
-        // Build thread hierarchy
         const threads = [];
         const replies = {};
         
@@ -39,13 +41,12 @@ async function renderDiscussions(meetingId, contentId, container, readOnly = fal
                         <p>Chưa có ý kiến nào.</p>
                     </div>
                 ` : `
-                    ${threads.map(t => renderDiscussionItem(t, replies[t.id] || [], uid, isLeader, readOnly)).join('')}
+                    ${threads.map(t => renderDiscussionItem(t, replies[t.id] || [], uid, isLeader, readOnly, isClosed, meetingId)).join('')}
                 `}
             </div>
         `;
         
-        // Add discussion form if not read-only
-        if (!readOnly && uid) {
+        if (!readOnly && uid && !isClosed) {
             const formKey = `disc_${contentId || 'all'}`;
             if (!window._pendingLinks) window._pendingLinks = {};
             window._pendingLinks[formKey] = [];
@@ -63,7 +64,7 @@ async function renderDiscussions(meetingId, contentId, container, readOnly = fal
                             <input type="text" id="attachUrl_${formKey}" placeholder="https://drive.google.com/file/d/.../view" style="flex:2;min-width:200px;padding:8px 12px;border:2px solid var(--gray-200);border-radius:6px;font-size:13px;">
                             <input type="text" id="attachName_${formKey}" placeholder="Tên file (tùy chọn)" style="flex:1;min-width:120px;padding:8px 12px;border:2px solid var(--gray-200);border-radius:6px;font-size:13px;">
                             <button type="button" class="btn-secondary" style="padding:8px 14px;font-size:13px;" onclick="addAttachmentTagFromInput('${formKey}')">
-                                <i class="fas fa-paperclip"></i> Đính kèm link
+                                <i class="fas fa-plus"></i> Thêm link
                             </button>
                         </div>
                         <div id="attachList_${formKey}" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px;">
@@ -80,12 +81,7 @@ async function renderDiscussions(meetingId, contentId, container, readOnly = fal
             `;
         }
         
-           container.innerHTML = html;
-    
-    // Gắn auto-resize cho các ô nhập thảo luận
-    if (typeof attachAutoResizeToDiscussionInputs === 'function') {
-        attachAutoResizeToDiscussionInputs(container);
-    }
+        container.innerHTML = html;
     } catch (error) {
         console.error('Error rendering discussions:', error);
         container.innerHTML = `<p class="error">Lỗi tải thảo luận: ${escapeHtml(error.message)}</p>`;
@@ -93,28 +89,23 @@ async function renderDiscussions(meetingId, contentId, container, readOnly = fal
 }
 
 /**
- * Render a single discussion item
+ * Render một discussion item (đã có nút Sửa + Xóa)
  * @param {Object} discussion
  * @param {Array} replies
  * @param {string} currentUid
  * @param {boolean} isLeader
  * @param {boolean} readOnly
+ * @param {boolean} isClosed
+ * @param {string} meetingId
  * @returns {string} HTML
  */
-/**
- * Render một discussion item (đã có link đính kèm)
- * @param {Object} discussion
- * @param {Array} replies
- * @param {string} currentUid
- * @param {boolean} isLeader
- * @param {boolean} readOnly
- * @returns {string} HTML
- */
-function renderDiscussionItem(discussion, replies, currentUid, isLeader, readOnly) {
+function renderDiscussionItem(discussion, replies, currentUid, isLeader, readOnly, isClosed, meetingId) {
     const isAuthor = discussion.authorId === currentUid;
-    const canEdit = isAuthor || isLeader;
+    const canEdit = (isAuthor || isLeader) && !isClosed;
+    const canDelete = (isAuthor || isLeader) && !isClosed;
     const time = formatDate(discussion.createdAt, true);
     const isEdited = discussion.status === 'EDITED';
+    const parentMeetingId = meetingId || discussion.meetingId || '';
     
     let html = `
         <div class="discussion-item" id="disc_${discussion.id}">
@@ -127,36 +118,57 @@ function renderDiscussionItem(discussion, replies, currentUid, isLeader, readOnl
             <div class="discussion-content">${escapeHtml(discussion.content)}</div>
     `;
     
-    // === RENDER ATTACHMENTS ===
-    html += renderAttachmentsHTML(discussion.attachments, {
-        small: true,
-        showFileId: true
-    });
+    if (discussion.attachments && Object.keys(discussion.attachments).length > 0) {
+        html += `<div class="discussion-attachments">`;
+        Object.values(discussion.attachments).forEach(att => {
+            const fileId = att.fileId || extractGoogleDriveId(att.url) || '';
+            const fileIdShort = fileId.substring(0, 12);
+            
+            html += `
+                <a href="${att.url}" target="_blank" rel="noopener noreferrer"
+                   class="attachment"
+                   style="display:inline-flex;align-items:center;gap:8px;padding:6px 12px;background:var(--gray-100);border-radius:8px;text-decoration:none;color:var(--primary);font-size:13px;margin:2px;"
+                   title="File ID: ${escapeHtml(fileId)}">
+                    <i class="fas fa-external-link-alt"></i>
+                    <span style="font-weight:500;">${escapeHtml(att.fileName)}</span>
+                    <span style="font-size:10px;color:var(--gray-400);font-family:monospace;">
+                        [${escapeHtml(fileIdShort)}…]
+                    </span>
+                </a>
+            `;
+        });
+        html += `</div>`;
+    }
     
-    // Actions
     if (!readOnly && currentUid) {
         html += `
             <div class="discussion-actions">
-                <button class="btn-secondary" style="padding:4px 12px;font-size:13px;" onclick="showReplyForm('${discussion.id}', '${discussion.contentId || ''}')">
-                    <i class="fas fa-reply"></i> Phản hồi
-                </button>
+                ${!isClosed ? `
+                    <button class="btn-secondary" style="padding:4px 12px;font-size:13px;" onclick="showReplyForm('${discussion.id}', '${discussion.contentId || ''}')">
+                        <i class="fas fa-reply"></i> Phản hồi
+                    </button>
+                ` : ''}
                 ${canEdit ? `
-                    <button class="btn-secondary" style="padding:4px 12px;font-size:13px;" onclick="editDiscussion('${discussion.meetingId || ''}', '${discussion.id}', '${discussion.contentId || ''}')">
+                    <button class="btn-secondary" style="padding:4px 12px;font-size:13px;" onclick="editDiscussion('${parentMeetingId}', '${discussion.id}', '${discussion.contentId || ''}')">
                         <i class="fas fa-edit"></i> Sửa
+                    </button>
+                ` : ''}
+                ${canDelete ? `
+                    <button class="btn-danger" style="padding:4px 12px;font-size:13px;background:#dc2626;color:#fff;border:none;border-radius:6px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;" onclick="deleteDiscussionConfirm('${parentMeetingId}', '${discussion.id}', '${discussion.contentId || ''}')">
+                        <i class="fas fa-trash-alt"></i> Xóa
                     </button>
                 ` : ''}
             </div>
         `;
     }
     
-    // Replies
     if (replies && replies.length > 0) {
         html += `
             <div class="discussion-reply-count" onclick="toggleReplies('${discussion.id}')">
                 💬 ${replies.length} phản hồi
             </div>
             <div id="replies_${discussion.id}" style="display:none;">
-                ${replies.map(r => renderDiscussionItem(r, [], currentUid, isLeader, readOnly)).join('')}
+                ${replies.map(r => renderDiscussionItem(r, [], currentUid, isLeader, readOnly, isClosed, meetingId)).join('')}
             </div>
         `;
     }
@@ -167,16 +179,6 @@ function renderDiscussionItem(discussion, replies, currentUid, isLeader, readOnl
 
 /**
  * Submit a discussion (with Google Drive links)
- * @param {string} meetingId
- * @param {string} contentId
- * @param {string} parentId - Optional parent discussion ID
- */
-/**
- * Submit a discussion (with Google Drive links)
- * Sau khi gửi thành công sẽ refresh lại giao diện để cập nhật discussionCount
- * @param {string} meetingId
- * @param {string} contentId
- * @param {string} parentId - Optional parent discussion ID
  */
 async function submitDiscussion(meetingId, contentId, parentId = null) {
     const uid = getCurrentUid();
@@ -224,14 +226,12 @@ async function submitDiscussion(meetingId, contentId, parentId = null) {
         input.value = '';
         resetPendingLinks(formKey);
         
-                // Refresh đúng body của accordion (không refresh toàn trang)
         const container = document.getElementById(`discussions_${inputKey}`);
         if (container && typeof renderDiscussions === 'function') {
             await renderDiscussions(meetingId, contentId, container);
             container.dataset.loaded = 'true';
         }
         
-        // Cập nhật số đếm ở nút toggle
         if (contentId) {
             const toggleBtn = document.querySelector(`[data-disc-toggle="${contentId}"]`);
             if (toggleBtn) {
@@ -248,12 +248,8 @@ async function submitDiscussion(meetingId, contentId, parentId = null) {
     }
 }
 
-
-
 /**
  * Show reply form
- * @param {string} parentId
- * @param {string} contentId
  */
 function showReplyForm(parentId, contentId) {
     const inputKey = contentId || 'all';
@@ -266,12 +262,14 @@ function showReplyForm(parentId, contentId) {
 }
 
 /**
- * Edit a discussion (chỉ thêm link mới, không sửa/xóa link cũ)
- * @param {string} meetingId
- * @param {string} discussionId
- * @param {string} contentId
+ * Edit a discussion
  */
 async function editDiscussion(meetingId, discussionId, contentId) {
+    if (!meetingId) {
+        showToast('Không xác định được cuộc họp. Vui lòng refresh trang.', 'error');
+        return;
+    }
+    
     const snapshot = await db.ref(`discussions/${meetingId}/${discussionId}`).once('value');
     const disc = snapshot.val();
     if (!disc) {
@@ -279,10 +277,14 @@ async function editDiscussion(meetingId, discussionId, contentId) {
         return;
     }
     
+    if (await isMeetingClosed(meetingId)) {
+        showToast('Không thể sửa ý kiến trong cuộc họp đã chốt', 'error');
+        return;
+    }
+    
     const currentContent = disc.content || '';
     const oldAttachments = disc.attachments || {};
     
-    // Danh sách link cũ - KHÓA, không xóa được
     const lockedLinks = Object.values(oldAttachments).map(att => ({
         url: att.url,
         fileId: att.fileId || extractGoogleDriveId(att.url) || '',
@@ -294,10 +296,10 @@ async function editDiscussion(meetingId, discussionId, contentId) {
     if (!window._pendingLinks) window._pendingLinks = {};
     window._pendingLinks[formKey] = [...lockedLinks];
     
-    showModal('Sửa ý kiến', `
+    showModal('✏️ Sửa ý kiến', `
         <div class="form-group">
             <label>Nội dung</label>
-            <textarea id="editDiscussionContent" rows="4">${escapeHtml(currentContent)}</textarea>
+            <textarea id="editDiscussionContent" rows="5">${escapeHtml(currentContent)}</textarea>
         </div>
         
         <div class="form-group">
@@ -310,7 +312,7 @@ async function editDiscussion(meetingId, discussionId, contentId) {
                     <input type="text" id="attachUrl_${formKey}" placeholder="https://drive.google.com/file/d/.../view" style="flex:2;min-width:180px;padding:8px 12px;border:2px solid var(--gray-200);border-radius:6px;font-size:13px;">
                     <input type="text" id="attachName_${formKey}" placeholder="Tên file" style="flex:1;min-width:100px;padding:8px 12px;border:2px solid var(--gray-200);border-radius:6px;font-size:13px;">
                     <button type="button" class="btn-secondary" style="padding:8px 14px;font-size:13px;" onclick="addAttachmentTagFromInput('${formKey}', true)">
-                        <i class="fas fa-paperclip"></i> Đính kèm link
+                        <i class="fas fa-plus"></i> Thêm link
                     </button>
                 </div>
                 <p style="font-size:12px;color:var(--gray-500);margin-top:8px;">
@@ -334,7 +336,6 @@ async function editDiscussion(meetingId, discussionId, contentId) {
                 const allLinks = getPendingLinks(formKey);
                 const newLinks = allLinks.filter(l => l.isNew === true);
                 
-                // Chỉ bổ sung thêm link mới, KHÔNG ghi đè link cũ
                 const newAttachments = {};
                 newLinks.forEach(link => {
                     const key = `gdrive_${link.fileId}`;
@@ -352,17 +353,15 @@ async function editDiscussion(meetingId, discussionId, contentId) {
                 try {
                     await updateDiscussion(meetingId, discussionId, { content: newContent });
                     
-                    // Ghi từng attachment mới vào DB (không đụng link cũ)
                     for (const key of Object.keys(newAttachments)) {
                         await db.ref(`discussions/${meetingId}/${discussionId}/attachments/${key}`).set(newAttachments[key]);
                     }
                     
-                    showToast('Đã cập nhật ý kiến', 'success');
+                    showToast('✅ Đã cập nhật ý kiến', 'success');
                     close();
                     resetPendingLinks(formKey);
                     
-                    const container = document.getElementById(`discussions_${contentId || 'all'}`)
-                                   || document.getElementById('discussionsContainer');
+                    const container = document.getElementById(`discussions_${contentId || 'all'}`);
                     if (container) {
                         await renderDiscussions(meetingId, contentId || null, container);
                     }
@@ -375,8 +374,58 @@ async function editDiscussion(meetingId, discussionId, contentId) {
 }
 
 /**
+ * Xác nhận xóa ý kiến
+ */
+function deleteDiscussionConfirm(meetingId, discussionId, contentId) {
+    if (!meetingId) {
+        showToast('Không xác định được cuộc họp. Vui lòng refresh trang.', 'error');
+        return;
+    }
+    
+    showConfirm(
+        '🗑️ Xóa ý kiến',
+        `<div style="line-height:1.7;">
+            Bạn có chắc chắn muốn xóa ý kiến này?
+            <br><br>
+            <div style="padding:12px;background:#fef2f2;border-left:3px solid #dc2626;border-radius:6px;">
+                <strong style="color:#991b1b;">⚠️ Lưu ý:</strong>
+                <div style="color:#7f1d1d;font-size:14px;margin-top:4px;">
+                    Nếu ý kiến này có phản hồi của người khác, các phản hồi cũng sẽ bị xóa theo.
+                    Hành động này không thể hoàn tác.
+                </div>
+            </div>
+        </div>`,
+        async () => {
+            try {
+                await removeDiscussion(meetingId, discussionId);
+                showToast('🗑️ Đã xóa ý kiến thành công!', 'success', 3000);
+                
+                const container = document.getElementById(`discussions_${contentId || 'all'}`);
+                if (container) {
+                    await renderDiscussions(meetingId, contentId || null, container);
+                }
+                
+                if (contentId) {
+                    const toggleBtn = document.querySelector(`[data-disc-toggle="${contentId}"]`);
+                    if (toggleBtn) {
+                        const badge = toggleBtn.querySelector('.count-badge');
+                        if (badge) {
+                            const current = parseInt(badge.textContent) || 0;
+                            badge.textContent = Math.max(0, current - 1);
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Delete discussion error:', error);
+                showToast('❌ Lỗi xóa ý kiến: ' + error.message, 'error', 5000);
+            }
+        },
+        '🗑️ Xóa ý kiến'
+    );
+}
+
+/**
  * Toggle replies visibility
- * @param {string} discussionId
  */
 function toggleReplies(discussionId) {
     const container = document.getElementById(`replies_${discussionId}`);
@@ -387,7 +436,6 @@ function toggleReplies(discussionId) {
 
 /**
  * Open image preview in modal
- * @param {string} url
  */
 function openImagePreview(url) {
     showModal('Xem ảnh', `
@@ -399,8 +447,6 @@ function openImagePreview(url) {
 
 /**
  * Open PDF preview in modal
- * @param {string} url
- * @param {string} fileName
  */
 function openPDFPreview(url, fileName) {
     showModal(`📄 ${fileName}`, `
@@ -423,6 +469,7 @@ window.renderDiscussionItem = renderDiscussionItem;
 window.submitDiscussion = submitDiscussion;
 window.showReplyForm = showReplyForm;
 window.editDiscussion = editDiscussion;
+window.deleteDiscussionConfirm = deleteDiscussionConfirm;
 window.toggleReplies = toggleReplies;
 window.openImagePreview = openImagePreview;
 window.openPDFPreview = openPDFPreview;

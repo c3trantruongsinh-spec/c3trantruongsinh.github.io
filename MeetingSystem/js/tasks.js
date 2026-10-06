@@ -1,9 +1,72 @@
 // ============================================================
 // TASKS MODULE
+// Trường THCS-THPT Trần Trường Sinh
 // ============================================================
 
 /**
+ * Resolve danh sách UID của assignedTo thành chuỗi tên
+ * Hỗ trợ cả format cũ (string uid) và format mới (object map)
+ * @param {Object|string} assignedTo
+ * @param {string} assignedToNames - Tên đã lưu sẵn (fallback)
+ * @param {Object} memberNameMap - Map uid -> name
+ * @returns {string} Chuỗi tên, ví dụ: "Nguyễn Văn A, Lê Thị B" hoặc "Tất cả thành viên"
+ */
+function resolveAssigneeDisplay(assignedTo, assignedToNames, memberNameMap) {
+    if (!assignedTo) {
+        return assignedToNames || 'Chưa xác định';
+    }
+    
+    if (typeof assignedTo === 'string') {
+        if (assignedTo === '__ALL__') {
+            return 'Tất cả thành viên';
+        }
+        return memberNameMap && memberNameMap[assignedTo] 
+            ? memberNameMap[assignedTo] 
+            : (assignedToNames || assignedTo);
+    }
+    
+    if (typeof assignedTo === 'object') {
+        if (assignedTo['__ALL__'] === true) {
+            return 'Tất cả thành viên';
+        }
+        
+        const uids = Object.keys(assignedTo).filter(k => assignedTo[k] === true);
+        if (uids.length === 0) return assignedToNames || 'Chưa xác định';
+        
+        const names = uids.map(uid => {
+            if (memberNameMap && memberNameMap[uid]) return memberNameMap[uid];
+            return uid.substring(0, 8) + '...';
+        });
+        
+        return names.join(', ');
+    }
+    
+    return assignedToNames || 'Chưa xác định';
+}
+
+/**
+ * Kiểm tra task có được giao cho user không
+ * @param {Object} task
+ * @param {string} uid
+ * @returns {boolean}
+ */
+function isTaskAssignedTo(task, uid) {
+    if (!task.assignedTo) return false;
+    
+    if (typeof task.assignedTo === 'string') {
+        return task.assignedTo === uid || task.assignedTo === '__ALL__';
+    }
+    
+    if (typeof task.assignedTo === 'object') {
+        return task.assignedTo[uid] === true || task.assignedTo['__ALL__'] === true;
+    }
+    
+    return false;
+}
+
+/**
  * Render tasks page
+ * ĐÃ NÂNG CẤP: Hỗ trợ nhiều người được giao (multi-assignee)
  * @param {HTMLElement} container
  */
 async function renderTasks(container) {
@@ -17,33 +80,49 @@ async function renderTasks(container) {
     const role = await getCurrentUserRole();
     const teamId = await getCurrentUserTeamId();
     
-    let allTasks = [];
-    let meetings = [];
-    
+    let accessibleMeetings = [];
     if (role === 'admin') {
-        meetings = await getAllMeetings();
-    } else if (teamId) {
-        meetings = await getMeetingsByTeam(teamId);
+        accessibleMeetings = await getAllMeetings();
+    } else {
+        accessibleMeetings = await getMeetingsForUser(uid, teamId);
     }
     
-    // Lấy tất cả nhiệm vụ từ các cuộc họp
-    for (const meeting of meetings) {
-        const tasks = await getTasks(meeting.id);
-        tasks.forEach(t => {
-            allTasks.push({
-                ...t,
-                meetingId: meeting.id,
-                meetingTitle: meeting.title,
-                meetingCode: meeting.code
+    // Build map tên thành viên từ tất cả meetings
+    const allUids = new Set();
+    accessibleMeetings.forEach(m => {
+        if (m.memberIds) Object.keys(m.memberIds).forEach(u => allUids.add(u));
+    });
+    
+    const memberNameMap = {};
+    for (const memberUid of allUids) {
+        try {
+            const snap = await db.ref(`users/${memberUid}/displayName`).once('value');
+            memberNameMap[memberUid] = snap.val() || memberUid;
+        } catch (e) {
+            memberNameMap[memberUid] = memberUid;
+        }
+    }
+    
+    let allTasks = [];
+    for (const meeting of accessibleMeetings) {
+        try {
+            const tasks = await getTasks(meeting.id);
+            tasks.forEach(t => {
+                allTasks.push({
+                    ...t,
+                    meetingId: meeting.id,
+                    meetingTitle: meeting.title,
+                    meetingCode: meeting.code
+                });
             });
-        });
+        } catch (taskErr) {
+            console.warn(`Không đọc được tasks của meeting ${meeting.id}:`, taskErr.message);
+        }
     }
     
-    // Phân loại: nhiệm vụ của tôi vs của người khác
-    const myTasks = allTasks.filter(t => t.assignedTo === uid);
-    const otherTasks = allTasks.filter(t => t.assignedTo !== uid);
+    const myTasks = allTasks.filter(t => isTaskAssignedTo(t, uid));
+    const otherTasks = allTasks.filter(t => !isTaskAssignedTo(t, uid));
     
-    // Sắp xếp theo hạn
     myTasks.sort((a, b) => (a.deadline || '9999-99-99').localeCompare(b.deadline || '9999-99-99'));
     
     let html = `
@@ -61,14 +140,13 @@ async function renderTasks(container) {
                         <p>Bạn chưa có nhiệm vụ nào.</p>
                     </div>
                 ` : `
-                    ${myTasks.map(t => renderTaskItem(t)).join('')}
+                    ${myTasks.map(t => renderTaskItem(t, false, memberNameMap)).join('')}
                 `}
             </div>
         </div>
     `;
     
-    // Hiển thị tất cả nhiệm vụ nếu là tổ trưởng hoặc admin
-    if (role === 'truong_to' || role === 'admin') {
+    if (role === 'truong_to' || role === 'to_pho' || role === 'nhom_truong' || role === 'admin') {
         html += `
             <div class="section-card" style="margin-top:16px;">
                 <div class="section-header">
@@ -83,7 +161,7 @@ async function renderTasks(container) {
                             <p>Chưa có nhiệm vụ nào được phân công cho người khác.</p>
                         </div>
                     ` : `
-                        ${otherTasks.map(t => renderTaskItem(t, true)).join('')}
+                        ${otherTasks.map(t => renderTaskItem(t, true, memberNameMap)).join('')}
                     `}
                 </div>
             </div>
@@ -95,26 +173,18 @@ async function renderTasks(container) {
 
 /**
  * Render một task item
+ * ĐÃ NÂNG CẤP: Hiển thị danh sách nhiều người được giao
  * @param {Object} task
- * @param {boolean} showAssignee - Hiển thị tên người được phân công
+ * @param {boolean} showAssignee
+ * @param {Object} memberNameMap - Map uid -> name
  * @returns {string} HTML
  */
-/**
- * Render một task item
- * Đã sửa: PHÒNG THỦ chống lỗi undefined meetingId/taskId
- * @param {Object} task
- * @param {boolean} showAssignee - Hiển thị tên người được phân công
- * @returns {string} HTML
- */
-function renderTaskItem(task, showAssignee = false) {
+function renderTaskItem(task, showAssignee = false, memberNameMap = {}) {
     const statusClass = task.confirmed ? 'confirmed' : 'pending';
     const statusLabel = task.confirmed ? '✅ Đã xác nhận' : '⏳ Chờ xác nhận';
     const deadline = task.deadline ? formatDate(task.deadline) : 'Chưa có hạn';
     const isOverdue = task.deadline && new Date(task.deadline) < new Date() && !task.confirmed;
     
-    // ============================================================
-    // LẤY IDS VÀ KIỂM TRA TÍNH HỢP LỆ
-    // ============================================================
     const meetingId = task.meetingId || '';
     const taskId = task.id || '';
     const hasValidIds = meetingId !== '' 
@@ -122,19 +192,26 @@ function renderTaskItem(task, showAssignee = false) {
                      && meetingId !== 'undefined' 
                      && taskId !== 'undefined';
     
-    // ============================================================
-    // BUILD NÚT XÁC NHẬN (có/không có ID hợp lệ)
-    // ============================================================
+    const assigneeDisplay = resolveAssigneeDisplay(task.assignedTo, task.assignedToNames, memberNameMap);
+    
     let actionButtonHtml = '';
+    const currentUid = getCurrentUid();
+    const isMine = currentUid && isTaskAssignedTo(task, currentUid);
     
     if (!task.confirmed) {
-        if (hasValidIds) {
+        if (hasValidIds && isMine) {
             actionButtonHtml = `
                 <button class="btn-success" 
                         onclick="quickConfirmTask('${meetingId}', '${taskId}')" 
                         style="padding:6px 16px;font-size:13px;">
                     <i class="fas fa-check"></i> Xác nhận nhận nhiệm vụ
                 </button>
+            `;
+        } else if (!isMine) {
+            actionButtonHtml = `
+                <span style="color:var(--gray-500);font-size:13px;font-style:italic;">
+                    <i class="fas fa-info-circle"></i> Nhiệm vụ của người khác
+                </span>
             `;
         } else {
             actionButtonHtml = `
@@ -154,9 +231,6 @@ function renderTaskItem(task, showAssignee = false) {
         `;
     }
     
-    // ============================================================
-    // BUILD NÚT XEM CUỘC HỌP (chỉ khi có meetingId)
-    // ============================================================
     let viewMeetingButtonHtml = '';
     if (hasValidIds) {
         viewMeetingButtonHtml = `
@@ -176,7 +250,7 @@ function renderTaskItem(task, showAssignee = false) {
             </div>
             <div class="task-meta">
                 <span><i class="far fa-calendar"></i> Hạn: ${deadline}</span>
-                ${showAssignee ? `<span><i class="fas fa-user"></i> ${escapeHtml(task.assignedByName || 'Chưa xác định')}</span>` : ''}
+                ${showAssignee ? `<span><i class="fas fa-users"></i> Giao cho: <strong>${escapeHtml(assigneeDisplay)}</strong></span>` : ''}
                 <span><i class="fas fa-file-alt"></i> ${escapeHtml(task.product || 'Chưa có sản phẩm')}</span>
                 <span><i class="fas fa-tag"></i> ${statusLabel}</span>
             </div>
@@ -194,3 +268,5 @@ function renderTaskItem(task, showAssignee = false) {
 // ============================================================
 window.renderTasks = renderTasks;
 window.renderTaskItem = renderTaskItem;
+window.resolveAssigneeDisplay = resolveAssigneeDisplay;
+window.isTaskAssignedTo = isTaskAssignedTo;

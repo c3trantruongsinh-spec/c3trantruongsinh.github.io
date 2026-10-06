@@ -374,18 +374,85 @@ async function updateDiscussion(meetingId, discussionId, updates) {
         updatedAt: firebase.database.ServerValue.TIMESTAMP
     });
 }
-
+/**
+ * Xóa một ý kiến thảo luận
+ * CHỈ cho phép: tác giả HOẶC admin HOẶC ban lãnh đạo cuộc họp xóa
+ * Không cho xóa khi meeting đã CLOSED
+ * @param {string} meetingId
+ * @param {string} discussionId
+ * @returns {Promise<void>}
+ */
+async function removeDiscussion(meetingId, discussionId) {
+    const uid = getCurrentUid();
+    if (!uid) throw new Error('Chưa đăng nhập');
+    
+    if (await isMeetingClosed(meetingId)) {
+        throw new Error('Không thể xóa ý kiến trong cuộc họp đã chốt');
+    }
+    
+    const snapshot = await db.ref(`discussions/${meetingId}/${discussionId}`).once('value');
+    const current = snapshot.val();
+    if (!current) throw new Error('Không tìm thấy ý kiến');
+    
+    const isAuthor = current.authorId === uid;
+    const isAdm = await isAdmin();
+    const role = await getCurrentUserRole();
+    const isLeader = role === 'truong_to' || role === 'to_pho' || role === 'nhom_truong';
+    
+    if (!isAuthor && !isAdm && !isLeader) {
+        throw new Error('Bạn không có quyền xóa ý kiến này');
+    }
+    
+    const allSnap = await db.ref(`discussions/${meetingId}`).once('value');
+    const allData = allSnap.val() || {};
+    const childReplies = Object.keys(allData).filter(k => allData[k].parentId === discussionId);
+    const totalToDelete = 1 + childReplies.length;
+    
+    const updates = {};
+    updates[`discussions/${meetingId}/${discussionId}`] = null;
+    childReplies.forEach(childId => {
+        updates[`discussions/${meetingId}/${childId}`] = null;
+    });
+    await db.ref().update(updates);
+    
+    try {
+        await db.ref(`meetings/${meetingId}/discussionCount`).transaction(function(c) {
+            const newVal = (c || 0) - totalToDelete;
+            return newVal < 0 ? 0 : newVal;
+        });
+    } catch (e) {
+        console.warn('Không cập nhật được discussionCount tổng:', e);
+    }
+    
+    if (current.contentId) {
+        try {
+            await db.ref(`meetingContents/${meetingId}/${current.contentId}/discussionCount`)
+                .transaction(function(c) {
+                    const newVal = (c || 0) - totalToDelete;
+                    return newVal < 0 ? 0 : newVal;
+                });
+        } catch (e) {
+            console.warn('Không cập nhật được discussionCount của content:', e);
+        }
+    }
+    
+    try {
+        await logActivity(
+            meetingId, uid, 'DELETE_DISCUSSION', 'DISCUSSION', discussionId,
+            `Đã xóa ý kiến: "${truncateText(current.content || '', 50)}"`
+        );
+    } catch (e) {
+        console.warn('Không ghi được activity log:', e);
+    }
+}
 /**
  * Get tasks for a meeting
- * Đã nâng cấp:
- *   - LUÔN inject meetingId vào mỗi task để tránh lỗi undefined
- *   - PHÒNG THỦ chống permission_denied: nếu user không có quyền đọc meeting này,
- *     trả về mảng rỗng thay vì ném lỗi ra console
+ * ĐÃ NÂNG CẤP: Trả về assignedTo dưới dạng object map + resolve danh sách tên
  * @param {string} meetingId
- * @param {string} assignedTo - Optional filter by user
+ * @param {string} assignedToUid - Optional filter by user (kiểm tra uid nằm trong map)
  * @returns {Promise<Array>}
  */
-async function getTasks(meetingId, assignedTo = null) {
+async function getTasks(meetingId, assignedToUid = null) {
     try {
         const snapshot = await db.ref(`tasks/${meetingId}`).once('value');
         const data = snapshot.val();
@@ -397,8 +464,17 @@ async function getTasks(meetingId, assignedTo = null) {
             meetingId: meetingId
         }));
         
-        if (assignedTo) {
-            tasks = tasks.filter(t => t.assignedTo === assignedTo);
+        // Nếu filter theo uid, kiểm tra uid có nằm trong assignedTo object map
+        if (assignedToUid) {
+            tasks = tasks.filter(t => {
+                if (!t.assignedTo) return false;
+                if (typeof t.assignedTo === 'string') {
+                    // Legacy format cũ: string uid
+                    return t.assignedTo === assignedToUid;
+                }
+                // Format mới: object map
+                return t.assignedTo[assignedToUid] === true || t.assignedTo['__ALL__'] === true;
+            });
         }
         
         return tasks;
@@ -461,8 +537,10 @@ async function getAllUserTasks(uid) {
 
 /**
  * Add a task (with CLOSED check)
+ * ĐÃ NÂNG CẤP: Hỗ trợ nhiều người được giao (assignedTo là object map)
+ * Hoặc chỉ định "ALL" cho tất cả thành viên
  * @param {string} meetingId
- * @param {Object} taskData
+ * @param {Object} taskData - { assignedTo: {uid1:true, uid2:true} HOẶC {__ALL__:true}, assignedToNames: string, ... }
  * @returns {Promise<string>} Task ID
  */
 async function addTask(meetingId, taskData) {
@@ -488,13 +566,13 @@ async function addTask(meetingId, taskData) {
     await taskRef.set(data);
     
     await logActivity(meetingId, uid, 'ASSIGN_TASK', 'TASK', taskId,
-        `Đã phân công nhiệm vụ cho ${taskData.assignedByName || 'giáo viên'}`);
+        `Đã phân công nhiệm vụ cho ${taskData.assignedToNames || 'thành viên'}`);
     
     return taskId;
 }
-
 /**
  * Confirm task (with CLOSED check + validation chống undefined)
+ * ĐÃ NÂNG CẤP: Hỗ trợ nhiều người nhận nhiệm vụ (assignedTo object map)
  * @param {string} meetingId
  * @param {string} taskId
  */
@@ -507,7 +585,6 @@ async function confirmTask(meetingId, taskId) {
         || meetingId === 'null'
         || meetingId === ''
         || typeof meetingId !== 'string') {
-        console.error('confirmTask: meetingId không hợp lệ:', meetingId);
         throw new Error('Không xác định được cuộc họp. Vui lòng refresh trang (Ctrl+F5) và thử lại.');
     }
     
@@ -516,7 +593,6 @@ async function confirmTask(meetingId, taskId) {
         || taskId === 'null'
         || taskId === ''
         || typeof taskId !== 'string') {
-        console.error('confirmTask: taskId không hợp lệ:', taskId);
         throw new Error('Không xác định được nhiệm vụ. Vui lòng refresh trang (Ctrl+F5) và thử lại.');
     }
     
@@ -530,9 +606,24 @@ async function confirmTask(meetingId, taskId) {
     if (!taskData) {
         throw new Error('Không tìm thấy nhiệm vụ trong hệ thống');
     }
-    if (taskData.assignedTo !== uid && !await isAdmin()) {
+    
+    // Kiểm tra quyền: user phải nằm trong assignedTo HOẶC là admin
+    const isAdminUser = await isAdmin();
+    let hasPermission = isAdminUser;
+    
+    if (!hasPermission && taskData.assignedTo) {
+        if (typeof taskData.assignedTo === 'string') {
+            hasPermission = taskData.assignedTo === uid;
+        } else {
+            hasPermission = taskData.assignedTo[uid] === true 
+                         || taskData.assignedTo['__ALL__'] === true;
+        }
+    }
+    
+    if (!hasPermission) {
         throw new Error('Bạn không được giao nhiệm vụ này');
     }
+    
     if (taskData.confirmed) {
         throw new Error('Nhiệm vụ này đã được xác nhận trước đó');
     }
@@ -888,3 +979,4 @@ window.addAttachmentByUrl = addAttachmentByUrl;
 window.addAttachmentsByUrls = addAttachmentsByUrls;
 window.getMeetingsForUser = getMeetingsForUser;
 window.deleteMeeting = deleteMeeting;
+window.removeDiscussion = removeDiscussion;
