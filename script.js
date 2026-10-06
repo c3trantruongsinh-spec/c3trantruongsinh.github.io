@@ -115,7 +115,57 @@
     if (m && m[1]) return 'https://docs.google.com/spreadsheets/d/' + m[1] + '/preview';
     return url;
   }
+    /* -------------------------------------------------------
+     Chuyển link YouTube / Google Drive → dạng nhúng (embed)
+     ------------------------------------------------------- */
+  function getVideoEmbedUrl(url) {
+    if (!url) return '';
+    url = String(url).trim();
+    if (!url) return '';
 
+    // ---------- YOUTUBE ----------
+    var ytId = '';
+
+    // Dạng: https://youtu.be/VIDEO_ID
+    var m1 = url.match(/youtu\.be\/([a-zA-Z0-9_-]{6,})/);
+    if (m1 && m1[1]) ytId = m1[1];
+
+    // Dạng: https://www.youtube.com/watch?v=VIDEO_ID (hoặc có &)
+    if (!ytId) {
+      var m2 = url.match(/[?&]v=([a-zA-Z0-9_-]{6,})/);
+      if (m2 && m2[1] && url.indexOf('youtube.com') !== -1) ytId = m2[1];
+    }
+
+    // Dạng: https://www.youtube.com/embed/VIDEO_ID
+    if (!ytId) {
+      var m3 = url.match(/youtube\.com\/embed\/([a-zA-Z0-9_-]{6,})/);
+      if (m3 && m3[1]) ytId = m3[1];
+    }
+
+    // Dạng: https://www.youtube.com/shorts/VIDEO_ID
+    if (!ytId) {
+      var m4 = url.match(/youtube\.com\/shorts\/([a-zA-Z0-9_-]{6,})/);
+      if (m4 && m4[1]) ytId = m4[1];
+    }
+
+    // Dạng: https://m.youtube.com/watch?v=...
+    if (!ytId) {
+      var m5 = url.match(/m\.youtube\.com\/watch\?v=([a-zA-Z0-9_-]{6,})/);
+      if (m5 && m5[1]) ytId = m5[1];
+    }
+
+    if (ytId) {
+      return 'https://www.youtube.com/embed/' + ytId;
+    }
+
+    // ---------- GOOGLE DRIVE ----------
+    if (url.indexOf('drive.google.com') !== -1) {
+      return toDrivePreview(url);
+    }
+
+    // ---------- KHÔNG KHỚP ----------
+    return url;
+  }
   /* -------------------------------------------------------
      2. NGÀY HIỆN TẠI + FOOTER YEAR
      ------------------------------------------------------- */
@@ -382,33 +432,66 @@
     });
   }
 
-  /* -------------------------------------------------------
-     10. CARD TIN TỨC (dùng chung)
+   /* -------------------------------------------------------
+     10. CARD TIN TỨC (dùng chung) — hỗ trợ Video
      ------------------------------------------------------- */
   function renderNewsCard(post) {
     var title = escapeHTML(post.title || '(Không có tiêu đề)');
     var image = post.image || 'images/banner-1.jpg';
+    var videoLink = post.videoLink || '';
     var excerpt = post.excerpt || '';
-    if (!excerpt && post.content) excerpt = stripHTML(post.content).slice(0, 160);
+
+    if (!excerpt && post.content) {
+      excerpt = stripHTML(post.content).slice(0, 160);
+    }
     excerpt = escapeHTML(excerpt);
+
     var dateStr = formatDateVN(
       post.createdAt && post.createdAt.toDate ? post.createdAt.toDate() : post.createdAt
     );
 
     var href = '#';
     var extraAttrs = '';
+
     if (post.type === 'announcement' && post.link) {
-      extraAttrs = ' data-doc-url="' + escapeHTML(post.link) + '" data-doc-title="' + title + '" data-doc-action="open-modal"';
+      extraAttrs = ' data-doc-url="' + escapeHTML(post.link) +
+                   '" data-doc-title="' + title +
+                   '" data-doc-action="open-modal"';
     } else if ((post.type === 'timetable' || post.type === 'exam') && post.sheetLink) {
       href = post.type === 'timetable' ? 'thoikhoabieu.html' : 'ketquathi.html';
     }
 
-    return '' +
-      '<article class="news-card">' +
+    // ---- Media: ưu tiên Video, nếu không có thì dùng Ảnh ----
+    var mediaHtml = '';
+
+    if (videoLink) {
+      var embedUrl = getVideoEmbedUrl(videoLink);
+      mediaHtml =
+        '<div class="news-card-img-wrap news-card-video-wrap">' +
+          '<div class="news-card-video-inner">' +
+            '<iframe ' +
+              'src="' + escapeHTML(embedUrl) + '" ' +
+              'title="' + title + '" ' +
+              'class="news-card-video-iframe" ' +
+              'loading="lazy" ' +
+              'referrerpolicy="no-referrer" ' +
+              'allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" ' +
+              'allowfullscreen>' +
+            '</iframe>' +
+          '</div>' +
+          '<span class="news-card-category">Tin tức</span>' +
+        '</div>';
+    } else {
+      mediaHtml =
         '<a href="' + href + '" class="news-card-img-wrap" aria-label="Đọc tiếp: ' + title + '"' + extraAttrs + '>' +
           '<img src="' + escapeHTML(image) + '" alt="" class="news-card-img" loading="lazy" onerror="imgFallback(this)" />' +
           '<span class="news-card-category">Tin tức</span>' +
-        '</a>' +
+        '</a>';
+    }
+
+    return '' +
+      '<article class="news-card">' +
+        mediaHtml +
         '<div class="news-card-body">' +
           '<time class="news-card-date" datetime="">' +
             '<i class="fa-regular fa-calendar mr-1"></i>' + escapeHTML(dateStr) +
@@ -647,8 +730,8 @@
       });
   }
 
-  /* -------------------------------------------------------
-     15. ADMIN — AUTH + FORM + FILTER + SỬA/XÓA
+    /* -------------------------------------------------------
+     15. ADMIN — AUTH + FORM + FILTER + SỬA/XÓA + VIDEO
      ------------------------------------------------------- */
   function initAdminPage() {
     var loginView = document.getElementById('loginView');
@@ -670,11 +753,13 @@
     var typeEl = document.getElementById('postType');
     var titleEl = document.getElementById('postTitle');
     var imageEl = document.getElementById('postImage');
+    var videoEl = document.getElementById('postVideo');
     var linkEl = document.getElementById('postLink');
     var sheetEl = document.getElementById('postSheet');
     var contentEl = document.getElementById('postContent');
 
     var fieldImage = document.getElementById('fieldImage');
+    var fieldVideo = document.getElementById('fieldVideo');
     var fieldLink = document.getElementById('fieldLink');
     var fieldSheet = document.getElementById('fieldSheet');
     var fieldContent = document.getElementById('fieldContent');
@@ -708,6 +793,7 @@
         adminUserBox.classList.remove('flex');
       }
     }
+
     function showAdminView(user) {
       if (loginView) loginView.classList.add('hidden');
       if (adminView) adminView.classList.remove('hidden');
@@ -746,7 +832,10 @@
     if (loginForm) {
       loginForm.addEventListener('submit', function (e) {
         e.preventDefault();
-        if (!auth) { showAlert(loginAlert, 'error', 'Firebase Auth chưa sẵn sàng.'); return; }
+        if (!auth) {
+          showAlert(loginAlert, 'error', 'Firebase Auth chưa sẵn sàng.');
+          return;
+        }
 
         var email = (loginEmail.value || '').trim();
         var password = loginPassword.value || '';
@@ -793,7 +882,9 @@
         var ok = window.confirm('Bạn có chắc chắn muốn đăng xuất?');
         if (!ok) return;
         auth.signOut()
-          .then(function () { window.scrollTo({ top: 0, behavior: 'smooth' }); })
+          .then(function () {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          })
           .catch(function (err) {
             console.error('Lỗi đăng xuất:', err);
             window.alert('Không thể đăng xuất: ' + (err.message || 'Lỗi không xác định'));
@@ -806,33 +897,48 @@
     /* --- Fields visibility --- */
     function updateFieldsVisibility() {
       var type = typeEl.value;
+
       if (type === 'announcement') {
-        fieldImage.classList.add('hidden');
-        fieldLink.classList.remove('hidden');
-        fieldSheet.classList.add('hidden');
-        fieldContent.classList.remove('hidden');
-        linkEl.setAttribute('required', 'required');
-        sheetEl.removeAttribute('required');
-        imageEl.removeAttribute('required');
-        contentEl.removeAttribute('required');
+        // Thông báo: hiện link Drive, ẩn ảnh + video + sheet
+        if (fieldImage) fieldImage.classList.add('hidden');
+        if (fieldVideo) fieldVideo.classList.add('hidden');
+        if (fieldLink) fieldLink.classList.remove('hidden');
+        if (fieldSheet) fieldSheet.classList.add('hidden');
+        if (fieldContent) fieldContent.classList.remove('hidden');
+
+        if (linkEl) linkEl.setAttribute('required', 'required');
+        if (sheetEl) sheetEl.removeAttribute('required');
+        if (imageEl) imageEl.removeAttribute('required');
+        if (videoEl) videoEl.removeAttribute('required');
+        if (contentEl) contentEl.removeAttribute('required');
+
       } else if (type === 'timetable' || type === 'exam') {
-        fieldImage.classList.add('hidden');
-        fieldLink.classList.add('hidden');
-        fieldSheet.classList.remove('hidden');
-        fieldContent.classList.add('hidden');
-        sheetEl.setAttribute('required', 'required');
-        linkEl.removeAttribute('required');
-        imageEl.removeAttribute('required');
-        contentEl.removeAttribute('required');
+        // TKB / Kết quả thi: chỉ hiện link Sheet
+        if (fieldImage) fieldImage.classList.add('hidden');
+        if (fieldVideo) fieldVideo.classList.add('hidden');
+        if (fieldLink) fieldLink.classList.add('hidden');
+        if (fieldSheet) fieldSheet.classList.remove('hidden');
+        if (fieldContent) fieldContent.classList.add('hidden');
+
+        if (sheetEl) sheetEl.setAttribute('required', 'required');
+        if (linkEl) linkEl.removeAttribute('required');
+        if (imageEl) imageEl.removeAttribute('required');
+        if (videoEl) videoEl.removeAttribute('required');
+        if (contentEl) contentEl.removeAttribute('required');
+
       } else {
-        fieldImage.classList.remove('hidden');
-        fieldLink.classList.add('hidden');
-        fieldSheet.classList.add('hidden');
-        fieldContent.classList.remove('hidden');
-        linkEl.removeAttribute('required');
-        sheetEl.removeAttribute('required');
-        imageEl.removeAttribute('required');
-        contentEl.removeAttribute('required');
+        // Tin tức: hiện ảnh + video + nội dung
+        if (fieldImage) fieldImage.classList.remove('hidden');
+        if (fieldVideo) fieldVideo.classList.remove('hidden');
+        if (fieldLink) fieldLink.classList.add('hidden');
+        if (fieldSheet) fieldSheet.classList.add('hidden');
+        if (fieldContent) fieldContent.classList.remove('hidden');
+
+        if (linkEl) linkEl.removeAttribute('required');
+        if (sheetEl) sheetEl.removeAttribute('required');
+        if (imageEl) imageEl.removeAttribute('required');
+        if (videoEl) videoEl.removeAttribute('required');
+        if (contentEl) contentEl.removeAttribute('required');
       }
     }
 
@@ -845,7 +951,7 @@
       updateFieldsVisibility();
     }
 
-    typeEl.addEventListener('change', updateFieldsVisibility);
+    if (typeEl) typeEl.addEventListener('change', updateFieldsVisibility);
     updateFieldsVisibility();
 
     if (cancelEdit) cancelEdit.addEventListener('click', function () { resetForm(); });
@@ -858,7 +964,10 @@
         showAlert(formAlert, 'error', 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
         return;
       }
-      if (!db) { showAlert(formAlert, 'error', 'Firebase chưa sẵn sàng.'); return; }
+      if (!db) {
+        showAlert(formAlert, 'error', 'Firebase chưa sẵn sàng.');
+        return;
+      }
 
       var id = (postIdEl.value || '').trim();
       var type = typeEl.value;
@@ -877,20 +986,39 @@
 
       if (type === 'announcement') {
         var link = (linkEl.value || '').trim();
-        if (!link) { showAlert(formAlert, 'error', 'Vui lòng nhập link Google Drive văn bản.'); linkEl.focus(); return; }
+        if (!link) {
+          showAlert(formAlert, 'error', 'Vui lòng nhập link Google Drive văn bản.');
+          linkEl.focus();
+          return;
+        }
         data.link = link;
         data.content = (contentEl.value || '').trim();
-        data.image = ''; data.sheetLink = ''; data.excerpt = '';
+        data.image = '';
+        data.sheetLink = '';
+        data.excerpt = '';
+        data.videoLink = '';
+
       } else if (type === 'timetable' || type === 'exam') {
         var sheet = (sheetEl.value || '').trim();
-        if (!sheet) { showAlert(formAlert, 'error', 'Vui lòng nhập link Google Sheets.'); sheetEl.focus(); return; }
+        if (!sheet) {
+          showAlert(formAlert, 'error', 'Vui lòng nhập link Google Sheets.');
+          sheetEl.focus();
+          return;
+        }
         data.sheetLink = sheet;
-        data.link = ''; data.content = ''; data.image = ''; data.excerpt = '';
+        data.link = '';
+        data.content = '';
+        data.image = '';
+        data.excerpt = '';
+        data.videoLink = '';
+
       } else {
         data.image = (imageEl.value || '').trim();
+        data.videoLink = (videoEl ? (videoEl.value || '').trim() : '');
         data.content = (contentEl.value || '').trim();
         data.excerpt = stripHTML(data.content).slice(0, 200);
-        data.link = ''; data.sheetLink = '';
+        data.link = '';
+        data.sheetLink = '';
       }
 
       var p;
@@ -913,7 +1041,9 @@
       }).catch(function (err) {
         console.error('Lỗi lưu bài:', err);
         var msg = 'Lỗi: ' + (err.message || 'Không thể lưu.');
-        if (err && err.code === 'permission-denied') msg = 'Không có quyền ghi dữ liệu. Vui lòng kiểm tra đăng nhập.';
+        if (err && err.code === 'permission-denied') {
+          msg = 'Không có quyền ghi dữ liệu. Vui lòng kiểm tra đăng nhập.';
+        }
         showAlert(formAlert, 'error', msg);
       }).finally(function () {
         if (submitBtn) {
@@ -932,6 +1062,7 @@
       if (t === 'exam') return 'Kết quả thi';
       return 'Tin tức';
     }
+
     function typeClass(t) {
       if (t === 'announcement') return 'badge-ann';
       if (t === 'timetable') return 'badge-tkb';
@@ -977,7 +1108,6 @@
         return matchType && matchKeyword;
       });
 
-      // Ẩn / hiện các khối trạng thái
       if (postListLoading) postListLoading.classList.add('hidden');
       if (postListEmpty) postListEmpty.classList.add('hidden');
       if (postListFilterEmpty) postListFilterEmpty.classList.add('hidden');
@@ -1025,7 +1155,9 @@
         .then(function (snap) {
           var posts = [];
           snap.forEach(function (doc) {
-            var d = doc.data(); d.id = doc.id; posts.push(d);
+            var d = doc.data();
+            d.id = doc.id;
+            posts.push(d);
           });
           posts.sort(function (a, b) { return getTimestamp(b) - getTimestamp(a); });
           postList._allPosts = posts;
@@ -1068,7 +1200,10 @@
     }
     if (searchClear) {
       searchClear.addEventListener('click', function () {
-        if (searchInput) { searchInput.value = ''; searchInput.focus(); }
+        if (searchInput) {
+          searchInput.value = '';
+          searchInput.focus();
+        }
         searchClear.classList.add('hidden');
         applyFiltersAndRender();
       });
@@ -1100,6 +1235,7 @@
           typeEl.value = post.type || 'news';
           titleEl.value = post.title || '';
           imageEl.value = post.image || '';
+          if (videoEl) videoEl.value = post.videoLink || '';
           linkEl.value = post.link || '';
           sheetEl.value = post.sheetLink || '';
           contentEl.value = post.content || '';
@@ -1110,6 +1246,7 @@
           if (cancelEdit) cancelEdit.classList.remove('hidden');
 
           window.scrollTo({ top: 0, behavior: 'smooth' });
+
         } else if (action === 'delete') {
           var ok = window.confirm('Bạn có chắc chắn muốn xóa bài viết "' + (post.title || '(không tiêu đề)') + '"?\nHành động này không thể hoàn tác.');
           if (!ok) return;
@@ -1123,7 +1260,9 @@
             .catch(function (err) {
               console.error('Lỗi xóa:', err);
               var msg = 'Lỗi xóa: ' + (err.message || 'Không thể xóa.');
-              if (err && err.code === 'permission-denied') msg = 'Không có quyền xóa. Vui lòng kiểm tra đăng nhập.';
+              if (err && err.code === 'permission-denied') {
+                msg = 'Không có quyền xóa. Vui lòng kiểm tra đăng nhập.';
+              }
               showAlert(formAlert, 'error', msg);
             });
         }
@@ -1156,7 +1295,6 @@
       }
     });
   }
-
   /* -------------------------------------------------------
      16. TRANG TKB / KẾT QUẢ THI — LỊCH SỬ
      ------------------------------------------------------- */
