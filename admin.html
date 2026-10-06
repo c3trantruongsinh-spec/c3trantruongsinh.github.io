@@ -41,10 +41,13 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
-
+  <!-- QuillJS 2.0 – CSS -->
+<link href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css" rel="stylesheet" />
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <!-- QuillJS 2.0 – JS -->
+<script src="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.js"></script>
 </head>
 
 <body class="bg-brand-bg text-brand-text font-sans antialiased">
@@ -221,10 +224,59 @@
                 <p class="form-hint">Hệ thống tự chuyển sang dạng nhúng (embed).</p>
               </div>
 
-              <div id="fieldContent">
-                <label for="postContent" class="form-label">Nội dung bài viết</label>
-                <textarea id="postContent" class="form-control" rows="6" placeholder="Nhập nội dung..."></textarea>
-                <p class="form-hint">Hỗ trợ HTML cơ bản (thẻ &lt;p&gt;, &lt;br&gt;, &lt;strong&gt;...).</p>
+                            <div id="fieldContent">
+                <label class="form-label">Nội dung bài viết</label>
+
+                <!-- Thanh công cụ QuillJS -->
+                <div id="quillToolbar" class="quill-toolbar">
+                  <span class="ql-formats">
+                    <select class="ql-header" title="Cỡ chữ / Tiêu đề">
+                      <option value="1">Tiêu đề 1</option>
+                      <option value="2">Tiêu đề 2</option>
+                      <option value="3">Tiêu đề 3</option>
+                      <option value="4">Tiêu đề 4</option>
+                      <option selected>Bình thường</option>
+                    </select>
+                  </span>
+                  <span class="ql-formats">
+                    <button type="button" class="ql-bold" title="In đậm (Ctrl+B)"></button>
+                    <button type="button" class="ql-italic" title="In nghiêng (Ctrl+I)"></button>
+                    <button type="button" class="ql-underline" title="Gạch chân (Ctrl+U)"></button>
+                    <button type="button" class="ql-strike" title="Gạch ngang"></button>
+                  </span>
+                  <span class="ql-formats">
+                    <button type="button" class="ql-list" value="ordered" title="Danh sách số"></button>
+                    <button type="button" class="ql-list" value="bullet" title="Danh sách chấm"></button>
+                    <button type="button" class="ql-indent" value="-1" title="Giảm thụt lề"></button>
+                    <button type="button" class="ql-indent" value="+1" title="Tăng thụt lề"></button>
+                  </span>
+                  <span class="ql-formats">
+                    <button type="button" class="ql-blockquote" title="Trích dẫn"></button>
+                    <button type="button" class="ql-code-block" title="Khối mã"></button>
+                  </span>
+                  <span class="ql-formats">
+                    <button type="button" class="ql-link" title="Chèn liên kết"></button>
+                    <button type="button" class="ql-image" title="Chèn ảnh (dán URL)"></button>
+                    <button type="button" class="ql-video" title="Chèn video YouTube/Drive"></button>
+                  </span>
+                  <span class="ql-formats">
+                    <button type="button" class="ql-align" value="" title="Căn trái"></button>
+                    <button type="button" class="ql-align" value="center" title="Căn giữa"></button>
+                    <button type="button" class="ql-align" value="right" title="Căn phải"></button>
+                    <button type="button" class="ql-align" value="justify" title="Căn đều"></button>
+                  </span>
+                  <span class="ql-formats">
+                    <button type="button" class="ql-clean" title="Xóa định dạng"></button>
+                  </span>
+                </div>
+
+                <!-- Vùng soạn thảo QuillJS -->
+                <div id="postContent" class="quill-editor"></div>
+
+                <p class="form-hint">
+                  <i class="fa-solid fa-circle-info mr-1"></i>
+                  Định dạng giống Microsoft Word. Có thể dán ảnh, video, liên kết trực tiếp.
+                </p>
               </div>
 
               <div class="flex flex-wrap gap-2 pt-2">

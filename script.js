@@ -729,9 +729,8 @@
         if (emptyEl) emptyEl.classList.remove('hidden');
       });
   }
-
-    /* -------------------------------------------------------
-     15. ADMIN — AUTH + FORM + FILTER + SỬA/XÓA + VIDEO
+  /* -------------------------------------------------------
+     15. ADMIN — AUTH + FORM + FILTER + SỬA/XÓA + VIDEO + QUILL
      ------------------------------------------------------- */
   function initAdminPage() {
     var loginView = document.getElementById('loginView');
@@ -756,7 +755,6 @@
     var videoEl = document.getElementById('postVideo');
     var linkEl = document.getElementById('postLink');
     var sheetEl = document.getElementById('postSheet');
-    var contentEl = document.getElementById('postContent');
 
     var fieldImage = document.getElementById('fieldImage');
     var fieldVideo = document.getElementById('fieldVideo');
@@ -775,7 +773,7 @@
     var postListFilterEmpty = document.getElementById('postListFilterEmpty');
     var reloadBtn = document.getElementById('reloadPosts');
 
-    /* --- Toolbar --- */
+    /* --- Toolbar filter --- */
     var searchInput = document.getElementById('adminSearchInput');
     var searchClear = document.getElementById('adminSearchClear');
     var typeFilter = document.getElementById('adminTypeFilter');
@@ -784,7 +782,69 @@
     /* Cache */
     postList._allPosts = [];
 
-    /* --- Helpers hiển thị --- */
+    /* =====================================================
+       QUILLJS — KHỞI TẠO TRÌNH SOẠN THẢO
+       ===================================================== */
+    var quill = null;
+    var quillEditorEl = document.getElementById('postContent');
+    var quillToolbarEl = document.getElementById('quillToolbar');
+
+    if (typeof Quill !== 'undefined' && quillEditorEl && quillToolbarEl) {
+      try {
+        quill = new Quill('#postContent', {
+          theme: 'snow',
+          placeholder: 'Nhập nội dung bài viết tại đây... Bạn có thể dùng thanh công cụ bên trên để định dạng giống Microsoft Word.',
+          modules: {
+            toolbar: {
+              container: '#quillToolbar',
+              handlers: {
+                // Có thể mở rộng nếu cần xử lý upload ảnh riêng
+              }
+            }
+          }
+        });
+        console.log('[QuillJS] Đã khởi tạo thành công.');
+      } catch (e) {
+        console.error('[QuillJS] Lỗi khởi tạo:', e);
+      }
+    } else {
+      console.warn('[QuillJS] Không tìm thấy thư viện hoặc container. Kiểm tra CDN và id="postContent".');
+    }
+
+    /* Helper: Lấy HTML từ Quill (có trim + kiểm tra rỗng) */
+    function getQuillHTML() {
+      if (!quill) return '';
+      var html = quill.root.innerHTML || '';
+      // Quill trả về "<p><br></p>" khi rỗng
+      if (html === '<p><br></p>' || html === '<p></p>' || html.trim() === '') {
+        return '';
+      }
+      return html;
+    }
+
+    /* Helper: Đặt HTML vào Quill (dùng clipboard API để giữ định dạng) */
+    function setQuillHTML(html) {
+      if (!quill) return;
+      var safe = html || '';
+      if (!safe) {
+        quill.setText('');
+        return;
+      }
+      // Dùng dangerouslyPasteHTML để giữ định dạng khi load lại bài cũ
+      try {
+        quill.clipboard.dangerouslyPasteHTML(safe);
+      } catch (e) {
+        console.warn('[QuillJS] Lỗi paste HTML, fallback setText:', e);
+        // Fallback: chuyển HTML thành text thuần
+        var tmp = document.createElement('div');
+        tmp.innerHTML = safe;
+        quill.setText(tmp.textContent || '');
+      }
+    }
+
+    /* =====================================================
+       HIỂN THỊ / ẨN VIEW
+       ===================================================== */
     function showLoginView() {
       if (loginView) loginView.classList.remove('hidden');
       if (adminView) adminView.classList.add('hidden');
@@ -820,7 +880,9 @@
       setTimeout(function () { el.classList.add('hidden'); }, 5000);
     }
 
-    /* --- Login --- */
+    /* =====================================================
+       LOGIN
+       ===================================================== */
     if (togglePwBtn && loginPassword && togglePwIcon) {
       togglePwBtn.addEventListener('click', function () {
         var isPw = loginPassword.type === 'password';
@@ -875,7 +937,9 @@
       });
     }
 
-    /* --- Logout --- */
+    /* =====================================================
+       LOGOUT
+       ===================================================== */
     if (logoutBtn) {
       logoutBtn.addEventListener('click', function () {
         if (!auth) return;
@@ -894,12 +958,13 @@
 
     if (!form) return;
 
-    /* --- Fields visibility --- */
+    /* =====================================================
+       ẨN/HIỆN CÁC TRƯỜNG THEO LOẠI BÀI
+       ===================================================== */
     function updateFieldsVisibility() {
       var type = typeEl.value;
 
       if (type === 'announcement') {
-        // Thông báo: hiện link Drive, ẩn ảnh + video + sheet
         if (fieldImage) fieldImage.classList.add('hidden');
         if (fieldVideo) fieldVideo.classList.add('hidden');
         if (fieldLink) fieldLink.classList.remove('hidden');
@@ -910,10 +975,8 @@
         if (sheetEl) sheetEl.removeAttribute('required');
         if (imageEl) imageEl.removeAttribute('required');
         if (videoEl) videoEl.removeAttribute('required');
-        if (contentEl) contentEl.removeAttribute('required');
 
       } else if (type === 'timetable' || type === 'exam') {
-        // TKB / Kết quả thi: chỉ hiện link Sheet
         if (fieldImage) fieldImage.classList.add('hidden');
         if (fieldVideo) fieldVideo.classList.add('hidden');
         if (fieldLink) fieldLink.classList.add('hidden');
@@ -924,10 +987,8 @@
         if (linkEl) linkEl.removeAttribute('required');
         if (imageEl) imageEl.removeAttribute('required');
         if (videoEl) videoEl.removeAttribute('required');
-        if (contentEl) contentEl.removeAttribute('required');
 
       } else {
-        // Tin tức: hiện ảnh + video + nội dung
         if (fieldImage) fieldImage.classList.remove('hidden');
         if (fieldVideo) fieldVideo.classList.remove('hidden');
         if (fieldLink) fieldLink.classList.add('hidden');
@@ -938,7 +999,6 @@
         if (sheetEl) sheetEl.removeAttribute('required');
         if (imageEl) imageEl.removeAttribute('required');
         if (videoEl) videoEl.removeAttribute('required');
-        if (contentEl) contentEl.removeAttribute('required');
       }
     }
 
@@ -948,6 +1008,13 @@
       if (formTitle) formTitle.innerHTML = '<i class="fa-solid fa-pen-to-square text-brand-gold"></i> Đăng bài mới';
       if (submitBtn) submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane mr-1.5"></i> Đăng bài';
       if (cancelEdit) cancelEdit.classList.add('hidden');
+
+      // Reset Quill
+      if (quill) {
+        quill.setText('');
+        quill.clear();
+      }
+
       updateFieldsVisibility();
     }
 
@@ -956,7 +1023,9 @@
 
     if (cancelEdit) cancelEdit.addEventListener('click', function () { resetForm(); });
 
-    /* --- Submit --- */
+    /* =====================================================
+       SUBMIT FORM
+       ===================================================== */
     form.addEventListener('submit', function (e) {
       e.preventDefault();
 
@@ -992,10 +1061,10 @@
           return;
         }
         data.link = link;
-        data.content = (contentEl.value || '').trim();
+        data.content = getQuillHTML();          // <-- Lấy HTML từ Quill
         data.image = '';
         data.sheetLink = '';
-        data.excerpt = '';
+        data.excerpt = stripHTML(getQuillHTML()).slice(0, 200);
         data.videoLink = '';
 
       } else if (type === 'timetable' || type === 'exam') {
@@ -1013,10 +1082,12 @@
         data.videoLink = '';
 
       } else {
+        // Tin tức
+        var htmlContent = getQuillHTML();       // <-- Lấy HTML từ Quill
         data.image = (imageEl.value || '').trim();
         data.videoLink = (videoEl ? (videoEl.value || '').trim() : '');
-        data.content = (contentEl.value || '').trim();
-        data.excerpt = stripHTML(data.content).slice(0, 200);
+        data.content = htmlContent;
+        data.excerpt = stripHTML(htmlContent).slice(0, 200);
         data.link = '';
         data.sheetLink = '';
       }
@@ -1055,7 +1126,9 @@
       });
     });
 
-    /* --- Helpers badge --- */
+    /* =====================================================
+       HELPERS BADGE
+       ===================================================== */
     function typeLabel(t) {
       if (t === 'announcement') return 'Thông báo';
       if (t === 'timetable') return 'Thời khóa biểu';
@@ -1096,7 +1169,9 @@
         '</div>';
     }
 
-    /* --- Filter + Render --- */
+    /* =====================================================
+       FILTER + RENDER DANH SÁCH
+       ===================================================== */
     function applyFiltersAndRender() {
       var all = postList._allPosts || [];
       var keyword = (searchInput && searchInput.value ? searchInput.value : '').toLowerCase().trim();
@@ -1142,7 +1217,9 @@
       }
     }
 
-    /* --- Load all posts (1 lần) --- */
+    /* =====================================================
+       LOAD DANH SÁCH BÀI VIẾT
+       ===================================================== */
     window.loadAdminPosts = function () {
       if (!db) return;
       if (postListLoading) postListLoading.classList.remove('hidden');
@@ -1188,7 +1265,9 @@
       });
     }
 
-    /* --- Toolbar events --- */
+    /* =====================================================
+       TOOLBAR FILTER EVENTS
+       ===================================================== */
     if (searchInput) {
       searchInput.addEventListener('input', function () {
         if (searchClear) {
@@ -1214,7 +1293,9 @@
       });
     }
 
-    /* --- Delegate: Sửa / Xóa --- */
+    /* =====================================================
+       DELEGATE: SỬA / XÓA
+       ===================================================== */
     if (postList) {
       postList.addEventListener('click', function (e) {
         var btn = e.target.closest('[data-action]');
@@ -1238,7 +1319,10 @@
           if (videoEl) videoEl.value = post.videoLink || '';
           linkEl.value = post.link || '';
           sheetEl.value = post.sheetLink || '';
-          contentEl.value = post.content || '';
+
+          // Load nội dung HTML vào QuillJS
+          setQuillHTML(post.content || '');
+
           updateFieldsVisibility();
 
           if (formTitle) formTitle.innerHTML = '<i class="fa-solid fa-pen-to-square text-brand-gold"></i> Cập nhật bài viết';
@@ -1269,7 +1353,9 @@
       });
     }
 
-    /* --- Auth state --- */
+    /* =====================================================
+       AUTH STATE LISTENER
+       ===================================================== */
     if (!auth) {
       showLoginView();
       showAlert(loginAlert, 'error', 'Firebase Authentication chưa sẵn sàng. Vui lòng tải lại trang.');
