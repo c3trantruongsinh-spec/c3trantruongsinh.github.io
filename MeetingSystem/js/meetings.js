@@ -1207,6 +1207,16 @@ async function renderMeetingDetail(container, meetingId) {
     });
     
     const memberIds = Object.keys(meeting.memberIds || {});
+        // Build memberNameMap để hiển thị tên trong Tasks
+    const memberNameMap = {};
+    for (const mid of memberIds) {
+        try {
+            const snap = await db.ref(`users/${mid}/displayName`).once('value');
+            memberNameMap[mid] = snap.val() || mid;
+        } catch (e) {
+            memberNameMap[mid] = mid;
+        }
+    }
     const totalMembers = memberIds.length;
     const confirmedMembers = memberIds.filter(mid => 
         confirmations[mid] && confirmations[mid].finalConfirmed === true
@@ -1435,7 +1445,7 @@ async function renderMeetingDetail(container, meetingId) {
                             ` : ''}
                         </div>
                     ` : `
-                        ${tasks.map(t => renderTaskItem(t, true)).join('')}
+                       ${tasks.map(t => renderTaskItem(t, true, memberNameMap, canLeadThisMeeting)).join('')}
                     `}
                     ${canLeadThisMeeting && !isClosed ? `
                         <button class="btn-primary" onclick="showAssignTask('${meetingId}')" style="margin-top:8px;">
@@ -3691,6 +3701,271 @@ async function toggleContentDiscussion(meetingId, contentId) {
 }
 
 window.toggleContentDiscussion = toggleContentDiscussion;
+
+
+/**
+ * Mở form Sửa nhiệm vụ
+ * Đọc dữ liệu task từ DB, pre-fill vào form, hiển thị checkbox đúng
+ * @param {string} meetingId
+ * @param {string} taskId
+ */
+async function showEditTask(meetingId, taskId) {
+    if (!meetingId || !taskId) {
+        showToast('Thiếu thông tin nhiệm vụ. Vui lòng refresh trang.', 'error');
+        return;
+    }
+    
+    // Load task từ DB
+    const taskSnap = await db.ref(`tasks/${meetingId}/${taskId}`).once('value');
+    const task = taskSnap.val();
+    if (!task) {
+        showToast('Không tìm thấy nhiệm vụ', 'error');
+        return;
+    }
+    
+    if (task.confirmed) {
+        showToast('Không thể sửa nhiệm vụ đã được xác nhận', 'warning');
+        return;
+    }
+    
+    // Load meeting
+    const meeting = await getMeeting(meetingId);
+    if (!meeting) {
+        showToast('Không tìm thấy cuộc họp', 'error');
+        return;
+    }
+    
+    const memberIds = Object.keys(meeting.memberIds || {});
+    if (memberIds.length === 0) {
+        showToast('Cuộc họp chưa có thành viên nào', 'warning');
+        return;
+    }
+    
+    // Load tên các thành viên
+    const membersInfo = [];
+    for (const mid of memberIds) {
+        try {
+            const snap = await db.ref(`users/${mid}`).once('value');
+            const ud = snap.val() || {};
+            membersInfo.push({
+                uid: mid,
+                displayName: ud.displayName || ud.email || mid,
+                email: ud.email || ''
+            });
+        } catch (e) {
+            membersInfo.push({ uid: mid, displayName: mid, email: '' });
+        }
+    }
+    membersInfo.sort((a, b) => (a.displayName || '').localeCompare(b.displayName || ''));
+    
+    // Parse assignedTo hiện tại
+    let currentAssignedMap = {};
+    let isAllMembers = false;
+    
+    if (task.assignedTo) {
+        if (typeof task.assignedTo === 'string') {
+            if (task.assignedTo === '__ALL__') {
+                isAllMembers = true;
+            } else {
+                currentAssignedMap[task.assignedTo] = true;
+            }
+        } else if (typeof task.assignedTo === 'object') {
+            if (task.assignedTo['__ALL__'] === true) {
+                isAllMembers = true;
+            } else {
+                Object.keys(task.assignedTo).forEach(k => {
+                    if (task.assignedTo[k] === true) currentAssignedMap[k] = true;
+                });
+            }
+        }
+    }
+    
+    // Build checkbox list với pre-check
+    const checkboxesHtml = membersInfo.map(m => {
+        const isChecked = currentAssignedMap[m.uid] === true;
+        return `
+            <label style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#ffffff;border:1px solid ${isChecked ? '#93c5fd' : '#e2e8f0'};border-radius:8px;cursor:pointer;font-size:14px;margin-bottom:6px;transition:all 0.2s;">
+                <input type="checkbox" class="edit-assignee-checkbox" value="${m.uid}" ${isChecked ? 'checked' : ''} style="width:16px;height:16px;margin:0;cursor:pointer;">
+                <div style="flex:1;min-width:0;">
+                    <div style="font-weight:600;color:#1e293b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                        ${escapeHtml(m.displayName)}
+                    </div>
+                    ${m.email ? `<div style="font-size:12px;color:#64748b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(m.email)}</div>` : ''}
+                </div>
+            </label>
+        `;
+    }).join('');
+    
+    const allMembersStyle = isAllMembers ? 'display:block;' : 'display:none;';
+    
+    showModal('✏️ Sửa nhiệm vụ', `
+        <div class="form-group">
+            <label>Người thực hiện <span class="required">*</span></label>
+            
+            <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
+                <button type="button" class="btn-secondary" style="padding:6px 12px;font-size:13px;background:#dbeafe;color:#1e40af;border:1px solid #93c5fd;border-radius:6px;font-weight:600;cursor:pointer;" onclick="toggleEditAllAssignees(true)">
+                    <i class="fas fa-check-double"></i> Chọn tất cả
+                </button>
+                <button type="button" class="btn-secondary" style="padding:6px 12px;font-size:13px;" onclick="toggleEditAllAssignees(false)">
+                    <i class="fas fa-times"></i> Bỏ chọn
+                </button>
+                <button type="button" class="btn-secondary" style="padding:6px 12px;font-size:13px;background:#fef3c7;color:#92400e;border:1px solid #fcd34d;border-radius:6px;font-weight:600;cursor:pointer;" onclick="selectEditAllMembersOption()">
+                    <i class="fas fa-users"></i> Tất cả thành viên
+                </button>
+            </div>
+            
+            <div id="editAssigneeListBox" style="max-height:220px;overflow-y:auto;padding:10px;background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;">
+                ${checkboxesHtml}
+            </div>
+            
+            <div id="editAllMembersBadge" style="margin-top:8px;padding:10px 14px;background:#fef3c7;border:1px solid #fcd34d;border-radius:6px;font-size:13px;color:#92400e;font-weight:600;${allMembersStyle}">
+                <i class="fas fa-users"></i> Đã chọn: <strong>Tất cả thành viên</strong> — sẽ được giao cho mọi người trong cuộc họp
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label>Nội dung nhiệm vụ <span class="required">*</span></label>
+            <input type="text" id="editTaskTitle" value="${escapeHtml(task.title || '')}" placeholder="Mô tả nhiệm vụ">
+        </div>
+        
+        <div class="form-group">
+            <label>Chi tiết</label>
+            <textarea id="editTaskDesc" rows="3" placeholder="Chi tiết nhiệm vụ...">${escapeHtml(task.description || '')}</textarea>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label>Thời hạn <span class="required">*</span></label>
+                <input type="date" id="editTaskDeadline" value="${task.deadline || ''}">
+            </div>
+            <div class="form-group">
+                <label>Sản phẩm cần nộp</label>
+                <input type="text" id="editTaskProduct" value="${escapeHtml(task.product || '')}" placeholder="VD: File Word, PDF...">
+            </div>
+        </div>
+    `, [
+        { text: 'Hủy', class: 'btn-secondary', action: 'cancel' },
+        {
+            text: 'Lưu thay đổi',
+            class: 'btn-primary',
+            action: 'save',
+            onClick: async (close) => {
+                await handleEditTask(meetingId, taskId, membersInfo, close);
+            }
+        }
+    ]);
+}
+
+/**
+ * Toggle tất cả checkbox trong form SỬA nhiệm vụ
+ * @param {boolean} checked
+ */
+function toggleEditAllAssignees(checked) {
+    document.querySelectorAll('.edit-assignee-checkbox').forEach(cb => {
+        cb.checked = checked;
+    });
+    const badge = document.getElementById('editAllMembersBadge');
+    if (badge) badge.style.display = 'none';
+}
+
+/**
+ * Chọn "Tất cả thành viên" trong form SỬA nhiệm vụ
+ */
+function selectEditAllMembersOption() {
+    document.querySelectorAll('.edit-assignee-checkbox').forEach(cb => {
+        cb.checked = false;
+    });
+    const badge = document.getElementById('editAllMembersBadge');
+    if (badge) {
+        badge.style.display = badge.style.display === 'none' ? 'block' : 'none';
+    }
+}
+
+/**
+ * Xử lý lưu form Sửa nhiệm vụ
+ * @param {string} meetingId
+ * @param {string} taskId
+ * @param {Array} membersInfo - Mảng {uid, displayName}
+ * @param {Function} closeModalFn
+ */
+async function handleEditTask(meetingId, taskId, membersInfo, closeModalFn) {
+    const title = document.getElementById('editTaskTitle').value.trim();
+    const deadline = document.getElementById('editTaskDeadline').value;
+    const desc = document.getElementById('editTaskDesc').value.trim();
+    const product = document.getElementById('editTaskProduct').value.trim();
+    
+    if (!title || !deadline) {
+        showToast('Vui lòng nhập đầy đủ tiêu đề và thời hạn', 'warning');
+        return;
+    }
+    
+    // Thu thập assignees
+    const selectedUids = {};
+    document.querySelectorAll('.edit-assignee-checkbox:checked').forEach(cb => {
+        selectedUids[cb.value] = true;
+    });
+    
+    const badge = document.getElementById('editAllMembersBadge');
+    const isAllMembers = badge && badge.style.display !== 'none';
+    
+    if (!isAllMembers && Object.keys(selectedUids).length === 0) {
+        showToast('Vui lòng chọn ít nhất một người thực hiện', 'warning');
+        return;
+    }
+    
+    // Chuẩn bị assignedTo mới
+    let assignedTo;
+    let assignedToNames;
+    
+    if (isAllMembers) {
+        assignedTo = { '__ALL__': true };
+        assignedToNames = 'Tất cả thành viên';
+    } else {
+        assignedTo = selectedUids;
+        const names = Object.keys(selectedUids).map(uid => {
+            const m = membersInfo.find(x => x.uid === uid);
+            return m ? m.displayName : uid;
+        });
+        assignedToNames = names.join(', ');
+    }
+    
+    try {
+        const saveBtn = document.querySelector('.modal-footer button[data-action="save"]');
+        if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<span class="spinner"></span> Đang lưu...';
+        }
+        
+        await updateTask(meetingId, taskId, {
+            assignedTo: assignedTo,
+            assignedToNames: assignedToNames,
+            title: title,
+            description: desc,
+            deadline: deadline,
+            product: product || 'Chưa xác định'
+        });
+        
+        showToast('✅ Đã cập nhật nhiệm vụ!', 'success');
+        closeModalFn();
+        
+        const container = document.getElementById('pageContainer');
+        if (container) {
+            await renderMeetingDetail(container, meetingId);
+        }
+    } catch (error) {
+        showToast('Lỗi: ' + error.message, 'error');
+        const saveBtn = document.querySelector('.modal-footer button[data-action="save"]');
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = 'Lưu thay đổi';
+        }
+    }
+}
+
+window.showEditTask = showEditTask;
+window.toggleEditAllAssignees = toggleEditAllAssignees;
+window.selectEditAllMembersOption = selectEditAllMembersOption;
+window.handleEditTask = handleEditTask;
 // Export
 window.toggleAllMembers = toggleAllMembers;
 // ============================================================

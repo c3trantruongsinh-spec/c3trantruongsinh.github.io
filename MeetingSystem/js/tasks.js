@@ -63,10 +63,9 @@ function isTaskAssignedTo(task, uid) {
     
     return false;
 }
-
 /**
  * Render tasks page
- * ĐÃ NÂNG CẤP: Hỗ trợ nhiều người được giao (multi-assignee)
+ * ĐÃ SỬA: Pass canEdit cho renderTaskItem
  * @param {HTMLElement} container
  */
 async function renderTasks(container) {
@@ -80,8 +79,11 @@ async function renderTasks(container) {
     const role = await getCurrentUserRole();
     const teamId = await getCurrentUserTeamId();
     
+    const isAdminUser = role === 'admin';
+    const isLeaderOfTeam = role === 'truong_to' || role === 'to_pho' || role === 'nhom_truong';
+    
     let accessibleMeetings = [];
-    if (role === 'admin') {
+    if (isAdminUser) {
         accessibleMeetings = await getAllMeetings();
     } else {
         accessibleMeetings = await getMeetingsForUser(uid, teamId);
@@ -120,7 +122,9 @@ async function renderTasks(container) {
         }
     }
     
+    // Task của tôi — canEdit = false (không cần nút Sửa ở đây)
     const myTasks = allTasks.filter(t => isTaskAssignedTo(t, uid));
+    // Task của người khác — canEdit = true nếu user là leader/admin
     const otherTasks = allTasks.filter(t => !isTaskAssignedTo(t, uid));
     
     myTasks.sort((a, b) => (a.deadline || '9999-99-99').localeCompare(b.deadline || '9999-99-99'));
@@ -140,13 +144,13 @@ async function renderTasks(container) {
                         <p>Bạn chưa có nhiệm vụ nào.</p>
                     </div>
                 ` : `
-                    ${myTasks.map(t => renderTaskItem(t, false, memberNameMap)).join('')}
+                    ${myTasks.map(t => renderTaskItem(t, false, memberNameMap, false)).join('')}
                 `}
             </div>
         </div>
     `;
     
-    if (role === 'truong_to' || role === 'to_pho' || role === 'nhom_truong' || role === 'admin') {
+    if (isAdminUser || isLeaderOfTeam) {
         html += `
             <div class="section-card" style="margin-top:16px;">
                 <div class="section-header">
@@ -161,7 +165,7 @@ async function renderTasks(container) {
                             <p>Chưa có nhiệm vụ nào được phân công cho người khác.</p>
                         </div>
                     ` : `
-                        ${otherTasks.map(t => renderTaskItem(t, true, memberNameMap)).join('')}
+                        ${otherTasks.map(t => renderTaskItem(t, true, memberNameMap, true)).join('')}
                     `}
                 </div>
             </div>
@@ -173,13 +177,14 @@ async function renderTasks(container) {
 
 /**
  * Render một task item
- * ĐÃ NÂNG CẤP: Hiển thị danh sách nhiều người được giao
+ * ĐÃ SỬA: Có nút Sửa cho Ban lãnh đạo/Admin
  * @param {Object} task
- * @param {boolean} showAssignee
- * @param {Object} memberNameMap - Map uid -> name
+ * @param {boolean} showAssignee - Hiển thị cột "Giao cho"
+ * @param {Object} memberNameMap - Map uid -> tên hiển thị
+ * @param {boolean} canEdit - User có quyền sửa nhiệm vụ không
  * @returns {string} HTML
  */
-function renderTaskItem(task, showAssignee = false, memberNameMap = {}) {
+function renderTaskItem(task, showAssignee = false, memberNameMap = {}, canEdit = false) {
     const statusClass = task.confirmed ? 'confirmed' : 'pending';
     const statusLabel = task.confirmed ? '✅ Đã xác nhận' : '⏳ Chờ xác nhận';
     const deadline = task.deadline ? formatDate(task.deadline) : 'Chưa có hạn';
@@ -194,6 +199,7 @@ function renderTaskItem(task, showAssignee = false, memberNameMap = {}) {
     
     const assigneeDisplay = resolveAssigneeDisplay(task.assignedTo, task.assignedToNames, memberNameMap);
     
+    // Nút hành động chính
     let actionButtonHtml = '';
     const currentUid = getCurrentUid();
     const isMine = currentUid && isTaskAssignedTo(task, currentUid);
@@ -231,6 +237,19 @@ function renderTaskItem(task, showAssignee = false, memberNameMap = {}) {
         `;
     }
     
+    // Nút Sửa (chỉ hiện khi canEdit VÀ chưa confirmed)
+    let editButtonHtml = '';
+    if (canEdit && !task.confirmed && hasValidIds) {
+        editButtonHtml = `
+            <button class="btn-secondary" 
+                    style="padding:6px 14px;font-size:13px;background:#f59e0b;color:#fff;border:none;font-weight:600;display:inline-flex;align-items:center;gap:6px;cursor:pointer;border-radius:6px;" 
+                    onclick="showEditTask('${meetingId}', '${taskId}')"
+                    title="Sửa nhiệm vụ">
+                <i class="fas fa-edit"></i> Sửa
+            </button>
+        `;
+    }
+    
     let viewMeetingButtonHtml = '';
     if (hasValidIds) {
         viewMeetingButtonHtml = `
@@ -257,6 +276,7 @@ function renderTaskItem(task, showAssignee = false, memberNameMap = {}) {
             ${task.description ? `<div style="font-size:14px;color:var(--gray-600);margin-top:4px;">${escapeHtml(task.description)}</div>` : ''}
             <div class="task-actions">
                 ${actionButtonHtml}
+                ${editButtonHtml}
                 ${viewMeetingButtonHtml}
             </div>
         </div>

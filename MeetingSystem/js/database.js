@@ -570,6 +570,47 @@ async function addTask(meetingId, taskData) {
     
     return taskId;
 }
+
+/**
+ * Cập nhật nhiệm vụ (không cho sửa khi đã xác nhận hoặc meeting đã chốt)
+ * @param {string} meetingId
+ * @param {string} taskId
+ * @param {Object} updates - { assignedTo, assignedToNames, title, description, deadline, product }
+ * @returns {Promise<void>}
+ */
+async function updateTask(meetingId, taskId, updates) {
+    const uid = getCurrentUid();
+    if (!uid) throw new Error('Chưa đăng nhập');
+    
+    if (await isMeetingClosed(meetingId)) {
+        throw new Error('Không thể sửa nhiệm vụ trong cuộc họp đã chốt');
+    }
+    
+    const snapshot = await db.ref(`tasks/${meetingId}/${taskId}`).once('value');
+    const current = snapshot.val();
+    if (!current) throw new Error('Không tìm thấy nhiệm vụ');
+    
+    if (current.confirmed) {
+        throw new Error('Không thể sửa nhiệm vụ đã được xác nhận');
+    }
+    
+    await db.ref(`tasks/${meetingId}/${taskId}`).update({
+        ...updates,
+        updatedAt: firebase.database.ServerValue.TIMESTAMP,
+        updatedBy: uid
+    });
+    
+    try {
+        await logActivity(
+            meetingId, uid, 'UPDATE_TASK', 'TASK', taskId,
+            `Đã cập nhật nhiệm vụ: "${updates.title || current.title || ''}"`
+        );
+    } catch (e) {
+        console.warn('Không ghi được activity log:', e);
+    }
+}
+
+window.updateTask = updateTask;
 /**
  * Confirm task (with CLOSED check + validation chống undefined)
  * ĐÃ NÂNG CẤP: Hỗ trợ nhiều người nhận nhiệm vụ (assignedTo object map)
@@ -745,7 +786,84 @@ async function recordConfirmation(meetingId, type) {
         console.warn('Không ghi được activity log:', logErr);
     }
 }
+/**
+ * Xác nhận NHANH TẤT CẢ các bước còn thiếu trong 1 request
+ * Bao gồm: viewedMeetingAt, participated, conclusionRead, finalConfirmed
+ * Chỉ update những bước CHƯA có (không ghi đè timestamp cũ)
+ * @param {string} meetingId
+ * @returns {Promise<Object>} { updated: number, alreadyDone: boolean, updatedFields: Array }
+ */
+async function recordConfirmationAll(meetingId) {
+    const uid = getCurrentUid();
+    if (!uid) throw new Error('Chưa đăng nhập');
+    
+    if (await isMeetingClosed(meetingId)) {
+        throw new Error('Không thể xác nhận cho cuộc họp đã chốt');
+    }
+    
+    const meeting = await getMeeting(meetingId);
+    if (!meeting) throw new Error('Không tìm thấy cuộc họp');
+    
+    const isMember = meeting.memberIds && meeting.memberIds[uid] === true;
+    if (!isMember) {
+        throw new Error('Bạn không phải thành viên của cuộc họp này');
+    }
+    
+    const confirmations = await getConfirmations(meetingId);
+    const userConf = confirmations[uid] || {};
+    
+    const contents = await getMeetingContents(meetingId);
+    const hasConcluded = contents.some(c => c.status === 'CONCLUDED');
+    const isConfirmation = meeting.status === 'CONFIRMATION';
+    
+    const updates = {};
+    const updatedFields = [];
+    const now = firebase.database.ServerValue.TIMESTAMP;
+    
+    if (!userConf.viewedMeetingAt) {
+        updates.viewedMeetingAt = now;
+        updatedFields.push('viewedMeetingAt');
+    }
+    if (!userConf.participated) {
+        updates.participated = true;
+        updates.participatedAt = now;
+        updatedFields.push('participated');
+    }
+    if (hasConcluded && !userConf.conclusionRead) {
+        updates.conclusionRead = true;
+        updates.conclusionReadAt = now;
+        updatedFields.push('conclusionRead');
+    }
+    if (isConfirmation && !userConf.finalConfirmed) {
+        updates.finalConfirmed = true;
+        updates.finalConfirmedAt = now;
+        updates.finalConfirmationId = `CONF_${meetingId}_${uid}_${Date.now()}`;
+        updatedFields.push('finalConfirmed');
+    }
+    
+    if (Object.keys(updates).length === 0) {
+        return { updated: 0, alreadyDone: true, updatedFields: [] };
+    }
+    
+    await db.ref(`confirmations/${meetingId}/${uid}`).update(updates);
+    
+    try {
+        await logActivity(
+            meetingId, uid, 'CONFIRM_ALL', 'CONFIRMATION', meetingId,
+            `Đã xác nhận nhanh ${updatedFields.length} bước: ${updatedFields.join(', ')}`
+        );
+    } catch (e) {
+        console.warn('Không ghi được activity log:', e);
+    }
+    
+    return { 
+        updated: updatedFields.length, 
+        alreadyDone: false,
+        updatedFields: updatedFields
+    };
+}
 
+window.recordConfirmationAll = recordConfirmationAll;
 /**
  * Add an attachment by Google Drive URL (with fileId extraction)
  * @param {string} meetingId
