@@ -1373,14 +1373,14 @@ async function renderMeetingDetail(container, meetingId) {
                                 </div>
                                 <div class="section-body">
                                     <h4 style="font-size:16px;font-weight:600;">${escapeHtml(c.title)}</h4>
-                                    <div style="font-size:14px;color:var(--gray-600);margin-top:4px;white-space:pre-wrap;">${escapeHtml(c.description || '')}</div>
+                                    <div style="font-size:14px;color:var(--gray-600);margin-top:4px;line-height:1.7;">${renderRichContent(c.description || '')}</div>
                                     
                                     ${attachHtml}
                                     
                                     ${c.conclusion ? `
                                         <div class="conclusion-box" style="margin-top:12px;">
                                             <div class="conclusion-label">👨‍💼 Kết luận của tổ trưởng</div>
-                                            <div class="conclusion-content">${escapeHtml(c.conclusion)}</div>
+                                            <div class="conclusion-content" style="line-height:1.7;">${renderRichContent(c.conclusion)}</div>
                                             <div class="conclusion-meta">
                                                 ${escapeHtml(c.concludedBy || '')} • ${formatDate(c.concludedAt, true)}
                                             </div>
@@ -1504,7 +1504,8 @@ function scrollToContent(contentId) {
 // ============================================================
 /**
  * Thêm nội dung mới cho cuộc họp
- * ĐÃ NÂNG CẤP: Hỗ trợ đính kèm NHIỀU LINK Google Drive
+ * ĐÃ NÂNG CẤP: Mô tả dùng Quill.js Rich Text Editor
+ * Giữ nguyên khối multi-link Google Drive
  * @param {string} meetingId
  */
 async function addContent(meetingId) {
@@ -1513,6 +1514,8 @@ async function addContent(meetingId) {
     if (!window._pendingLinks) window._pendingLinks = {};
     window._pendingLinks[formKey] = [];
     
+    window._activeAddContentQuill = null;
+    
     showModal('➕ Thêm nội dung cuộc họp', `
         <div class="form-group">
             <label>Tiêu đề nội dung <span class="required">*</span></label>
@@ -1520,7 +1523,10 @@ async function addContent(meetingId) {
         </div>
         <div class="form-group">
             <label>Nội dung trình bày <span class="required">*</span></label>
-            <textarea id="newContentDesc" rows="5" placeholder="Mô tả chi tiết nội dung cần thảo luận..."></textarea>
+            <div id="newContentDescEditor" style="background:#fff;border-radius:8px;"></div>
+            <div style="font-size:12px;color:var(--gray-500);margin-top:6px;">
+                💡 Có thể dùng in đậm, in nghiêng, gạch chân, danh sách bullet/number.
+            </div>
         </div>
         
         <div class="form-group" style="padding:14px;background:#f0fdf4;border:2px dashed #86efac;border-radius:10px;">
@@ -1548,17 +1554,29 @@ async function addContent(meetingId) {
             </div>
         </div>
     `, [
-        { text: 'Hủy', class: 'btn-secondary', action: 'cancel' },
+        { text: 'Hủy', class: 'btn-secondary', action: 'close' },
         {
             text: 'Thêm nội dung',
             class: 'btn-primary',
             action: 'save',
             onClick: async (close) => {
                 const title = document.getElementById('newContentTitle').value.trim();
-                const desc = document.getElementById('newContentDesc').value.trim();
+                const quill = window._activeAddContentQuill;
                 
-                if (!title || !desc) {
-                    showToast('Vui lòng nhập đầy đủ tiêu đề và nội dung', 'warning');
+                if (!quill) {
+                    showToast('Editor chưa sẵn sàng. Vui lòng đóng và mở lại.', 'error');
+                    return;
+                }
+                
+                const htmlContent = quill.root.innerHTML;
+                const plainText = quill.getText().trim();
+                
+                if (!title) {
+                    showToast('Vui lòng nhập tiêu đề nội dung', 'warning');
+                    return;
+                }
+                if (!plainText) {
+                    showToast('Vui lòng nhập nội dung trình bày', 'warning');
                     return;
                 }
                 
@@ -1571,7 +1589,7 @@ async function addContent(meetingId) {
                     
                     const contentId = await addMeetingContent(meetingId, {
                         title: title,
-                        description: desc,
+                        description: htmlContent,
                         status: 'DRAFT'
                     });
                     
@@ -1597,20 +1615,38 @@ async function addContent(meetingId) {
                     const linkMsg = uploadedCount > 0 ? ` (${uploadedCount} tài liệu)` : '';
                     showToast(`✅ Đã thêm nội dung${linkMsg}!`, 'success');
                     resetPendingLinks(formKey);
+                    window._activeAddContentQuill = null;
                     close();
                     
                     const container = document.getElementById('pageContainer');
                     await renderMeetingDetail(container, meetingId);
                 } catch (error) {
                     showToast('Lỗi: ' + error.message, 'error');
+                    const saveBtn = document.querySelector('.modal-footer button[data-action="save"]');
+                    if (saveBtn) {
+                        saveBtn.disabled = false;
+                        saveBtn.innerHTML = 'Thêm nội dung';
+                    }
                 }
             }
         }
     ]);
+    
+    setTimeout(function() {
+        window._activeAddContentQuill = initQuillEditor(
+            '#newContentDescEditor',
+            '',
+            'Nhập mô tả chi tiết nội dung cần thảo luận...'
+        );
+        if (window._activeAddContentQuill) {
+            window._activeAddContentQuill.focus();
+        }
+    }, 80);
 }
 /**
  * Sửa nội dung cuộc họp
- * ĐÃ NÂNG CẤP: Hỗ trợ xem nhiều link cũ + thêm nhiều link mới
+ * ĐÃ NÂNG CẤP: Mô tả dùng Quill.js Rich Text Editor
+ * Giữ nguyên khối multi-link Google Drive với cơ chế khóa link cũ
  * @param {string} meetingId
  * @param {string} contentId
  */
@@ -1635,6 +1671,8 @@ async function editContent(meetingId, contentId) {
     if (!window._pendingLinks) window._pendingLinks = {};
     window._pendingLinks[formKey] = [...lockedLinks];
     
+    window._activeEditContentQuill = null;
+    
     showModal('✏️ Sửa nội dung cuộc họp', `
         <div class="form-group">
             <label>Tiêu đề nội dung <span class="required">*</span></label>
@@ -1642,7 +1680,10 @@ async function editContent(meetingId, contentId) {
         </div>
         <div class="form-group">
             <label>Nội dung trình bày <span class="required">*</span></label>
-            <textarea id="editContentDesc" rows="5">${escapeHtml(content.description || '')}</textarea>
+            <div id="editContentDescEditor" style="background:#fff;border-radius:8px;"></div>
+            <div style="font-size:12px;color:var(--gray-500);margin-top:6px;">
+                💡 Có thể dùng in đậm, in nghiêng, gạch chân, danh sách bullet/number.
+            </div>
         </div>
         
         <div class="form-group" style="padding:14px;background:#f0fdf4;border:2px dashed #86efac;border-radius:10px;">
@@ -1674,17 +1715,29 @@ async function editContent(meetingId, contentId) {
             </div>
         </div>
     `, [
-        { text: 'Hủy', class: 'btn-secondary', action: 'cancel' },
+        { text: 'Hủy', class: 'btn-secondary', action: 'close' },
         {
             text: 'Lưu thay đổi',
             class: 'btn-primary',
             action: 'save',
             onClick: async (close) => {
                 const title = document.getElementById('editContentTitle').value.trim();
-                const desc = document.getElementById('editContentDesc').value.trim();
+                const quill = window._activeEditContentQuill;
                 
-                if (!title || !desc) {
-                    showToast('Vui lòng nhập đầy đủ thông tin', 'warning');
+                if (!quill) {
+                    showToast('Editor chưa sẵn sàng. Vui lòng đóng và mở lại.', 'error');
+                    return;
+                }
+                
+                const htmlContent = quill.root.innerHTML;
+                const plainText = quill.getText().trim();
+                
+                if (!title) {
+                    showToast('Vui lòng nhập tiêu đề nội dung', 'warning');
+                    return;
+                }
+                if (!plainText) {
+                    showToast('Vui lòng nhập nội dung trình bày', 'warning');
                     return;
                 }
                 
@@ -1697,7 +1750,7 @@ async function editContent(meetingId, contentId) {
                     
                     await updateMeetingContent(meetingId, contentId, {
                         title: title,
-                        description: desc
+                        description: htmlContent
                     });
                     
                     const allLinks = getPendingLinks(formKey);
@@ -1724,20 +1777,37 @@ async function editContent(meetingId, contentId) {
                     const linkMsg = uploadedCount > 0 ? ` (thêm ${uploadedCount} tài liệu)` : '';
                     showToast(`✅ Đã cập nhật nội dung${linkMsg}!`, 'success');
                     resetPendingLinks(formKey);
+                    window._activeEditContentQuill = null;
                     close();
                     
                     const container = document.getElementById('pageContainer');
                     await renderMeetingDetail(container, meetingId);
                 } catch (error) {
                     showToast('Lỗi: ' + error.message, 'error');
+                    const saveBtn = document.querySelector('.modal-footer button[data-action="save"]');
+                    if (saveBtn) {
+                        saveBtn.disabled = false;
+                        saveBtn.innerHTML = 'Lưu thay đổi';
+                    }
                 }
             }
         }
     ]);
+    
+    setTimeout(function() {
+        window._activeEditContentQuill = initQuillEditor(
+            '#editContentDescEditor',
+            content.description || '',
+            'Nhập mô tả chi tiết nội dung...'
+        );
+        if (window._activeEditContentQuill) {
+            window._activeEditContentQuill.focus();
+        }
+    }, 80);
 }
 /**
  * Kết luận nội dung cuộc họp
- * ĐÃ SỬA: Cho phép kết luận TRỐNG (bỏ qua kết luận)
+ * ĐÃ NÂNG CẤP: Dùng Quill.js Rich Text Editor
  * @param {string} meetingId
  * @param {string} contentId
  */
@@ -1747,17 +1817,20 @@ async function concludeContent(meetingId, contentId) {
     if (!window._pendingLinks) window._pendingLinks = {};
     window._pendingLinks[formKey] = [];
     
+    window._activeConclusionQuill = null;
+    
     showModal('👨‍💼 Kết luận nội dung cuộc họp', `
         <div style="padding:10px 14px;background:#eff6ff;border-left:3px solid #2563eb;border-radius:6px;margin-bottom:14px;font-size:13px;color:#1e40af;line-height:1.6;">
             <i class="fas fa-info-circle"></i>
-            Với các nội dung <strong>dự thảo</strong> hoặc <strong>lấy ý kiến</strong>, bạn có thể <strong>để trống kết luận</strong> và bấm "Chốt nội dung" — hệ thống vẫn ghi nhận là đã xử lý.
+            Với các nội dung <strong>dự thảo</strong> hoặc <strong>lấy ý kiến</strong>, bạn có thể <strong>để trống kết luận</strong> và bấm "Chốt nội dung".
+            <br><strong>💡 Có thể dùng in đậm, in nghiêng, gạch chân, danh sách bullet/number.</strong>
         </div>
         
         <div class="form-group">
             <label>Nội dung kết luận</label>
-            <textarea id="conclusionInput" rows="6" placeholder="Nhập kết luận của tổ trưởng cho nội dung này (có thể bỏ trống nếu chỉ ghi nhận ý kiến)..."></textarea>
+            <div id="conclusionEditorContainer" style="background:#fff;border-radius:8px;"></div>
             <div style="font-size:12px;color:var(--gray-500);margin-top:6px;">
-                💡 Kết luận sẽ được ghi vào hồ sơ. Nếu bỏ trống, hệ thống sẽ ghi chú "Chưa có kết luận chính thức".
+                💡 Nếu bỏ trống, hệ thống sẽ ghi chú "Chưa có kết luận chính thức".
             </div>
         </div>
         
@@ -1783,13 +1856,26 @@ async function concludeContent(meetingId, contentId) {
             </div>
         </div>
     `, [
-        { text: 'Hủy', class: 'btn-secondary', action: 'cancel' },
+        { text: 'Hủy', class: 'btn-secondary', action: 'close' },
         {
             text: '✅ Chốt nội dung',
             class: 'btn-primary',
             action: 'save',
             onClick: async (close) => {
-                const conclusion = document.getElementById('conclusionInput').value.trim();
+                const quill = window._activeConclusionQuill;
+                if (!quill) {
+                    showToast('Editor chưa sẵn sàng. Vui lòng đóng và mở lại.', 'error');
+                    return;
+                }
+                
+                const htmlContent = quill.root.innerHTML;
+                const plainText = quill.getText().trim();
+                const isEmpty = !plainText || plainText.length === 0;
+                
+                if (!isEmpty && plainText.length < 3) {
+                    showToast('Kết luận quá ngắn. Vui lòng nhập ít nhất 3 ký tự hoặc để trống.', 'warning');
+                    return;
+                }
                 
                 try {
                     const saveBtn = document.querySelector('.modal-footer button[data-action="save"]');
@@ -1800,7 +1886,7 @@ async function concludeContent(meetingId, contentId) {
                     
                     const uid = getCurrentUid();
                     await updateMeetingContent(meetingId, contentId, {
-                        conclusion: conclusion || '',
+                        conclusion: isEmpty ? '' : htmlContent,
                         concludedAt: firebase.database.ServerValue.TIMESTAMP,
                         concludedBy: uid,
                         status: 'CONCLUDED'
@@ -1825,112 +1911,120 @@ async function concludeContent(meetingId, contentId) {
                     
                     showToast('✅ Đã chốt nội dung thành công!', 'success');
                     resetPendingLinks(formKey);
+                    window._activeConclusionQuill = null;
                     close();
                     
                     const container = document.getElementById('pageContainer');
                     await renderMeetingDetail(container, meetingId);
                 } catch (error) {
                     showToast('Lỗi: ' + error.message, 'error');
+                    const saveBtn = document.querySelector('.modal-footer button[data-action="save"]');
+                    if (saveBtn) {
+                        saveBtn.disabled = false;
+                        saveBtn.innerHTML = '✅ Chốt nội dung';
+                    }
                 }
             }
         }
     ]);
+    
+    setTimeout(function() {
+        window._activeConclusionQuill = initQuillEditor(
+            '#conclusionEditorContainer',
+            '',
+            'Nhập kết luận của tổ trưởng cho nội dung này...'
+        );
+        if (window._activeConclusionQuill) {
+            window._activeConclusionQuill.focus();
+        }
+    }, 80);
 }
-
 /**
- * Edit conclusion (chỉ thêm link mới, không sửa/xóa link cũ)
+ * Sửa kết luận — Dùng Quill.js Rich Text Editor
  * @param {string} meetingId
  * @param {string} contentId
  */
 async function editConclusion(meetingId, contentId) {
     const contents = await getMeetingContents(meetingId);
     const content = contents.find(c => c.id === contentId);
-    if (!content || !content.conclusion) return;
+    if (!content || !content.conclusion) {
+        showToast('Không tìm thấy kết luận', 'error');
+        return;
+    }
     
-    const formKey = `edit_conclusion_${contentId}`;
+    window._activeEditConclusionQuill = null;
     
-    const oldAttachments = content.conclusionAttachments || {};
-    const lockedLinks = Object.values(oldAttachments).map(att => ({
-        url: att.url,
-        fileId: att.fileId || extractGoogleDriveId(att.url) || '',
-        fileName: att.fileName || 'Tài liệu',
-        isNew: false
-    }));
-    
-    if (!window._pendingLinks) window._pendingLinks = {};
-    window._pendingLinks[formKey] = [...lockedLinks];
-    
-       showModal('Sửa kết luận', `
+    showModal('✏️ Sửa kết luận', `
         <div class="form-group">
             <label>Kết luận</label>
-            <textarea id="editConclusionInput" rows="4">${escapeHtml(content.conclusion)}</textarea>
-        </div>
-        <div class="form-group">
-            <label>🔗 Tài liệu đính kèm</label>
-            <div style="padding:12px;background:var(--gray-50);border-radius:8px;">
-                <div id="attachList_${formKey}" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">
-                    ${renderAttachmentTags(lockedLinks, formKey)}
-                </div>
-                <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px;">
-                    <input type="text" id="attachUrl_${formKey}" placeholder="https://drive.google.com/file/d/.../view" style="flex:2;min-width:180px;padding:8px 12px;border:2px solid var(--gray-200);border-radius:6px;font-size:13px;">
-                    <input type="text" id="attachName_${formKey}" placeholder="Tên file" style="flex:1;min-width:100px;padding:8px 12px;border:2px solid var(--gray-200);border-radius:6px;font-size:13px;">
-                    <button type="button" class="btn-secondary" style="padding:8px 14px;font-size:13px;" onclick="addAttachmentTagFromInput('${formKey}', true)">
-                        <i class="fa fa-paperclip"></i> Xác nhận đính kèm
-                    </button>
-                </div>
-                <p style="font-size:12px;color:var(--gray-500);margin-top:8px;">
-                    <i class="fas fa-lock"></i> Link cũ đã khóa, chỉ có thể thêm link mới.
-                </p>
+            <div id="editConclusionEditorContainer" style="background:#fff;border-radius:8px;"></div>
+            <div style="font-size:12px;color:var(--gray-500);margin-top:6px;">
+                💡 Có thể dùng in đậm, in nghiêng, gạch chân, danh sách bullet/number.
             </div>
         </div>
     `, [
-        { text: 'Hủy', class: 'btn-secondary', action: 'cancel' },
+        { text: 'Hủy', class: 'btn-secondary', action: 'close' },
         {
-            text: 'Lưu',
+            text: 'Lưu thay đổi',
             class: 'btn-primary',
             action: 'save',
             onClick: async (close) => {
-                const conclusion = document.getElementById('editConclusionInput').value.trim();
-                if (!conclusion) {
-                    showToast('Vui lòng nhập kết luận', 'warning');
+                const quill = window._activeEditConclusionQuill;
+                if (!quill) {
+                    showToast('Editor chưa sẵn sàng. Vui lòng đóng và mở lại.', 'error');
                     return;
                 }
+                
+                const htmlContent = quill.root.innerHTML;
+                const plainText = quill.getText().trim();
+                
+                if (!plainText || plainText.length < 3) {
+                    showToast('Vui lòng nhập kết luận (tối thiểu 3 ký tự)', 'warning');
+                    return;
+                }
+                
                 try {
+                    const saveBtn = document.querySelector('.modal-footer button[data-action="save"]');
+                    if (saveBtn) {
+                        saveBtn.disabled = true;
+                        saveBtn.innerHTML = '<span class="spinner"></span> Đang lưu...';
+                    }
+                    
                     await updateMeetingContent(meetingId, contentId, {
-                        conclusion: conclusion,
+                        conclusion: htmlContent,
                         concludedAt: firebase.database.ServerValue.TIMESTAMP
                     });
                     
-                    const allLinks = getPendingLinks(formKey);
-                    const newLinks = allLinks.filter(l => l.isNew === true);
-                    for (const link of newLinks) {
-                        try {
-                            await addAttachmentByUrl(
-                                meetingId,
-                                link.url,
-                                link.fileName,
-                                'application/octet-stream',
-                                'CONCLUSION',
-                                contentId,
-                                link.fileId
-                            );
-                        } catch (attError) {
-                            console.warn('Lỗi lưu link mới:', attError);
-                        }
-                    }
-                    
-                    showToast('Đã cập nhật!', 'success');
-                    resetPendingLinks(formKey);
+                    showToast('✅ Đã cập nhật kết luận!', 'success');
+                    window._activeEditConclusionQuill = null;
                     close();
+                    
                     const container = document.getElementById('pageContainer');
                     await renderMeetingDetail(container, meetingId);
                 } catch (error) {
                     showToast('Lỗi: ' + error.message, 'error');
+                    const saveBtn = document.querySelector('.modal-footer button[data-action="save"]');
+                    if (saveBtn) {
+                        saveBtn.disabled = false;
+                        saveBtn.innerHTML = 'Lưu thay đổi';
+                    }
                 }
             }
         }
     ]);
+    
+    setTimeout(function() {
+        window._activeEditConclusionQuill = initQuillEditor(
+            '#editConclusionEditorContainer',
+            content.conclusion || '',
+            'Nhập kết luận...'
+        );
+        if (window._activeEditConclusionQuill) {
+            window._activeEditConclusionQuill.focus();
+        }
+    }, 80);
 }
+
 /**
  * Hiển thị form phân công nhiệm vụ
  * ĐÃ NÂNG CẤP: Cho phép chọn NHIỀU người hoặc "Tất cả thành viên"

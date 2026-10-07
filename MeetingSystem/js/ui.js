@@ -1175,7 +1175,93 @@ function closeWelcomeModal(markAsShown = true) {
         }
     }
 }
+// ============================================================
+// QUILL.JS HELPERS — Rich Text Editor Integration
+// ============================================================
 
+/**
+ * Kiểm tra chuỗi có chứa thẻ HTML không (output của Quill)
+ * @param {string} str
+ * @returns {boolean}
+ */
+function isHtmlContent(str) {
+    if (!str || typeof str !== 'string') return false;
+    return /<(p|br|strong|em|u|ul|ol|li|span|div|h[1-6]|blockquote|a|b|i)\b[^>]*>/i.test(str);
+}
+
+/**
+ * Render nội dung rich text AN TOÀN với backward compat:
+ *   - Nếu có HTML (từ Quill) → sanitize nhẹ + render HTML
+ *   - Nếu là plain text (dữ liệu cũ) → escape + chuyển \n thành <br>
+ * @param {string} str
+ * @returns {string} HTML an toàn
+ */
+function renderRichContent(str) {
+    if (!str) return '';
+    const s = String(str);
+    
+    if (isHtmlContent(s)) {
+        return s
+            .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+            .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
+            .replace(/<object\b[^<]*(?:(?!<\/object>)<[^<]*)*<\/object>/gi, '')
+            .replace(/<embed\b[^>]*>/gi, '')
+            .replace(/\son\w+\s*=\s*"[^"]*"/gi, '')
+            .replace(/\son\w+\s*=\s*'[^']*'/gi, '')
+            .replace(/\son\w+\s*=\s*[^\s>]+/gi, '')
+            .replace(/javascript:/gi, '');
+    }
+    
+    return escapeHtml(s).replace(/\n/g, '<br>');
+}
+
+/**
+ * Khởi tạo Quill editor cho 1 element
+ * @param {string} selector - CSS selector, ví dụ '#conclusionEditor'
+ * @param {string} initialContent - HTML hoặc plain text
+ * @param {string} placeholder
+ * @returns {Object|null} Quill instance hoặc null nếu lỗi
+ */
+function initQuillEditor(selector, initialContent, placeholder) {
+    if (typeof Quill === 'undefined') {
+        console.warn('Quill.js chưa load. Kiểm tra CDN.');
+        return null;
+    }
+    
+    const el = document.querySelector(selector);
+    if (!el) {
+        console.warn('Không tìm thấy element Quill:', selector);
+        return null;
+    }
+    
+    const quill = new Quill(selector, {
+        theme: 'snow',
+        placeholder: placeholder || 'Nhập nội dung...',
+        modules: {
+            toolbar: [
+                ['bold', 'italic', 'underline'],
+                [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+                ['clean']
+            ]
+        }
+    });
+    
+    if (initialContent && String(initialContent).trim()) {
+        const s = String(initialContent);
+        if (isHtmlContent(s)) {
+            quill.clipboard.dangerouslyPasteHTML(s);
+        } else {
+            const html = escapeHtml(s).replace(/\n/g, '<br>');
+            quill.clipboard.dangerouslyPasteHTML(html);
+        }
+    }
+    
+    return quill;
+}
+
+window.isHtmlContent = isHtmlContent;
+window.renderRichContent = renderRichContent;
+window.initQuillEditor = initQuillEditor;
 // Export
 window.showWelcomeModal = showWelcomeModal;
 window.closeWelcomeModal = closeWelcomeModal;

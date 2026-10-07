@@ -1,13 +1,14 @@
 // ============================================================
 // DISCUSSION MODULE - Render and manage discussions
+// ĐÃ NÂNG CẤP: Tích hợp Quill.js Rich Text Editor
 // ============================================================
 
 /**
  * Render discussion section for a meeting
  * @param {string} meetingId
- * @param {string} contentId - Content ID to filter discussions
+ * @param {string} contentId
  * @param {HTMLElement} container
- * @param {boolean} readOnly - If true, hide comment form
+ * @param {boolean} readOnly
  */
 async function renderDiscussions(meetingId, contentId, container, readOnly = false) {
     try {
@@ -33,6 +34,8 @@ async function renderDiscussions(meetingId, contentId, container, readOnly = fal
         
         threads.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
         
+        const inputKey = contentId || 'all';
+        
         let html = `
             <div class="discussion-thread">
                 ${threads.length === 0 ? `
@@ -47,14 +50,19 @@ async function renderDiscussions(meetingId, contentId, container, readOnly = fal
         `;
         
         if (!readOnly && uid && !isClosed) {
-            const formKey = `disc_${contentId || 'all'}`;
+            const formKey = `disc_${inputKey}`;
             if (!window._pendingLinks) window._pendingLinks = {};
             window._pendingLinks[formKey] = [];
             
             html += `
-                <div class="discussion-form" id="discussionForm_${contentId || 'all'}">
-                    <h4 style="margin-bottom:8px;font-size:15px;">💬 Viết ý kiến của bạn</h4>
-                    <textarea id="discussionInput_${contentId || 'all'}" placeholder="Nhập ý kiến... Có thể đính kèm link Google Drive bên dưới." rows="3"></textarea>
+                <div class="discussion-form" id="discussionForm_${inputKey}">
+                    <h4 style="margin-bottom:8px;font-size:15px;">
+                        💬 Viết ý kiến của bạn
+                        <span style="font-size:11px;color:var(--gray-500);font-weight:400;margin-left:6px;">
+                            (Hỗ trợ in đậm, in nghiêng, gạch chân, danh sách)
+                        </span>
+                    </h4>
+                    <div id="discussionEditorContainer_${inputKey}" style="background:#fff;border-radius:8px;"></div>
                     
                     <div style="margin-top:12px;padding:12px;background:var(--gray-50);border-radius:8px;">
                         <div style="font-size:13px;font-weight:600;color:var(--gray-600);margin-bottom:8px;">
@@ -82,6 +90,20 @@ async function renderDiscussions(meetingId, contentId, container, readOnly = fal
         }
         
         container.innerHTML = html;
+        
+        // ==== Khởi tạo Quill cho form input ====
+        if (!readOnly && uid && !isClosed) {
+            setTimeout(function() {
+                const editorKey = `discussion_${inputKey}`;
+                window._discussionQuills = window._discussionQuills || {};
+                window._discussionQuills[editorKey] = initQuillEditor(
+                    `#discussionEditorContainer_${inputKey}`,
+                    '',
+                    'Nhập ý kiến... Có thể dùng định dạng đậm/nghiêng/gạch chân và danh sách.'
+                );
+            }, 80);
+        }
+        
     } catch (error) {
         console.error('Error rendering discussions:', error);
         container.innerHTML = `<p class="error">Lỗi tải thảo luận: ${escapeHtml(error.message)}</p>`;
@@ -89,7 +111,8 @@ async function renderDiscussions(meetingId, contentId, container, readOnly = fal
 }
 
 /**
- * Render một discussion item (đã có nút Sửa + Xóa)
+ * Render một discussion item
+ * ĐÃ NÂNG CẤP: Render content dùng renderRichContent (backward compat)
  * @param {Object} discussion
  * @param {Array} replies
  * @param {string} currentUid
@@ -115,7 +138,7 @@ function renderDiscussionItem(discussion, replies, currentUid, isLeader, readOnl
                 <span class="discussion-time">${time}</span>
                 ${isEdited ? `<span style="font-size:12px;color:var(--gray-400);margin-left:4px;">✏️ Đã sửa</span>` : ''}
             </div>
-            <div class="discussion-content">${escapeHtml(discussion.content)}</div>
+            <div class="discussion-content" style="line-height:1.7;">${renderRichContent(discussion.content)}</div>
     `;
     
     if (discussion.attachments && Object.keys(discussion.attachments).length > 0) {
@@ -178,7 +201,10 @@ function renderDiscussionItem(discussion, replies, currentUid, isLeader, readOnl
 }
 
 /**
- * Submit a discussion (with Google Drive links)
+ * Submit a discussion — Lấy HTML từ Quill
+ * @param {string} meetingId
+ * @param {string} contentId
+ * @param {string} parentId
  */
 async function submitDiscussion(meetingId, contentId, parentId = null) {
     const uid = getCurrentUid();
@@ -188,10 +214,19 @@ async function submitDiscussion(meetingId, contentId, parentId = null) {
     }
     
     const inputKey = contentId || 'all';
-    const input = document.getElementById(`discussionInput_${inputKey}`);
-    if (!input) return;
-    const content = input.value.trim();
-    if (!content) {
+    const editorKey = `discussion_${inputKey}`;
+    
+    // Lấy Quill instance
+    const quill = window._discussionQuills && window._discussionQuills[editorKey];
+    if (!quill) {
+        showToast('Editor chưa sẵn sàng. Vui lòng refresh trang.', 'error');
+        return;
+    }
+    
+    const htmlContent = quill.root.innerHTML;
+    const plainText = quill.getText().trim();
+    
+    if (!plainText) {
         showToast('Vui lòng nhập nội dung', 'warning');
         return;
     }
@@ -216,14 +251,15 @@ async function submitDiscussion(meetingId, contentId, parentId = null) {
     try {
         await addDiscussion(meetingId, {
             contentId: contentId || null,
-            content: content,
+            content: htmlContent,
             parentId: parentId,
             attachments: attachments
         });
         
         showToast('Đã gửi ý kiến thành công!', 'success');
         
-        input.value = '';
+        // Reset Quill
+        quill.setContents([]);
         resetPendingLinks(formKey);
         
         const container = document.getElementById(`discussions_${inputKey}`);
@@ -253,16 +289,20 @@ async function submitDiscussion(meetingId, contentId, parentId = null) {
  */
 function showReplyForm(parentId, contentId) {
     const inputKey = contentId || 'all';
-    const input = document.getElementById(`discussionInput_${inputKey}`);
-    if (input) {
-        input.focus();
-        input.placeholder = `Phản hồi ý kiến này...`;
+    const editorKey = `discussion_${inputKey}`;
+    const quill = window._discussionQuills && window._discussionQuills[editorKey];
+    if (quill) {
+        quill.focus();
+        const editorEl = document.querySelector(`#discussionEditorContainer_${inputKey} .ql-editor`);
+        if (editorEl) {
+            editorEl.setAttribute('data-placeholder', 'Phản hồi ý kiến này...');
+        }
         window._replyParentId = parentId;
     }
 }
 
 /**
- * Edit a discussion
+ * Edit a discussion — Dùng Quill editor
  */
 async function editDiscussion(meetingId, discussionId, contentId) {
     if (!meetingId) {
@@ -296,10 +336,12 @@ async function editDiscussion(meetingId, discussionId, contentId) {
     if (!window._pendingLinks) window._pendingLinks = {};
     window._pendingLinks[formKey] = [...lockedLinks];
     
+    window._activeEditDiscussionQuill = null;
+    
     showModal('✏️ Sửa ý kiến', `
         <div class="form-group">
             <label>Nội dung</label>
-            <textarea id="editDiscussionContent" rows="5">${escapeHtml(currentContent)}</textarea>
+            <div id="editDiscussionEditorContainer" style="background:#fff;border-radius:8px;"></div>
         </div>
         
         <div class="form-group">
@@ -321,14 +363,22 @@ async function editDiscussion(meetingId, discussionId, contentId) {
             </div>
         </div>
     `, [
-        { text: 'Hủy', class: 'btn-secondary', action: 'cancel' },
+        { text: 'Hủy', class: 'btn-secondary', action: 'close' },
         {
             text: 'Lưu',
             class: 'btn-primary',
             action: 'save',
             onClick: async (close) => {
-                const newContent = document.getElementById('editDiscussionContent').value.trim();
-                if (!newContent) {
+                const quill = window._activeEditDiscussionQuill;
+                if (!quill) {
+                    showToast('Editor chưa sẵn sàng. Vui lòng đóng và mở lại.', 'error');
+                    return;
+                }
+                
+                const htmlContent = quill.root.innerHTML;
+                const plainText = quill.getText().trim();
+                
+                if (!plainText) {
                     showToast('Vui lòng nhập nội dung', 'warning');
                     return;
                 }
@@ -351,13 +401,14 @@ async function editDiscussion(meetingId, discussionId, contentId) {
                 });
                 
                 try {
-                    await updateDiscussion(meetingId, discussionId, { content: newContent });
+                    await updateDiscussion(meetingId, discussionId, { content: htmlContent });
                     
                     for (const key of Object.keys(newAttachments)) {
                         await db.ref(`discussions/${meetingId}/${discussionId}/attachments/${key}`).set(newAttachments[key]);
                     }
                     
                     showToast('✅ Đã cập nhật ý kiến', 'success');
+                    window._activeEditDiscussionQuill = null;
                     close();
                     resetPendingLinks(formKey);
                     
@@ -371,6 +422,17 @@ async function editDiscussion(meetingId, discussionId, contentId) {
             }
         }
     ]);
+    
+    setTimeout(function() {
+        window._activeEditDiscussionQuill = initQuillEditor(
+            '#editDiscussionEditorContainer',
+            currentContent,
+            'Nhập nội dung...'
+        );
+        if (window._activeEditDiscussionQuill) {
+            window._activeEditDiscussionQuill.focus();
+        }
+    }, 80);
 }
 
 /**
