@@ -43,8 +43,13 @@
                         </button>
                     </div>
                 </div>
-                
                 <div id="loginError" class="login-error" style="display:none;"></div>
+                
+                <div style="text-align:right;margin-bottom:16px;margin-top:-6px;">
+                    <a href="#" id="forgotPasswordLink" style="font-size:13px;color:var(--primary);text-decoration:none;font-weight:600;transition:color 0.2s;" onmouseover="this.style.color='var(--accent)';this.style.textDecoration='underline';" onmouseout="this.style.color='var(--primary)';this.style.textDecoration='none';">
+                        <i class="fas fa-key"></i> Quên mật khẩu?
+                    </a>
+                </div>
                 
                 <button type="submit" id="loginBtn" class="btn-login">
                     <i class="fas fa-sign-in-alt"></i>
@@ -70,7 +75,46 @@
     
     <!-- Toast -->
     <div id="toastContainer" class="toast-container"></div>
-    
+        <!-- ============================================================
+         MODAL QUÊN MẬT KHẨU
+         ============================================================ -->
+    <div class="modal-container" id="forgotPasswordModal">
+        <div class="modal" style="max-width:460px;">
+            <div class="modal-header">
+                <h2 style="display:flex;align-items:center;gap:10px;font-size:18px;">
+                    <span style="font-size:22px;">🔑</span>
+                    <span>Khôi phục mật khẩu</span>
+                </h2>
+                <button class="modal-close" onclick="closeForgotPasswordModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size:14px;color:var(--gray-600);line-height:1.6;margin-bottom:16px;">
+                    Nhập email đã đăng ký tài khoản của bạn. Hệ thống sẽ gửi link đặt lại mật khẩu vào hộp thư.
+                </p>
+                
+                <div class="form-group" style="margin-bottom:0;">
+                    <label style="display:block;font-weight:600;font-size:14px;color:var(--gray-700);margin-bottom:6px;">
+                        <i class="fas fa-envelope" style="color:var(--gray-400);margin-right:6px;"></i>
+                        Email của bạn <span style="color:var(--danger);">*</span>
+                    </label>
+                    <input type="email" id="forgotEmailInput" placeholder="nhap@email.com" autocomplete="email" style="width:100%;padding:12px 16px;border:2px solid var(--gray-200);border-radius:8px;font-size:15px;background:var(--gray-50);transition:border-color 0.2s;" onfocus="this.style.borderColor='var(--primary)';this.style.background='#fff';" onblur="this.style.borderColor='var(--gray-200)';this.style.background='var(--gray-50)';">
+                </div>
+                
+                <div id="forgotPasswordMessage" class="message" style="display:none;margin-top:14px;"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeForgotPasswordModal()" style="padding:10px 20px;font-size:14px;border-radius:8px;font-weight:600;background:#e2e8f0;color:#334155;border:none;cursor:pointer;font-family:inherit;">
+                    <i class="fas fa-times"></i> Hủy
+                </button>
+                <button class="btn-primary" id="forgotPasswordSubmitBtn" onclick="handleForgotPassword()" style="padding:10px 24px;font-size:14px;border-radius:8px;font-weight:700;background:var(--primary);color:#fff;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:8px;font-family:inherit;">
+                    <i class="fas fa-paper-plane"></i>
+                    Gửi link khôi phục
+                </button>
+            </div>
+        </div>
+    </div>
     <script src="js/firebase-config.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/ui.js"></script>
@@ -138,6 +182,49 @@
                         errorEl.textContent = message;
                         errorEl.style.display = 'block';
                     });
+            });
+                        // Nút "Quên mật khẩu?"
+            const forgotLink = document.getElementById('forgotPasswordLink');
+            if (forgotLink) {
+                forgotLink.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    if (typeof showForgotPasswordModal === 'function') {
+                        showForgotPasswordModal();
+                    } else {
+                        alert('Chức năng chưa sẵn sàng. Vui lòng tải lại trang.');
+                    }
+                });
+            }
+            
+            // Đóng modal khi click ngoài
+            const forgotModal = document.getElementById('forgotPasswordModal');
+            if (forgotModal) {
+                forgotModal.addEventListener('click', function(e) {
+                    if (e.target === forgotModal) {
+                        closeForgotPasswordModal();
+                    }
+                });
+            }
+            
+            // Enter trong ô email → submit
+            const forgotEmailInput = document.getElementById('forgotEmailInput');
+            if (forgotEmailInput) {
+                forgotEmailInput.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleForgotPassword();
+                    }
+                });
+            }
+            
+            // ESC để đóng modal
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    const modal = document.getElementById('forgotPasswordModal');
+                    if (modal && modal.classList.contains('active')) {
+                        closeForgotPasswordModal();
+                    }
+                }
             });
             
             // Google login

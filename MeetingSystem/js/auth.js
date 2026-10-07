@@ -386,7 +386,187 @@ document.addEventListener('DOMContentLoaded', function() {
         logoutBtn.addEventListener('click', logoutUser);
     }
 });
+// ============================================================
+// FORGOT PASSWORD — Quên mật khẩu
+// ============================================================
 
+/**
+ * Hiển thị modal quên mật khẩu
+ */
+function showForgotPasswordModal() {
+    const modal = document.getElementById('forgotPasswordModal');
+    if (!modal) {
+        console.warn('Không tìm thấy modal #forgotPasswordModal');
+        return;
+    }
+    
+    // Reset form
+    const emailInput = document.getElementById('forgotEmailInput');
+    const messageEl = document.getElementById('forgotPasswordMessage');
+    const submitBtn = document.getElementById('forgotPasswordSubmitBtn');
+    
+    if (emailInput) {
+        // Pre-fill email nếu user đã gõ ở form login
+        const loginEmail = document.getElementById('emailInput');
+        if (loginEmail && loginEmail.value.trim()) {
+            emailInput.value = loginEmail.value.trim();
+        } else {
+            emailInput.value = '';
+        }
+    }
+    if (messageEl) {
+        messageEl.style.display = 'none';
+        messageEl.textContent = '';
+        messageEl.className = 'message';
+    }
+    if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Gửi link khôi phục';
+    }
+    
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+    
+    // Focus vào ô nhập email
+    setTimeout(function() {
+        if (emailInput) emailInput.focus();
+    }, 100);
+}
+
+/**
+ * Đóng modal quên mật khẩu
+ */
+function closeForgotPasswordModal() {
+    const modal = document.getElementById('forgotPasswordModal');
+    if (!modal) return;
+    
+    modal.classList.remove('active');
+    document.body.style.overflow = '';
+    
+    // Reset form sau khi đóng
+    setTimeout(function() {
+        const emailInput = document.getElementById('forgotEmailInput');
+        const messageEl = document.getElementById('forgotPasswordMessage');
+        if (emailInput) emailInput.value = '';
+        if (messageEl) {
+            messageEl.style.display = 'none';
+            messageEl.textContent = '';
+            messageEl.className = 'message';
+        }
+    }, 300);
+}
+
+/**
+ * Xử lý gửi email khôi phục mật khẩu
+ */
+async function handleForgotPassword() {
+    const emailInput = document.getElementById('forgotEmailInput');
+    const messageEl = document.getElementById('forgotPasswordMessage');
+    const submitBtn = document.getElementById('forgotPasswordSubmitBtn');
+    
+    if (!emailInput || !messageEl) return;
+    
+    const email = emailInput.value.trim();
+    
+    // Reset message
+    messageEl.style.display = 'none';
+    messageEl.textContent = '';
+    messageEl.className = 'message';
+    
+    // ==== VALIDATION ====
+    if (!email) {
+        messageEl.textContent = '⚠️ Vui lòng nhập email của bạn.';
+        messageEl.className = 'message error';
+        messageEl.style.display = 'block';
+        emailInput.focus();
+        return;
+    }
+    
+    // Kiểm tra định dạng email bằng regex
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        messageEl.textContent = '⚠️ Email không hợp lệ. Vui lòng kiểm tra lại.';
+        messageEl.className = 'message error';
+        messageEl.style.display = 'block';
+        emailInput.focus();
+        return;
+    }
+    
+    // ==== DISABLE BUTTON ====
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner" style="display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.6s linear infinite;"></span> Đang gửi...';
+    }
+    
+    // ==== GỬI EMAIL RESET ====
+    try {
+        await auth.sendPasswordResetEmail(email);
+        
+        messageEl.innerHTML = `
+            <div style="line-height:1.7;">
+                <div style="font-weight:700;margin-bottom:6px;">✅ Đã gửi link khôi phục!</div>
+                <div>Link đặt lại mật khẩu đã được gửi đến <strong>${escapeHtml(email)}</strong>.</div>
+                <div style="margin-top:6px;font-size:13px;">📬 Vui lòng kiểm tra hộp thư đến (hoặc thư rác/spam).</div>
+                <div style="margin-top:8px;padding:8px 12px;background:#fef3c7;border-radius:6px;font-size:12px;color:#92400e;">
+                    💡 Nếu không nhận được sau 2-3 phút, hãy thử lại hoặc liên hệ Quản trị viên.
+                </div>
+            </div>
+        `;
+        messageEl.className = 'message success';
+        messageEl.style.display = 'block';
+        
+        if (submitBtn) {
+            submitBtn.innerHTML = '<i class="fas fa-check"></i> Đã gửi';
+            // Sau 3s cho phép gửi lại
+            setTimeout(function() {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Gửi lại';
+                }
+            }, 3000);
+        }
+        
+        console.log('✅ Đã gửi email reset cho:', email);
+        
+    } catch (error) {
+        console.error('Forgot password error:', error);
+        
+        let msg = 'Đã có lỗi xảy ra. Vui lòng thử lại sau.';
+        
+        switch (error.code) {
+            case 'auth/user-not-found':
+                msg = '📭 Email này chưa được đăng ký trong hệ thống. Vui lòng kiểm tra lại hoặc liên hệ Quản trị viên.';
+                break;
+            case 'auth/invalid-email':
+                msg = '⚠️ Email không hợp lệ. Vui lòng kiểm tra lại định dạng email.';
+                break;
+            case 'auth/too-many-requests':
+                msg = '⏳ Bạn đã yêu cầu quá nhiều lần. Vui lòng thử lại sau vài phút.';
+                break;
+            case 'auth/network-request-failed':
+                msg = '🌐 Lỗi kết nối mạng. Vui lòng kiểm tra Internet và thử lại.';
+                break;
+            default:
+                msg = '❌ Lỗi: ' + (error.message || 'Không xác định');
+        }
+        
+        messageEl.innerHTML = `<div style="font-weight:600;">${escapeHtml(msg)}</div>`;
+        messageEl.className = 'message error';
+        messageEl.style.display = 'block';
+        
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Gửi lại';
+        }
+    }
+}
+
+// ============================================================
+// EXPORTS
+// ============================================================
+window.showForgotPasswordModal = showForgotPasswordModal;
+window.closeForgotPasswordModal = closeForgotPasswordModal;
+window.handleForgotPassword = handleForgotPassword;
 // ============================================================
 // EXPORTS
 // ============================================================
