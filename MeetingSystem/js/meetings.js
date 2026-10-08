@@ -300,19 +300,18 @@ function getFormatLabel(format) {
 
 /**
  * Render create meeting form
- * Đã nâng cấp: Đặc quyền Admin + Giao diện khách mời CSS Grid
+ * ĐÃ NÂNG CẤP: Trường Mô tả cuộc họp dùng Quill.js
  * @param {HTMLElement} container
  */
-
 async function renderCreateMeeting(container) {
     const uid = getCurrentUid();
     if (!uid) return;
+    
     const userData = await getCurrentUserData();
     const role = await getCurrentUserRole();
     const teamId = await getCurrentUserTeamId();
-
-    const canCreate = await canCreateMeeting();
-    if (!canCreate) {
+    
+    if (role !== 'truong_to' && role !== 'admin' && role !== 'thu_ky' && role !== 'to_pho' && role !== 'nhom_truong') {
         container.innerHTML = `
             <div class="empty-state">
                 <i class="fas fa-lock"></i>
@@ -322,9 +321,9 @@ async function renderCreateMeeting(container) {
         `;
         return;
     }
-
+    
     // ============================================================
-    // 1. LẤY DATA TẤT CẢ CÁC TỔ
+    // LẤY DATA TẤT CẢ CÁC TỔ
     // ============================================================
     const teamsSnap = await db.ref('teams').once('value');
     const teamsData = teamsSnap.val() || {};
@@ -332,21 +331,21 @@ async function renderCreateMeeting(container) {
     Object.keys(teamsData).forEach(tid => {
         teamNameMap[tid] = teamsData[tid].name || tid;
     });
-
+    
     // ============================================================
-    // 2. PHÂN LOẠI THÀNH VIÊN VÀ KHÁCH MỜI
+    // PHÂN LOẠI THÀNH VIÊN VÀ KHÁCH MỜI
     // ============================================================
     let ownTeamMembers = [];
     let otherTeamMembers = [];
-
+    
     try {
         const allUsersSnap = await db.ref('users').once('value');
         const allUsers = allUsersSnap.val() || {};
-
+        
         Object.keys(allUsers).forEach(otherUid => {
             const u = allUsers[otherUid];
             if (!u) return;
-
+            
             if (role === 'admin') {
                 if (otherUid !== uid) {
                     otherTeamMembers.push({
@@ -379,7 +378,7 @@ async function renderCreateMeeting(container) {
                 }
             }
         });
-
+        
         otherTeamMembers.sort((a, b) => {
             const t = (a.teamName || '').localeCompare(b.teamName || '');
             if (t !== 0) return t;
@@ -388,9 +387,9 @@ async function renderCreateMeeting(container) {
     } catch (e) {
         console.error('Error loading members:', e);
     }
-
+    
     // ============================================================
-    // 3. LOGIC HIỂN THỊ TỔ CHUYÊN MÔN (ĐẶC QUYỀN ADMIN)
+    // LOGIC HIỂN THỊ TỔ CHUYÊN MÔN
     // ============================================================
     let teamSelectorHtml = '';
     
@@ -411,13 +410,12 @@ async function renderCreateMeeting(container) {
             <input type="hidden" id="meetingTeamId" value="${teamId}">
         `;
     }
-
-    let sequence = 1;
+    
     const today = formatDateInput(new Date());
     const defaultDeadline = formatDateInput(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000));
-
+    
     // ============================================================
-    // 4. BUILD HTML
+    // BUILD HTML
     // ============================================================
     let html = `
     <div class="section-card">
@@ -552,13 +550,11 @@ async function renderCreateMeeting(container) {
                 </div>
 
                 <div class="form-group">
-                    <label>Nội dung cuộc họp <span class="required">*</span></label>
-                    <textarea id="meetingDescription" rows="3" placeholder="Mô tả nội dung chính của cuộc họp..." required></textarea>
-                </div>
-
-                <div class="form-group">
-                    <label>Mã hồ sơ (tự động)</label>
-                    <input type="text" id="meetingCodePreview" value="Được tạo tự động sau khi lưu" disabled style="background:var(--gray-50); font-style: italic;">
+                    <label>Mô tả nội dung chính của cuộc họp <span class="required">*</span></label>
+                    <div id="meetingDescriptionEditor" style="background:#fff;border-radius:8px;"></div>
+                    <div style="font-size:12px;color:var(--gray-500);margin-top:6px;">
+                        💡 Có thể dùng in đậm, in nghiêng, gạch chân, danh sách bullet/number.
+                    </div>
                 </div>
 
                 <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:16px;">
@@ -575,9 +571,21 @@ async function renderCreateMeeting(container) {
     `;
     
     container.innerHTML = html;
-
+    
     // ============================================================
-    // 5. XỬ LÝ SUBMIT FORM
+    // KHỞI TẠO QUILL CHO TRƯỜNG MÔ TẢ
+    // ============================================================
+    window._activeCreateMeetingQuill = null;
+    setTimeout(function() {
+        window._activeCreateMeetingQuill = initQuillEditor(
+            '#meetingDescriptionEditor',
+            '',
+            'Mô tả nội dung chính của cuộc họp...'
+        );
+    }, 80);
+    
+    // ============================================================
+    // XỬ LÝ SUBMIT FORM
     // ============================================================
     document.getElementById('createMeetingForm').addEventListener('submit', async function(e) {
         e.preventDefault();
@@ -589,41 +597,53 @@ async function renderCreateMeeting(container) {
         const chairmanId = document.getElementById('chairmanId').value;
         const secretaryId = document.getElementById('secretaryId').value;
         const discussionDeadline = document.getElementById('discussionDeadline').value;
-        const description = document.getElementById('meetingDescription').value.trim();
-        const selectedTeamId = document.getElementById('meetingTeamId').value;
-
-        if (!title || !meetingDate || !meetingTime || !format || !description) {
+        const teamId = document.getElementById('meetingTeamId').value;
+        
+        // ==== LẤY HTML TỪ QUILL ====
+        const quill = window._activeCreateMeetingQuill;
+        if (!quill) {
+            showToast('Editor chưa sẵn sàng. Vui lòng thử lại.', 'error');
+            return;
+        }
+        const description = quill.root.innerHTML;
+        const descriptionPlain = quill.getText().trim();
+        
+        if (!title || !meetingDate || !meetingTime || !format) {
             showToast('Vui lòng điền đầy đủ thông tin bắt buộc', 'error');
             return;
         }
-
+        if (!descriptionPlain) {
+            showToast('Vui lòng nhập mô tả nội dung cuộc họp', 'error');
+            return;
+        }
+        
         // ===== GỘP THÀNH VIÊN TỔ MÌNH + KHÁCH MỜI =====
         const selectedMembers = {};
         document.querySelectorAll('.member-checkbox:checked').forEach(cb => {
             selectedMembers[cb.value] = true;
         });
-
+        
         let guestCount = 0;
         document.querySelectorAll('.guest-checkbox:checked').forEach(cb => {
             selectedMembers[cb.value] = true;
             guestCount++;
         });
-
+        
         if (Object.keys(selectedMembers).length === 0) {
             showToast('Vui lòng chọn ít nhất một thành viên hoặc khách mời', 'error');
             return;
         }
-
+        
         // ===== XỬ LÝ TẠO MÃ HỒ SƠ =====
-        let teamCodeForCode = 'TRUONG'; // Mặc định nếu là họp Toàn trường
+        let teamCodeForCode = 'TRUONG';
         let sequence = 1;
-
-        if (selectedTeamId !== 'TOAN_TRUONG') {
-            const teamSnapshot = await db.ref(`teams/${selectedTeamId}`).once('value');
+        
+        if (teamId !== 'TOAN_TRUONG') {
+            const teamSnapshot = await db.ref(`teams/${teamId}`).once('value');
             const teamData = teamSnapshot.val();
             teamCodeForCode = teamData?.code || 'TO';
             
-            const allMeetings = await getMeetingsByTeam(selectedTeamId);
+            const allMeetings = await getMeetingsByTeam(teamId);
             const now = new Date();
             const monthMeetings = allMeetings.filter(m => {
                 const d = new Date(m.meetingDate);
@@ -631,19 +651,18 @@ async function renderCreateMeeting(container) {
             });
             sequence = monthMeetings.length + 1;
         } else {
-            // Nếu là họp toàn trường, đếm tổng số cuộc họp toàn trường
             const allMeetingsSnap = await db.ref('meetings').orderByChild('teamId').equalTo('TOAN_TRUONG').once('value');
             if (allMeetingsSnap.exists()) {
                 sequence = Object.keys(allMeetingsSnap.val()).length + 1;
             }
         }
-
+        
         const code = generateMeetingCode(teamCodeForCode, meetingDate, sequence);
-
+        
         const meetingData = {
             title: title,
             code: code,
-            teamId: selectedTeamId,
+            teamId: teamId,
             meetingDate: meetingDate,
             meetingTime: meetingTime,
             format: format,
@@ -655,7 +674,7 @@ async function renderCreateMeeting(container) {
             description: description,
             status: 'DRAFT'
         };
-
+        
         try {
             const btn = e.target.querySelector('button[type="submit"]');
             btn.disabled = true;
@@ -670,9 +689,10 @@ async function renderCreateMeeting(container) {
                     status: 'DRAFT'
                 });
             }
-
+            
             const guestMsg = guestCount > 0 ? ` (có ${guestCount} khách mời)` : '';
             showToast('Đã tạo cuộc họp thành công!' + guestMsg, 'success');
+            window._activeCreateMeetingQuill = null;
             navigateTo('meeting-detail', { id: meetingId });
         } catch (error) {
             console.error('Error creating meeting:', error);
@@ -1285,7 +1305,7 @@ async function renderMeetingDetail(container, meetingId) {
                 <span><i class="fas fa-user"></i> Thư ký: ${escapeHtml(secretaryName)}</span>
                 <span><i class="fas fa-comments"></i> ${allDiscussions.length} ý kiến</span>
             </div>
-            ${meeting.description ? `<div style="margin-top:12px;padding:12px 16px;background:var(--gray-50);border-radius:6px;font-size:14px;color:var(--gray-600);">${escapeHtml(meeting.description)}</div>` : ''}
+            ${meeting.description ? `<div style="margin-top:12px;padding:12px 16px;background:var(--gray-50);border-radius:6px;font-size:14px;color:var(--gray-600);line-height:1.7;">${renderRichContent(meeting.description)}</div>` : ''}
             ${isClosed ? `
                 <div style="margin-top:10px;padding:8px 14px;background:var(--success-bg);border-radius:6px;font-size:14px;color:#15803d;display:flex;align-items:center;gap:8px;">
                     <i class="fas fa-lock"></i>
@@ -2473,10 +2493,9 @@ async function closeMeeting(meetingId) {
         ]
     );
 }
-
 /**
- * Sửa cuộc họp — Cho phép thêm/gỡ thành viên khi DRAFT hoặc DISCUSSION
- * Chỉ khóa hoàn toàn khi hồ sơ đã CLOSED
+ * Sửa cuộc họp
+ * ĐÃ NÂNG CẤP: Trường Mô tả cuộc họp dùng Quill.js + cho phép sửa thành viên
  * @param {string} meetingId
  */
 async function editMeeting(meetingId) {
@@ -2487,7 +2506,7 @@ async function editMeeting(meetingId) {
     }
     
     // ============================================================
-    // KIỂM TRA TRẠNG THÁI — chỉ chặn khi đã CLOSED
+    // KIỂM TRA TRẠNG THÁI
     // ============================================================
     if (meeting.status === 'CLOSED') {
         showToast('❌ Không thể sửa cuộc họp đã chốt. Đây là hồ sơ lưu trữ.', 'error', 5000);
@@ -2547,7 +2566,6 @@ async function editMeeting(meetingId) {
         console.error('Error loading members:', e);
     }
     
-    // Danh sách UID đã có trong meeting.memberIds
     const currentMemberIds = Object.keys(meeting.memberIds || {});
     
     // ============================================================
@@ -2647,6 +2665,8 @@ async function editMeeting(meetingId) {
     // ============================================================
     // RENDER MODAL
     // ============================================================
+    window._activeEditMeetingQuill = null;
+    
     showModal('✏️ Sửa cuộc họp', `
         <div class="form-group">
             <label>Tên cuộc họp <span class="required">*</span></label>
@@ -2672,13 +2692,16 @@ async function editMeeting(meetingId) {
             </select>
         </div>
         <div class="form-group">
-            <label>Mô tả</label>
-            <textarea id="editMeetingDesc" rows="3">${escapeHtml(meeting.description || '')}</textarea>
+            <label>Mô tả nội dung chính</label>
+            <div id="editMeetingDescEditor" style="background:#fff;border-radius:8px;"></div>
+            <div style="font-size:12px;color:var(--gray-500);margin-top:6px;">
+                💡 Có thể dùng in đậm, in nghiêng, gạch chân, danh sách bullet/number.
+            </div>
         </div>
         
         ${memberSelectionHtml}
     `, [
-        { text: 'Hủy', class: 'btn-secondary', action: 'cancel' },
+        { text: 'Hủy', class: 'btn-secondary', action: 'close' },
         {
             text: 'Lưu thay đổi',
             class: 'btn-primary',
@@ -2688,10 +2711,22 @@ async function editMeeting(meetingId) {
                 const meetingDate = document.getElementById('editMeetingDate').value;
                 const meetingTime = document.getElementById('editMeetingTime').value;
                 const format = document.getElementById('editMeetingFormat').value;
-                const description = document.getElementById('editMeetingDesc').value.trim();
+                
+                // ==== LẤY HTML TỪ QUILL ====
+                const quill = window._activeEditMeetingQuill;
+                if (!quill) {
+                    showToast('Editor chưa sẵn sàng. Vui lòng đóng và mở lại.', 'error');
+                    return;
+                }
+                const description = quill.root.innerHTML;
+                const descriptionPlain = quill.getText().trim();
                 
                 if (!title || !meetingDate) {
                     showToast('Vui lòng nhập đầy đủ thông tin bắt buộc', 'warning');
+                    return;
+                }
+                if (!descriptionPlain) {
+                    showToast('Vui lòng nhập mô tả nội dung cuộc họp', 'warning');
                     return;
                 }
                 
@@ -2711,7 +2746,6 @@ async function editMeeting(meetingId) {
                         return;
                     }
                     
-                    // Đếm số thay đổi
                     Object.keys(newMemberIds).forEach(id => {
                         if (!currentMemberIds.includes(id)) addedCount++;
                     });
@@ -2741,7 +2775,6 @@ async function editMeeting(meetingId) {
                     
                     await updateMeeting(meetingId, updates);
                     
-                    // Thông báo chi tiết
                     let msg = '✅ Đã cập nhật cuộc họp!';
                     if (addedCount > 0 || removedCount > 0) {
                         const parts = [];
@@ -2751,9 +2784,9 @@ async function editMeeting(meetingId) {
                     }
                     showToast(msg, 'success', 4000);
                     
+                    window._activeEditMeetingQuill = null;
                     close();
                     
-                    // Refresh lại trang chi tiết
                     const container = document.getElementById('pageContainer');
                     if (container) {
                         await renderMeetingDetail(container, meetingId);
@@ -2771,6 +2804,18 @@ async function editMeeting(meetingId) {
             }
         }
     ]);
+    
+    // ==== KHỞI TẠO QUILL SAU KHI MODAL RENDER XONG ====
+    setTimeout(function() {
+        window._activeEditMeetingQuill = initQuillEditor(
+            '#editMeetingDescEditor',
+            meeting.description || '',
+            'Mô tả nội dung chính của cuộc họp...'
+        );
+        if (window._activeEditMeetingQuill) {
+            window._activeEditMeetingQuill.focus();
+        }
+    }, 80);
 }
 /**
  * Xuất biên bản cuộc họp dưới dạng HTML in được (PDF)
@@ -3702,9 +3747,8 @@ async function exportMeetingMinutes(meetingId) {
         </div>
     </div>
 
-    <div class="title">BIÊN BẢN SINH HOẠT TỔ CHUYÊN MÔN</div>
-    <div class="subtitle">(Về việc: ${esc(meeting.title || '')})</div>
-
+    <div class="title">BIÊN BẢN</div>
+<div class="subtitle"><strong style="text-transform: uppercase; font-style: normal !important;">${esc(meeting.title || '')}</strong></div>
     <table class="meta-table">
         <tr><td style="width:130px;padding:2px 4px;">Mã hồ sơ:</td><td style="width:10px;">:</td><td><strong>${esc(meeting.code || '—')}</strong></td></tr>
         <tr><td style="padding:2px 4px;">Thời gian:</td><td>:</td><td>${formatTimeOnly(meeting.createdAt || meeting.meetingDate)} — ngày ${esc(meetingDateStr)}</td></tr>
