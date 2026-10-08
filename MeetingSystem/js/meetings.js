@@ -3751,7 +3751,7 @@ async function exportMeetingMinutes(meetingId) {
 
     <div class="signature-block">
         <div class="signature-col">
-            <div class="signature-title">CHỦ TỌA CUỘC HỌP</div>
+            <div class="signature-title">CHỦ TRÌ CUỘC HỌP</div>
             <div class="signature-note">(Ký, ghi rõ họ tên)</div>
             <div class="signature-name">${esc(chairmanName)}</div>
         </div>
