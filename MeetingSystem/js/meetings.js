@@ -2772,6 +2772,13 @@ async function editMeeting(meetingId) {
         }
     ]);
 }
+/**
+ * Xuất biên bản cuộc họp dưới dạng HTML in được (PDF)
+ * ĐÃ NÂNG CẤP: Xử lý Rich Text từ Quill.js
+ *   - Dùng renderRichContent thay cho esc để hiển thị đậm/nghiêng/danh sách
+ *   - Ép cỡ chữ 13pt, thụt lề đầu dòng 1cm, dãn dòng 1.15
+ * @param {string} meetingId
+ */
 async function exportMeetingMinutes(meetingId) {
     const uid = getCurrentUid();
     if (!uid) {
@@ -2944,7 +2951,7 @@ async function exportMeetingMinutes(meetingId) {
         }
     }
     
-    // Thành viên + xác nhận + BUILD memberNameMap cho multi-assignee
+    // Thành viên + xác nhận + BUILD memberNameMap
     const memberIds = Object.keys(meeting.memberIds || {});
     const memberList = [];
     const memberNameMap = {};
@@ -2975,9 +2982,7 @@ async function exportMeetingMinutes(meetingId) {
         authorNameMap[m.uid] = m.name;
     });
     
-    // ============================================================
-    // RESOLVE TÊN NGƯỜI ĐƯỢC GIAO — HỖ TRỢ MULTI-ASSIGNEE
-    // ============================================================
+    // Resolve tên người được giao nhiệm vụ
     function resolveAssigneeName(task) {
         const assignedTo = task.assignedTo;
         const assignedToNames = task.assignedToNames || '';
@@ -3008,7 +3013,7 @@ async function exportMeetingMinutes(meetingId) {
         return assignedToNames || 'Chưa xác định';
     }
     
-    // Tasks chi tiết — đã áp dụng resolveAssigneeName
+    // Tasks chi tiết
     const tasksDetailed = [];
     for (const t of tasks) {
         tasksDetailed.push({
@@ -3131,26 +3136,26 @@ async function exportMeetingMinutes(meetingId) {
             let sub = '';
             
             if (fileId) {
-                sub += `<div style="font-size:10pt;color:#000000;font-style:italic;margin-top:2px;">
+                sub += `<div style="font-size:10pt;color:#000000;font-style:italic;margin-top:2px;text-indent:0;">
                     File ID: <code style="font-family:Consolas,monospace;font-style:normal;background:#f0f0f0;padding:1px 4px;border-radius:3px;color:#000000;">${esc(fileId)}</code>
                 </div>`;
             }
             if (desc) {
-                sub += `<div style="font-size:10pt;color:#000000;margin-top:2px;">
+                sub += `<div style="font-size:10pt;color:#000000;margin-top:2px;text-indent:0;">
                     <span style="font-style:italic;">Mô tả:</span> ${esc(desc)}
                 </div>`;
             }
             
             if (finalUrl) {
-                sub += `<div style="margin-top:4px;font-size:10pt;line-height:1.6;">
+                sub += `<div style="margin-top:4px;font-size:10pt;line-height:1.6;text-indent:0;">
                     <span style="color:#000000;">🔗 Tài liệu đính kèm: </span>
                     <a href="${esc(finalUrl)}" style="color:#0000ee;text-decoration:underline;display:inline-block;white-space:nowrap;vertical-align:bottom;font-weight:bold;">${esc(finalUrl)}</a>
                 </div>`;
             }
             
             return `
-                <li style="margin-bottom:10px;line-height:1.5;page-break-inside:auto;break-inside:auto;">
-                    <div style="font-weight:bold;font-size:11pt;color:#000000;">• ${esc(fileName)}</div>
+                <li style="margin-bottom:10px;line-height:1.15;page-break-inside:auto;break-inside:auto;text-indent:0;">
+                    <div style="font-weight:bold;font-size:13pt;color:#000000;text-indent:0;">• ${esc(fileName)}</div>
                     ${sub}
                 </li>
             `;
@@ -3178,7 +3183,7 @@ async function exportMeetingMinutes(meetingId) {
         function renderOne(disc, isReply) {
             const authorName = getAuthorName(disc);
             const timeStr = formatDateTimeShort(disc.createdAt);
-            const contentHtml = esc(disc.content || '');
+            const contentHtml = renderRichContent(disc.content || '');
             const isEdited = disc.status === 'EDITED';
             
             const attList = [];
@@ -3189,7 +3194,7 @@ async function exportMeetingMinutes(meetingId) {
                     
                     if (finalUrl) {
                         attList.push(`
-                            <div style="font-size:10pt;margin-top:3px;padding-left:12px;line-height:1.6;">
+                            <div style="font-size:10pt;margin-top:3px;padding-left:12px;line-height:1.6;text-indent:0;">
                                 <span style="color:#000000;">Đính kèm: </span>
                                 <a href="${esc(finalUrl)}" style="color:#0000ee;text-decoration:underline;display:inline-block;white-space:nowrap;vertical-align:bottom;font-weight:bold;">${esc(finalUrl)}</a>
                             </div>
@@ -3208,12 +3213,12 @@ async function exportMeetingMinutes(meetingId) {
             
             return `
                 <div style="page-break-inside:auto;break-inside:auto;${itemStyle}">
-                    <div style="font-size:10.5pt;line-height:1.5;">
+                    <div style="font-size:13pt;line-height:1.15;text-indent:0;">
                         <strong style="color:#000000;">${esc(authorName)}</strong>
                         <span style="color:#000000;font-style:italic;"> (${esc(timeStr)})${isEdited ? ' [đã chỉnh sửa]' : ''}${isReply ? ' [phản hồi]' : ''}:</span>
                     </div>
-                    <div style="font-size:10.5pt;line-height:1.6;margin-top:2px;color:#000000;white-space:pre-wrap;">${contentHtml}</div>
-                    ${attList.length > 0 ? `<div style="margin-top:3px;">${attList.join('')}</div>` : ''}
+                    <div class="rich-text-content" style="font-size:13pt;line-height:1.15;margin-top:2px;color:#000000;">${contentHtml}</div>
+                    ${attList.length > 0 ? `<div style="margin-top:3px;text-indent:0;">${attList.join('')}</div>` : ''}
                     ${repliesHtml}
                 </div>
             `;
@@ -3223,7 +3228,7 @@ async function exportMeetingMinutes(meetingId) {
         
         return `
             <div style="margin-top:12px;padding:8px 0 4px 0;border-top:1px solid #000000;page-break-inside:auto;break-inside:auto;">
-                <div style="font-weight:bold;font-style:italic;font-size:11pt;color:#000000;margin-bottom:6px;page-break-after:avoid;break-after:avoid;">
+                <div style="font-weight:bold;font-style:italic;font-size:13pt;color:#000000;margin-bottom:6px;page-break-after:avoid;break-after:avoid;text-indent:0;">
                     ${blockTitle} (${discussions.length} ý kiến):
                 </div>
                 <div>${itemsHtml}</div>
@@ -3255,14 +3260,14 @@ async function exportMeetingMinutes(meetingId) {
     }).join('');
     
     const contentsHtml = contents.length === 0
-        ? `<p style="font-style:italic;color:#000000;">Chưa có nội dung nào.</p>`
+        ? `<p style="font-style:italic;color:#000000;font-size:13pt;line-height:1.15;text-indent:1cm;">Chưa có nội dung nào.</p>`
         : contents.map((c, idx) => {
             const romanIdx = toRoman(idx + 1);
             
             const attachHtml = renderAttachList(c.attachments);
             const attachBlock = attachHtml ? `
                 <div style="margin-top:8px;page-break-inside:auto;break-inside:auto;">
-                    <div style="font-weight:bold;font-size:10.5pt;color:#000000;page-break-after:avoid;break-after:avoid;">Tài liệu thảo luận đính kèm:</div>
+                    <div style="font-weight:bold;font-size:13pt;color:#000000;page-break-after:avoid;break-after:avoid;text-indent:0;">Tài liệu thảo luận đính kèm:</div>
                     ${attachHtml}
                 </div>
             ` : '';
@@ -3275,7 +3280,7 @@ async function exportMeetingMinutes(meetingId) {
                 const conclusionAttachHtml = renderAttachList(c.conclusionAttachments);
                 const conclusionAttachBlock = conclusionAttachHtml ? `
                     <div style="margin-top:8px;page-break-inside:auto;break-inside:auto;">
-                        <div style="font-weight:bold;font-size:10.5pt;color:#000000;page-break-after:avoid;break-after:avoid;">Văn bản kết luận / Quyết định ban hành:</div>
+                        <div style="font-weight:bold;font-size:13pt;color:#000000;page-break-after:avoid;break-after:avoid;text-indent:0;">Văn bản kết luận / Quyết định ban hành:</div>
                         ${conclusionAttachHtml}
                     </div>
                 ` : '';
@@ -3286,11 +3291,11 @@ async function exportMeetingMinutes(meetingId) {
                 
                 conclusionBlock = `
                     <div style="margin-top:10px;padding:8px 0 8px 12px;border-left:2px solid #000000;page-break-inside:auto;break-inside:auto;">
-                        <div style="font-weight:bold;margin-bottom:4px;color:#000000;font-size:10.5pt;page-break-after:avoid;break-after:avoid;">
+                        <div style="font-weight:bold;margin-bottom:4px;color:#000000;font-size:13pt;page-break-after:avoid;break-after:avoid;text-indent:0;">
                             KẾT LUẬN CỦA TỔ TRƯỞNG:
                         </div>
-                        <div style="white-space:pre-wrap;line-height:1.6;font-size:10.5pt;color:#000000;">${esc(c.conclusion)}</div>
-                        <div style="font-size:9.5pt;color:#000000;margin-top:6px;font-style:italic;">
+                        <div class="rich-text-content" style="font-size:13pt;line-height:1.15;color:#000000;">${renderRichContent(c.conclusion)}</div>
+                        <div style="font-size:11pt;color:#000000;margin-top:6px;font-style:italic;text-indent:0;">
                             Người kết luận: ${esc(concludedByName)} — ${formatDateVN(c.concludedAt)}
                         </div>
                         ${conclusionAttachBlock}
@@ -3299,18 +3304,18 @@ async function exportMeetingMinutes(meetingId) {
             } else {
                 conclusionBlock = `
                     <div style="margin-top:10px;padding:6px 0;border-top:1px dotted #999999;page-break-inside:auto;break-inside:auto;">
-                        <em style="font-size:10.5pt;color:#000000;">Nội dung này chưa có kết luận chính thức.</em>
+                        <em style="font-size:13pt;color:#000000;text-indent:0;">Nội dung này chưa có kết luận chính thức.</em>
                     </div>
                 `;
             }
             
             return `
                 <div style="margin-top:14px;page-break-inside:auto;break-inside:auto;">
-                    <div style="font-weight:bold;font-size:12pt;margin-bottom:6px;color:#000000;page-break-after:avoid;break-after:avoid;">
+                    <div style="font-weight:bold;font-size:13pt;margin-bottom:6px;color:#000000;page-break-after:avoid;break-after:avoid;text-indent:0;">
                         ${romanIdx}. ${esc(c.title)}
                     </div>
                     <div style="margin-left:16px;">
-                        <div style="white-space:pre-wrap;line-height:1.6;font-size:10.5pt;color:#000000;">${esc(c.description || '(Không có mô tả)')}</div>
+                        <div class="rich-text-content" style="font-size:13pt;line-height:1.15;color:#000000;">${renderRichContent(c.description || '(Không có mô tả)')}</div>
                         ${attachBlock}
                         ${discussionBlock}
                         ${conclusionBlock}
@@ -3324,27 +3329,27 @@ async function exportMeetingMinutes(meetingId) {
     
     let tasksHtml = '';
     if (tasksDetailed.length === 0) {
-        tasksHtml = `<p style="font-style:italic;color:#000000;">Chưa có nhiệm vụ nào được phân công.</p>`;
+        tasksHtml = `<p style="font-style:italic;color:#000000;font-size:13pt;line-height:1.15;text-indent:1cm;">Chưa có nhiệm vụ nào được phân công.</p>`;
     } else {
         tasksHtml = `
             <table style="width:100%;border-collapse:collapse;margin-top:8px;font-size:11pt;page-break-inside:auto;break-inside:auto;">
                 <thead>
                     <tr>
-                        <th style="border:1px solid #000000;padding:4px;width:35px;font-size:10.5pt;background:#f0f0f0;color:#000000;">STT</th>
-                        <th style="border:1px solid #000000;padding:4px;font-size:10.5pt;background:#f0f0f0;color:#000000;">Người thực hiện</th>
-                        <th style="border:1px solid #000000;padding:4px;font-size:10.5pt;background:#f0f0f0;color:#000000;">Nội dung</th>
-                        <th style="border:1px solid #000000;padding:4px;width:85px;font-size:10.5pt;background:#f0f0f0;color:#000000;">Hạn</th>
-                        <th style="border:1px solid #000000;padding:4px;font-size:10.5pt;background:#f0f0f0;color:#000000;">Sản phẩm</th>
+                        <th style="border:1px solid #000000;padding:4px;width:35px;font-size:11pt;background:#f0f0f0;color:#000000;">STT</th>
+                        <th style="border:1px solid #000000;padding:4px;font-size:11pt;background:#f0f0f0;color:#000000;">Người thực hiện</th>
+                        <th style="border:1px solid #000000;padding:4px;font-size:11pt;background:#f0f0f0;color:#000000;">Nội dung</th>
+                        <th style="border:1px solid #000000;padding:4px;width:85px;font-size:11pt;background:#f0f0f0;color:#000000;">Hạn</th>
+                        <th style="border:1px solid #000000;padding:4px;font-size:11pt;background:#f0f0f0;color:#000000;">Sản phẩm</th>
                     </tr>
                 </thead>
                 <tbody>
                     ${tasksDetailed.map((t, i) => `
                         <tr>
-                            <td style="border:1px solid #000000;padding:4px;text-align:center;font-size:10.5pt;color:#000000;">${i + 1}</td>
-                            <td style="border:1px solid #000000;padding:4px;font-size:10.5pt;color:#000000;">${esc(t.assigneeName)}</td>
-                            <td style="border:1px solid #000000;padding:4px;font-size:10.5pt;color:#000000;">${esc(t.title || '')}${t.description ? `<br><em style="color:#000000;font-size:10pt;">${esc(t.description)}</em>` : ''}</td>
-                            <td style="border:1px solid #000000;padding:4px;text-align:center;font-size:10.5pt;color:#000000;">${formatDeadlineVN(t.deadline)}</td>
-                            <td style="border:1px solid #000000;padding:4px;font-size:10.5pt;color:#000000;">${esc(t.product || '—')}</td>
+                            <td style="border:1px solid #000000;padding:4px;text-align:center;font-size:11pt;color:#000000;">${i + 1}</td>
+                            <td style="border:1px solid #000000;padding:4px;font-size:11pt;color:#000000;">${esc(t.assigneeName)}</td>
+                            <td style="border:1px solid #000000;padding:4px;font-size:11pt;color:#000000;">${esc(t.title || '')}${t.description ? `<br><em style="color:#000000;font-size:11pt;">${esc(t.description)}</em>` : ''}</td>
+                            <td style="border:1px solid #000000;padding:4px;text-align:center;font-size:11pt;color:#000000;">${formatDeadlineVN(t.deadline)}</td>
+                            <td style="border:1px solid #000000;padding:4px;font-size:11pt;color:#000000;">${esc(t.product || '—')}</td>
                         </tr>
                     `).join('')}
                 </tbody>
@@ -3356,9 +3361,9 @@ async function exportMeetingMinutes(meetingId) {
     if (meeting.forceCloseReason) {
         forceCloseBlock = `
             <div style="margin-top:12px;padding:8px 12px;border:1px solid #000000;page-break-inside:auto;break-inside:auto;">
-                <strong style="color:#000000;">Ghi chú chốt ngoại lệ:</strong>
-                <div style="margin-top:4px;line-height:1.6;color:#000000;">${esc(meeting.forceCloseReason)}</div>
-                <div style="font-size:10pt;color:#000000;margin-top:4px;font-style:italic;">
+                <strong style="color:#000000;font-size:13pt;text-indent:0;">Ghi chú chốt ngoại lệ:</strong>
+                <div style="margin-top:4px;line-height:1.15;color:#000000;font-size:13pt;">${esc(meeting.forceCloseReason)}</div>
+                <div style="font-size:11pt;color:#000000;margin-top:4px;font-style:italic;text-indent:0;">
                     (Chốt ngày ${meeting.forceClosedAt ? formatDateVN(meeting.forceClosedAt) : closedDateStr})
                 </div>
             </div>
@@ -3370,7 +3375,7 @@ async function exportMeetingMinutes(meetingId) {
     const meetingYearNum = meeting.meetingDate ? new Date(meeting.meetingDate).getFullYear() : '......';
     
     // ============================================================
-    // 4. BUILD HTML — CHỈ STYLE + DIV (KHÔNG DOCTYPE)
+    // 4. BUILD HTML DOCUMENT
     // ============================================================
     const documentHtml = `
 <style>
@@ -3392,8 +3397,8 @@ async function exportMeetingMinutes(meetingId) {
             background: #ffffff;
             color: #000000;
             font-family: "Times New Roman", "Liberation Serif", serif;
-            font-size: 12pt;
-            line-height: 1.5;
+            font-size: 13pt;
+            line-height: 1.15;
         }
         
         @page {
@@ -3406,9 +3411,9 @@ async function exportMeetingMinutes(meetingId) {
         }
         
         #meeting-print-section table,
-        #meeting-print-section thead,
+        
         #meeting-print-section tbody,
-        #meeting-print-section tr,
+       
         #meeting-print-section td,
         #meeting-print-section th,
         #meeting-print-section div,
@@ -3419,7 +3424,16 @@ async function exportMeetingMinutes(meetingId) {
             page-break-inside: auto !important;
             break-inside: auto !important;
         }
+                /* === CHỐNG CẮT NGANG DÒNG BẢNG === */
+        #meeting-print-section tr {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+        }
         
+        /* === LẶP HEADER BẢNG Ở MỖI TRANG === */
+        #meeting-print-section thead {
+            display: table-header-group !important;
+        }
         #meeting-print-section h1,
         #meeting-print-section h2,
         #meeting-print-section h3,
@@ -3432,6 +3446,72 @@ async function exportMeetingMinutes(meetingId) {
             break-inside: avoid !important;
         }
         
+        /* === TYPOGRAPHY CHO RICH TEXT === */
+        #meeting-print-section .rich-text-content {
+            font-family: "Times New Roman", "Liberation Serif", serif;
+            font-size: 13pt;
+            line-height: 1.15;
+            color: #000000;
+        }
+        
+        #meeting-print-section .rich-text-content p,
+        #meeting-print-section .rich-text-content > p {
+            text-indent: 1cm;
+            font-size: 13pt;
+            line-height: 1.15;
+            margin: 4pt 0;
+        }
+        
+        #meeting-print-section .rich-text-content ul,
+        #meeting-print-section .rich-text-content ol {
+            font-size: 13pt;
+            line-height: 1.15;
+            margin: 4pt 0 4pt 20pt;
+            padding-left: 20pt;
+            text-indent: 0;
+        }
+        
+        #meeting-print-section .rich-text-content li {
+            font-size: 13pt;
+            line-height: 1.15;
+            margin-bottom: 2pt;
+            text-indent: 0;
+        }
+        
+        #meeting-print-section .rich-text-content strong,
+        #meeting-print-section .rich-text-content b {
+            font-weight: bold;
+            color: #000000;
+        }
+        
+        #meeting-print-section .rich-text-content em,
+        #meeting-print-section .rich-text-content i {
+            font-style: italic;
+            color: #000000;
+        }
+        
+        #meeting-print-section .rich-text-content u {
+            text-decoration: underline;
+        }
+        
+        #meeting-print-section .rich-text-content blockquote {
+            margin: 4pt 0 4pt 1cm;
+            padding-left: 10pt;
+            border-left: 2pt solid #666666;
+            font-style: italic;
+        }
+        
+        #meeting-print-section .rich-text-content h1,
+        #meeting-print-section .rich-text-content h2,
+        #meeting-print-section .rich-text-content h3 {
+            font-size: 13pt;
+            font-weight: bold;
+            line-height: 1.15;
+            margin: 6pt 0 4pt 0;
+            text-indent: 0;
+        }
+        
+        /* === MEMBERS TABLE === */
         #meeting-print-section .members-table {
             width: 100%;
             border-collapse: collapse;
@@ -3453,6 +3533,7 @@ async function exportMeetingMinutes(meetingId) {
             font-size: 11px;
         }
         
+        /* === LINKS === */
         #meeting-print-section a {
             color: #0000ee !important;
             text-decoration: underline !important;
@@ -3463,6 +3544,7 @@ async function exportMeetingMinutes(meetingId) {
             text-decoration: underline !important;
         }
         
+        /* === HEADER === */
         #meeting-print-section .header {
             display: flex;
             justify-content: space-between;
@@ -3517,6 +3599,7 @@ async function exportMeetingMinutes(meetingId) {
             color: #000000;
             page-break-after: avoid;
             break-after: avoid;
+            text-indent: 0;
         }
         
         #meeting-print-section .subtitle {
@@ -3527,6 +3610,7 @@ async function exportMeetingMinutes(meetingId) {
             color: #000000;
             page-break-after: avoid;
             break-after: avoid;
+            text-indent: 0;
         }
         
         #meeting-print-section .meta-table {
@@ -3550,6 +3634,7 @@ async function exportMeetingMinutes(meetingId) {
             border-bottom: 1px solid #000000;
             padding-bottom: 3px;
             color: #000000;
+            text-indent: 0;
         }
         
         #meeting-print-section .signature-block {
@@ -3592,6 +3677,7 @@ async function exportMeetingMinutes(meetingId) {
             color: #000000;
             margin-top: 20px;
             font-style: italic;
+            text-indent: 0;
         }
     }
 </style>
@@ -3604,13 +3690,13 @@ async function exportMeetingMinutes(meetingId) {
             <strong class="header-school">TRƯỜNG THCS&THPT TRẦN TRƯỜNG SINH</strong>
             <div class="header-sub">TỔ: ${esc(displayTeamName)}</div>
             <div class="header-sub">─────────</div>
-            <div style="font-size:11pt;margin-top:4px;color:#000000;">Số: <strong>${esc(meeting.code || '.......')}</strong></div>
+            <div style="font-size:11pt;margin-top:4px;color:#000000;text-indent:0;">Số: <strong>${esc(meeting.code || '.......')}</strong></div>
         </div>
         <div class="header-right">
             <strong>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</strong>
-            <div style="font-weight:bold;color:#000000;white-space:nowrap;">Độc lập - Tự do - Hạnh phúc</div>
+            <div style="font-weight:bold;color:#000000;white-space:nowrap;text-indent:0;">Độc lập - Tự do - Hạnh phúc</div>
             <div class="header-sub">─────────</div>
-            <div style="font-size:11pt;margin-top:4px;font-style:italic;color:#000000;">
+            <div style="font-size:11pt;margin-top:4px;font-style:italic;color:#000000;text-indent:0;">
                 Thạnh Phong, ngày ${meetingDayNum} tháng ${meetingMonthNum} năm ${meetingYearNum}
             </div>
         </div>
@@ -3628,7 +3714,7 @@ async function exportMeetingMinutes(meetingId) {
     </table>
 
     <div class="section-heading">I. Thành phần tham dự</div>
-    <p style="margin:0 0 6px 0;font-size:11pt;color:#000000;">
+    <p style="margin:0 0 6px 0;font-size:13pt;color:#000000;line-height:1.15;text-indent:1cm;">
         Tổng số thành viên được triệu tập: <strong>${totalMembers}</strong> người.
         Đã xác nhận: <strong>${confirmedCount}</strong>/${totalMembers} người.
     </p>
@@ -3658,14 +3744,14 @@ async function exportMeetingMinutes(meetingId) {
         ${forceCloseBlock}
     ` : ''}
 
-    <p style="margin-top:16px;font-style:italic;font-size:11pt;color:#000000;">
+    <p style="margin-top:16px;font-style:italic;font-size:13pt;color:#000000;line-height:1.15;text-indent:1cm;">
         Biên bản kết thúc vào ${formatTimeOnly(meeting.closedAt)} — ngày ${esc(closedDateStr || meetingDateStr)}.
         ${meeting.closedBy ? `Hồ sơ được chốt bởi <strong>${esc(closedByName)}</strong>.` : ''}
     </p>
 
     <div class="signature-block">
         <div class="signature-col">
-            <div class="signature-title">CHỦ TRÌ CUỘC HỌP</div>
+            <div class="signature-title">CHỦ TỌA CUỘC HỌP</div>
             <div class="signature-note">(Ký, ghi rõ họ tên)</div>
             <div class="signature-name">${esc(chairmanName)}</div>
         </div>
@@ -3678,10 +3764,10 @@ async function exportMeetingMinutes(meetingId) {
 
     <div class="footer-note">
         — Hết biên bản —
-        <div style="margin-top:6px;font-size:9pt;color:#000000;">
+        <div style="margin-top:6px;font-size:10pt;color:#000000;text-indent:0;">
             Trường THCS-THPT Trần Trường Sinh — Hệ thống Quản lý Sinh hoạt Chuyên môn
         </div>
-        <div style="margin-top:2px;font-size:8pt;color:#333333;">
+        <div style="margin-top:2px;font-size:9pt;color:#333333;text-indent:0;">
             Trích xuất lúc ${formatDateVN(Date.now())} ${formatTimeOnly(Date.now())}
         </div>
     </div>
