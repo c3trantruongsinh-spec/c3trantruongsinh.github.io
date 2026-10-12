@@ -1656,7 +1656,7 @@ async function addContent(meetingId) {
         window._activeAddContentQuill = initQuillEditor(
             '#newContentDescEditor',
             '',
-            'Nhập mô tả chi tiết nội dung cần thảo luận...'
+            'Nhập mô tả chi tiết nội dung cần thảo luận..(Hỗ trợ kéo thả ảnh, chèn công thức Toán, chụp ảnh trực tiếp)'
         );
         if (window._activeAddContentQuill) {
             window._activeAddContentQuill.focus();
@@ -1818,7 +1818,7 @@ async function editContent(meetingId, contentId) {
         window._activeEditContentQuill = initQuillEditor(
             '#editContentDescEditor',
             content.description || '',
-            'Nhập mô tả chi tiết nội dung...'
+            'Nhập mô tả chi tiết nội dung...(Hỗ trợ kéo thả ảnh, chèn công thức Toán fx, chụp ảnh trực tiếp)'
         );
         if (window._activeEditContentQuill) {
             window._activeEditContentQuill.focus();

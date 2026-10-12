@@ -1291,7 +1291,7 @@ function initQuillEditor(selector, initialContent, placeholder) {
     });
     
     bindFormulaEditHandler(quill);
-    
+    setupImageHandlers(quill);
     if (initialContent && String(initialContent).trim()) {
         const s = String(initialContent);
         if (isHtmlContent(s)) {
@@ -1305,7 +1305,135 @@ function initQuillEditor(selector, initialContent, placeholder) {
     return quill;
 }
 /**
- * Chọn ảnh từ máy và upload lên Cloudinary, chèn vào Quill
+ * Upload 1 file ảnh lên Cloudinary và chèn URL vào Quill
+ * Hàm dùng chung cho: chọn file, paste, drag&drop, chụp ảnh
+ * @param {File} file - File ảnh cần upload
+ * @param {Object} quill - Quill instance
+ * @returns {Promise<boolean>} true nếu thành công
+ */
+async function uploadFileToCloudinary(file, quill) {
+    if (!file || !quill) {
+        console.warn('uploadFileToCloudinary: thiếu file hoặc quill');
+        return false;
+    }
+
+    // ==== VALIDATE ĐỊNH DẠNG ====
+    const allowedTypes = [
+        'image/png',
+        'image/jpeg',
+        'image/jpg',
+        'image/gif',
+        'image/webp',
+        'image/heic',
+        'image/heif'
+    ];
+
+    const fileTypeLower = (file.type || '').toLowerCase();
+
+    if (fileTypeLower && !allowedTypes.includes(fileTypeLower)) {
+        showToast('❌ Định dạng ảnh không hỗ trợ. Chỉ chấp nhận PNG, JPG, GIF, WEBP, HEIC.', 'error', 5000);
+        return false;
+    }
+
+    // ==== VALIDATE KÍCH THƯỚC ====
+    const MAX_SIZE = 10 * 1024 * 1024;
+    if (file.size > MAX_SIZE) {
+        showToast('❌ Ảnh quá lớn (>10MB). Vui lòng chọn ảnh nhỏ hơn.', 'error', 5000);
+        return false;
+    }
+
+    // ==== LƯU VỊ TRÍ CON TRỎ HIỆN TẠI ====
+    let insertIndex;
+    try {
+        const range = quill.getSelection(true);
+        insertIndex = range ? range.index : quill.getLength();
+    } catch (e) {
+        insertIndex = quill.getLength();
+    }
+
+    // ==== HIỆN LOADING ====
+    const loadingToast = showToast(
+        '<span class="spinner" style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.4);border-top-color:#fff;border-radius:50%;animation:spin 0.6s linear infinite;vertical-align:middle;margin-right:6px;"></span> Đang tải ảnh lên Cloudinary...',
+        'info',
+        60000
+    );
+
+    // ==== DISABLE EDITOR ĐỂ TRÁNH USER GÕ KHI ĐANG UPLOAD ====
+    const wasEnabled = quill.isEnabled();
+    try {
+        quill.enable(false);
+    } catch (e) {}
+
+    try {
+        // ==== UPLOAD LÊN CLOUDINARY ====
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('upload_preset', 'upload_anh_firebase');
+
+        const response = await fetch('https://api.cloudinary.com/v1_1/svvzpxjj/image/upload', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            const errMsg = (data && data.error && data.error.message)
+                ? data.error.message
+                : 'Upload thất bại (' + response.status + ')';
+            throw new Error(errMsg);
+        }
+
+        if (!data.secure_url) {
+            throw new Error('Không nhận được URL ảnh từ Cloudinary.');
+        }
+
+        // ==== TỐI ƯU URL — TRANSFORMATION ====
+        let imageUrl = data.secure_url;
+        if (imageUrl.includes('/upload/')) {
+            imageUrl = imageUrl.replace(
+                '/upload/',
+                '/upload/w_1200,q_auto,f_auto/'
+            );
+        }
+
+        // ==== BẬT LẠI EDITOR + CHÈN ẢNH ====
+        if (wasEnabled) {
+            quill.enable(true);
+        }
+
+        quill.insertEmbed(insertIndex, 'image', imageUrl, Quill.sources.USER);
+        quill.setSelection(insertIndex + 1, Quill.sources.SILENT);
+        quill.focus();
+
+        // ==== ĐÓNG LOADING + BÁO THÀNH CÔNG ====
+        if (loadingToast && loadingToast.close) {
+            loadingToast.close();
+        }
+        showToast('✅ Đã chèn ảnh thành công!', 'success', 2500);
+
+        console.log('✅ Upload Cloudinary thành công:', imageUrl);
+        return true;
+
+    } catch (error) {
+        console.error('Cloudinary upload error:', error);
+
+        if (wasEnabled) {
+            try {
+                quill.enable(true);
+            } catch (e) {}
+        }
+
+        if (loadingToast && loadingToast.close) {
+            loadingToast.close();
+        }
+        showToast('❌ Lỗi tải ảnh: ' + error.message, 'error', 6000);
+        return false;
+    }
+}
+
+/**
+ * Chọn ảnh từ máy (hoặc chụp từ camera mobile) và upload lên Cloudinary
  * @param {Object} quill - Quill instance
  */
 function selectAndUploadImage(quill) {
@@ -1313,109 +1441,170 @@ function selectAndUploadImage(quill) {
         showToast('Editor chưa sẵn sàng', 'error');
         return;
     }
-    
-    // ==== Tạo input file ngầm ====
+
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = 'image/png,image/jpeg,image/jpg,image/gif,image/webp';
+    input.accept = 'image/*';
+    input.setAttribute('capture', 'environment');
     input.style.display = 'none';
-    
-    // ==== Xử lý khi user chọn ảnh ====
+
     input.addEventListener('change', async function() {
         const file = input.files && input.files[0];
+
         if (!file) {
             input.remove();
             return;
         }
-        
-        // ==== VALIDATE ====
-        if (file.size > 10 * 1024 * 1024) {
-            showToast('❌ Ảnh quá lớn (>10MB). Vui lòng chọn ảnh nhỏ hơn.', 'error', 5000);
-            input.remove();
-            return;
-        }
-        
-        const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp'];
-        if (!allowedTypes.includes(file.type)) {
-            showToast('❌ Định dạng ảnh không hỗ trợ. Chỉ chấp nhận PNG, JPG, GIF, WEBP.', 'error', 5000);
-            input.remove();
-            return;
-        }
-        
-        // ==== Lưu vị trí con trỏ hiện tại ====
-        const range = quill.getSelection(true) || { index: quill.getLength() };
-        
-        // ==== Loading indicator ====
-        const loadingToast = showToast(
-            `<span class="spinner" style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.4);border-top-color:#fff;border-radius:50%;animation:spin 0.6s linear infinite;vertical-align:middle;margin-right:6px;"></span> Đang tải ảnh lên Cloudinary...`,
-            'info',
-            60000
-        );
-        
-        // Disable editor để tránh user gõ khi đang upload
-        quill.enable(false);
-        
+
         try {
-            // ==== Upload lên Cloudinary ====
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('upload_preset', 'upload_anh_firebase');
-            
-            const response = await fetch('https://api.cloudinary.com/v1_1/svvzpxjj/image/upload', {
-                method: 'POST',
-                body: formData
-            });
-            
-            const data = await response.json();
-            
-            if (!response.ok) {
-                const errMsg = (data && data.error && data.error.message) 
-                    ? data.error.message 
-                    : 'Upload thất bại (' + response.status + ')';
-                throw new Error(errMsg);
-            }
-            
-            if (!data.secure_url) {
-                throw new Error('Không nhận được URL ảnh từ Cloudinary.');
-            }
-            
-            // ==== Tối ưu URL: thêm transformation ====
-            // Cloudinary tự động resize và nén ảnh → giảm băng thông, tăng tốc tải
-            let imageUrl = data.secure_url;
-            if (imageUrl.includes('/upload/')) {
-                imageUrl = imageUrl.replace(
-                    '/upload/',
-                    '/upload/w_500,q_auto,f_auto/'
-                );
-            }
-            
-            // ==== Chèn ảnh vào Quill tại vị trí con trỏ ====
-            quill.enable(true);
-            quill.insertEmbed(range.index, 'image', imageUrl, Quill.sources.USER);
-            quill.setSelection(range.index + 1, Quill.sources.SILENT);
-            quill.focus();
-            
-            // ==== Đóng loading, báo thành công ====
-            if (loadingToast && loadingToast.close) loadingToast.close();
-            showToast('✅ Đã chèn ảnh thành công!', 'success', 2500);
-            
-            console.log('✅ Upload Cloudinary thành công:', imageUrl);
-            
-        } catch (error) {
-            console.error('Cloudinary upload error:', error);
-            quill.enable(true);
-            
-            if (loadingToast && loadingToast.close) loadingToast.close();
-            showToast('❌ Lỗi tải ảnh: ' + error.message, 'error', 6000);
+            await uploadFileToCloudinary(file, quill);
         } finally {
             input.remove();
         }
     });
-    
-    // ==== Gắn input vào DOM và kích hoạt ====
+
     document.body.appendChild(input);
     input.click();
 }
+
+/**
+ * Gắn sự kiện PASTE (Ctrl+V) để bắt ảnh từ clipboard
+ * Ngăn chặn Quill dán Base64 mặc định
+ * @param {Object} quill - Quill instance
+ */
+function setupImagePasteHandler(quill) {
+    if (!quill || !quill.root) return;
+
+    if (quill.root.dataset.pasteHandlerBound === 'true') {
+        return;
+    }
+    quill.root.dataset.pasteHandlerBound = 'true';
+
+    quill.root.addEventListener('paste', async function(e) {
+        const clipboardData = e.clipboardData || window.clipboardData;
+        if (!clipboardData) return;
+
+        const items = clipboardData.items;
+        if (!items || items.length === 0) return;
+
+        const imageFiles = [];
+
+        for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+
+            if (item.kind === 'file' && item.type && item.type.startsWith('image/')) {
+                const file = item.getAsFile();
+                if (file) {
+                    imageFiles.push(file);
+                }
+            }
+        }
+
+        if (imageFiles.length === 0) {
+            return;
+        }
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        console.log(`📋 Đã phát hiện ${imageFiles.length} ảnh từ clipboard — đang upload...`);
+
+        for (const file of imageFiles) {
+            try {
+                await uploadFileToCloudinary(file, quill);
+            } catch (err) {
+                console.error('Lỗi upload ảnh từ clipboard:', err);
+            }
+        }
+    }, true);
+}
+
+/**
+ * Gắn sự kiện DRAG & DROP để bắt ảnh kéo thả vào editor
+ * Ngăn chặn Quill dán Base64 mặc định
+ * @param {Object} quill - Quill instance
+ */
+function setupImageDropHandler(quill) {
+    if (!quill || !quill.root) return;
+
+    if (quill.root.dataset.dropHandlerBound === 'true') {
+        return;
+    }
+    quill.root.dataset.dropHandlerBound = 'true';
+
+    quill.root.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (e.dataTransfer) {
+            e.dataTransfer.dropEffect = 'copy';
+        }
+
+        quill.root.classList.add('ql-drag-over');
+    }, false);
+
+    quill.root.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        quill.root.classList.remove('ql-drag-over');
+    }, false);
+
+    quill.root.addEventListener('drop', async function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        quill.root.classList.remove('ql-drag-over');
+
+        const dataTransfer = e.dataTransfer;
+        if (!dataTransfer) return;
+
+        const files = dataTransfer.files;
+        if (!files || files.length === 0) return;
+
+        const imageFiles = [];
+
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            if (file.type && file.type.startsWith('image/')) {
+                imageFiles.push(file);
+            }
+        }
+
+        if (imageFiles.length === 0) {
+            return;
+        }
+
+        console.log(`🖱️ Đã phát hiện ${imageFiles.length} ảnh từ drag&drop — đang upload...`);
+
+        for (const file of imageFiles) {
+            try {
+                await uploadFileToCloudinary(file, quill);
+            } catch (err) {
+                console.error('Lỗi upload ảnh từ drag&drop:', err);
+            }
+        }
+    }, false);
+}
+
+/**
+ * Khởi tạo TẤT CẢ handler ảnh cho 1 Quill instance
+ * Gọi hàm này sau khi tạo Quill xong
+ * @param {Object} quill - Quill instance
+ */
+function setupImageHandlers(quill) {
+    if (!quill) return;
+
+    setupImagePasteHandler(quill);
+    setupImageDropHandler(quill);
+
+    console.log('✅ Đã gắn tất cả handler ảnh (paste + drag&drop) cho Quill');
+}
+
+window.uploadFileToCloudinary = uploadFileToCloudinary;
+window.selectAndUploadImage = selectAndUploadImage;
+window.setupImagePasteHandler = setupImagePasteHandler;
+window.setupImageDropHandler = setupImageDropHandler;
+window.setupImageHandlers = setupImageHandlers;
 // ============================================================
 // VISUAL FORMULA BUILDER — Modal nhập công thức Toán
 // Tích hợp Quick Toolbar (Toán - Lý - Hóa) cho giáo viên THPT

@@ -2694,3 +2694,41 @@ input, textarea, select {
         height: 18px !important;
     }
 }
+/* ============================================
+   QUILL EDITOR — DRAG & DROP VISUAL FEEDBACK
+   ============================================ */
+
+.ql-editor.ql-drag-over,
+.ql-container.ql-drag-over,
+.ql-editor.ql-drag-over::after {
+    background: #eff6ff !important;
+}
+
+.ql-editor.ql-drag-over {
+    outline: 3px dashed #2563eb;
+    outline-offset: -6px;
+    border-radius: 8px;
+}
+
+.ql-editor.ql-drag-over::before {
+    content: '📸 Thả ảnh vào đây để tải lên';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(37, 99, 235, 0.95);
+    color: #ffffff;
+    padding: 12px 24px;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 700;
+    pointer-events: none;
+    z-index: 10;
+    box-shadow: 0 8px 24px rgba(37, 99, 235, 0.4);
+    animation: dragPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes dragPulse {
+    0%, 100% { transform: translate(-50%, -50%) scale(1); }
+    50% { transform: translate(-50%, -50%) scale(1.05); }
+}

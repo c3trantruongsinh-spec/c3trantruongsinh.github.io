@@ -99,7 +99,7 @@ async function renderDiscussions(meetingId, contentId, container, readOnly = fal
                 window._discussionQuills[editorKey] = initQuillEditor(
                     `#discussionEditorContainer_${inputKey}`,
                     '',
-                    'Nhập ý kiến... Có thể dùng định dạng đậm/nghiêng/gạch chân và danh sách.'
+                    'Nhập ý kiến... (Hỗ trợ kéo thả ảnh, chèn công thức Toán fx, chụp ảnh trực tiếp)'
                 );
             }, 80);
         }
@@ -427,7 +427,7 @@ async function editDiscussion(meetingId, discussionId, contentId) {
         window._activeEditDiscussionQuill = initQuillEditor(
             '#editDiscussionEditorContainer',
             currentContent,
-            'Nhập nội dung...'
+            'Nhập nội dung... (Hỗ trợ kéo thả ảnh, chèn công thức Toán fx, chụp ảnh trực tiếp)'
         );
         if (window._activeEditDiscussionQuill) {
             window._activeEditDiscussionQuill.focus();
