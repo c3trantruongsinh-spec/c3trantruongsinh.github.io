@@ -35,6 +35,20 @@
 
 </head>
 <body>
+    <!-- ============================================================
+     INPUT UPLOAD ẢNH CỐ ĐỊNH — dùng cho mobile
+     Đặt tĩnh trong DOM ngay từ đầu để iOS Safari cho phép mở
+     menu 3 lựa chọn (Camera / Thư viện ảnh / Chọn tệp).
+     KHÔNG dùng document.createElement động — sẽ bị iOS chặn.
+     ============================================================ -->
+<input
+    type="file"
+    id="mobileImageUpload"
+    accept="image/*"
+    style="position: fixed; left: -9999px; top: -9999px; width: 1px; height: 1px; opacity: 0;"
+    aria-hidden="true"
+    tabindex="-1"
+>
     <!-- Loading overlay -->
     <div id="loadingOverlay" class="loading-overlay">
         <div class="loader"></div>

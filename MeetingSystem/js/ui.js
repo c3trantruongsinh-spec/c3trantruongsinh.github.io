@@ -1433,18 +1433,19 @@ async function uploadFileToCloudinary(file, quill) {
 }
 
 /**
- * Chọn ảnh từ máy và upload lên Cloudinary, chèn vào Quill.
+ * Mở hộp thoại chọn ảnh và upload lên Cloudinary, chèn vào Quill.
  *
- * XỬ LÝ LỖI MỞ CAMERA TRỰC TIẾP TRÊN MOBILE:
- *   - KHÔNG dùng attribute capture="environment" hay capture="user".
- *   - Dùng accept="image/*" để iOS/Android hiện menu đầy đủ:
- *       • Chụp ảnh mới (Camera)
- *       • Chọn từ Thư viện ảnh (Photo Library)
- *       • Chọn Tệp (Browse/Choose File)
- *   - Validate MIME type ở JS sau khi user chọn xong, không giới hạn
- *     quá chặt ở accept để tránh OS bỏ qua menu và mở thẳng file picker.
+ * CHIẾN THUẬT MỚI — dùng INPUT TĨNH trong DOM:
+ *   - iOS Safari chặn mở file picker khi input được tạo động
+ *     bằng document.createElement + .click() ngầm.
+ *   - Giải pháp: input đã có sẵn trong index.html với id
+ *     "mobileImageUpload". JS chỉ việc gọi .click() trên đó.
+ *   - Listener 'change' được gắn 1 LẦN DUY NHẤT khi khởi tạo,
+ *     không tạo lại mỗi lần gọi hàm.
+ *   - Quill instance hiện tại được lưu vào biến toàn cục
+ *     window._currentQuillForUpload trước khi mở picker.
  *
- * @param {Object} quill - Quill instance
+ * @param {Object} quill - Quill instance cần chèn ảnh vào
  */
 function selectAndUploadImage(quill) {
     if (!quill) {
@@ -1452,138 +1453,193 @@ function selectAndUploadImage(quill) {
         return;
     }
 
-    // ============ TẠO INPUT FILE NGẦM ============
-    const input = document.createElement('input');
-    input.type = 'file';
+    // ============ LẤY INPUT TĨNH TỪ DOM ============
+    const input = document.getElementById('mobileImageUpload');
 
-    // QUAN TRỌNG: Chỉ dùng 'image/*', KHÔNG dùng capture attribute.
-    // Nếu thêm capture="environment", iPhone sẽ mở thẳng Camera và bỏ qua
-    // menu lựa chọn (Thư viện ảnh, Chọn tệp).
-    input.accept = 'image/*';
+    if (!input) {
+        console.error('❌ Không tìm thấy #mobileImageUpload trong index.html. Hãy thêm thẻ <input> tĩnh vào body.');
+        showToast('Lỗi cấu hình: thiếu input upload ảnh trong HTML', 'error', 5000);
+        return;
+    }
 
-    input.multiple = false;
-    input.style.display = 'none';
-    input.setAttribute('autocomplete', 'off');
-    input.setAttribute('tabindex', '-1');
+    // ============ LƯU QUILL ĐANG THAO TÁC ============
+    window._currentQuillForUpload = quill;
 
-    // ============ XỬ LÝ KHI USER CHỌN ẢNH ============
-    input.addEventListener('change', async function() {
-        const file = input.files && input.files[0];
-        if (!file) {
-            input.remove();
-            return;
-        }
+    // ============ GẮN LISTENER 'change' 1 LẦN DUY NHẤT ============
+    // Dùng cờ dataset để tránh gắn trùng khi user bấm nút nhiều lần.
+    if (input.dataset.listenerBound !== 'true') {
+        input.dataset.listenerBound = 'true';
+        input.addEventListener('change', handleImageUploadChange);
+        console.log('✅ Đã gắn listener change cho #mobileImageUpload (1 lần duy nhất)');
+    }
 
-        // ============ VALIDATE KÍCH THƯỚC ============
-        if (file.size > 10 * 1024 * 1024) {
-            showToast('❌ Ảnh quá lớn (>10MB). Vui lòng chọn ảnh nhỏ hơn.', 'error', 5000);
-            input.remove();
-            return;
-        }
+    // ============ RESET INPUT TRƯỚC KHI MỞ ============
+    // Cần thiết vì nếu user chọn cùng 1 ảnh 2 lần, sự kiện 'change'
+    // sẽ KHÔNG fire nếu value không đổi.
+    try {
+        input.value = '';
+    } catch (e) {
+        console.warn('Không reset được input.value:', e);
+    }
 
-        // ============ VALIDATE ĐỊNH DẠNG ============
-        // Kiểm tra MIME type thực tế của file sau khi user chọn.
-        // Chấp nhận cả các alias của iOS (ví dụ: image/heic, image/heif).
-        const allowedTypes = [
-            'image/png',
-            'image/jpeg',
-            'image/jpg',
-            'image/gif',
-            'image/webp',
-            'image/heic',
-            'image/heif'
-        ];
+    // ============ MỞ HỘP THOẠI CHỌN ẢNH ============
+    // Trên iOS/Android, input tĩnh + accept="image/*" (không capture)
+    // sẽ hiện menu đầy đủ: Camera / Thư viện ảnh / Chọn tệp.
+    try {
+        input.click();
+    } catch (e) {
+        console.error('Không mở được input file:', e);
+        showToast('Không mở được hộp thoại chọn ảnh', 'error', 5000);
+    }
+}
 
-        const normalizedType = (file.type || '').toLowerCase();
-        const fileExt = (file.name || '').split('.').pop().toLowerCase();
-        const allowedExts = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'heic', 'heif'];
+/**
+ * Xử lý sự kiện 'change' của #mobileImageUpload.
+ * Tách riêng để gắn 1 lần duy nhất, không bị memory leak khi
+ * user mở modal nhiều lần.
+ *
+ * @param {Event} event - Sự kiện change của input file
+ */
+async function handleImageUploadChange(event) {
+    const input = event.target;
+    const file = input.files && input.files[0];
 
-        const isTypeAllowed = allowedTypes.includes(normalizedType);
-        const isExtAllowed = allowedExts.includes(fileExt);
+    // ============ TRƯỜNG HỢP USER HỦY ============
+    if (!file) {
+        console.log('Người dùng đã hủy chọn ảnh');
+        return;
+    }
 
-        if (!isTypeAllowed && !isExtAllowed) {
-            showToast('❌ Định dạng ảnh không hỗ trợ. Chỉ chấp nhận PNG, JPG, GIF, WEBP.', 'error', 5000);
-            input.remove();
-            return;
-        }
+    // ============ LẤY QUILL ĐANG THAO TÁC ============
+    const quill = window._currentQuillForUpload;
 
-        // ============ LƯU VỊ TRÍ CON TRỎ HIỆN TẠI ============
-        const range = quill.getSelection(true) || { index: quill.getLength() };
+    if (!quill) {
+        console.error('Không có Quill instance để chèn ảnh');
+        showToast('Editor chưa sẵn sàng', 'error', 4000);
+        window._currentQuillForUpload = null;
+        return;
+    }
 
-        // ============ HIỂN THỊ LOADING ============
-        const loadingToast = showToast(
-            '<span class="spinner" style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.4);border-top-color:#fff;border-radius:50%;animation:spin 0.6s linear infinite;vertical-align:middle;margin-right:6px;"></span> Đang tải ảnh lên Cloudinary...',
-            'info',
-            60000
-        );
+    // ============ VALIDATE KÍCH THƯỚC ============
+    if (file.size > 10 * 1024 * 1024) {
+        showToast('❌ Ảnh quá lớn (>10MB). Vui lòng chọn ảnh nhỏ hơn.', 'error', 5000);
+        window._currentQuillForUpload = null;
+        return;
+    }
 
-        // ============ TẠM KHÓA EDITOR ============
+    // ============ VALIDATE ĐỊNH DẠNG ============
+    // Chấp nhận cả các alias mà iOS trả về (heic, heif).
+    const allowedTypes = [
+        'image/png',
+        'image/jpeg',
+        'image/jpg',
+        'image/gif',
+        'image/webp',
+        'image/heic',
+        'image/heif'
+    ];
+
+    const normalizedType = (file.type || '').toLowerCase();
+    const fileExt = (file.name || '').split('.').pop().toLowerCase();
+    const allowedExts = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'heic', 'heif'];
+
+    const isTypeAllowed = allowedTypes.includes(normalizedType);
+    const isExtAllowed = allowedExts.includes(fileExt);
+
+    if (!isTypeAllowed && !isExtAllowed) {
+        showToast('❌ Định dạng ảnh không hỗ trợ. Chỉ chấp nhận PNG, JPG, GIF, WEBP, HEIC.', 'error', 5000);
+        window._currentQuillForUpload = null;
+        return;
+    }
+
+    // ============ LƯU VỊ TRÍ CON TRỎ TRONG QUILL ============
+    const range = quill.getSelection(true) || { index: quill.getLength() };
+
+    // ============ HIỂN THỊ LOADING ============
+    const loadingToast = showToast(
+        '<span class="spinner" style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.4);border-top-color:#fff;border-radius:50%;animation:spin 0.6s linear infinite;vertical-align:middle;margin-right:6px;"></span> Đang tải ảnh lên Cloudinary...',
+        'info',
+        60000
+    );
+
+    // ============ TẠM KHÓA EDITOR ============
+    try {
         quill.enable(false);
+    } catch (e) {
+        console.warn('Không disable được Quill:', e);
+    }
 
-        try {
-            // ============ UPLOAD LÊN CLOUDINARY ============
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('upload_preset', 'upload_anh_firebase');
+    try {
+        // ============ UPLOAD LÊN CLOUDINARY ============
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('upload_preset', 'upload_anh_firebase');
 
-            const response = await fetch('https://api.cloudinary.com/v1_1/svvzpxjj/image/upload', {
-                method: 'POST',
-                body: formData
-            });
+        const response = await fetch('https://api.cloudinary.com/v1_1/svvzpxjj/image/upload', {
+            method: 'POST',
+            body: formData
+        });
 
-            const data = await response.json();
+        const data = await response.json();
 
-            if (!response.ok) {
-                const errMsg = (data && data.error && data.error.message)
-                    ? data.error.message
-                    : 'Upload thất bại (' + response.status + ')';
-                throw new Error(errMsg);
-            }
-
-            if (!data.secure_url) {
-                throw new Error('Không nhận được URL ảnh từ Cloudinary.');
-            }
-
-            // ============ TỐI ƯU URL ẢNH ============
-            // Cloudinary tự động resize và nén ảnh → giảm băng thông, tăng tốc tải.
-            let imageUrl = data.secure_url;
-            if (imageUrl.includes('/upload/')) {
-                imageUrl = imageUrl.replace(
-                    '/upload/',
-                    '/upload/w_500,q_auto,f_auto/'
-                );
-            }
-
-            // ============ CHÈN ẢNH VÀO QUILL ============
-            quill.enable(true);
-            quill.insertEmbed(range.index, 'image', imageUrl, Quill.sources.USER);
-            quill.setSelection(range.index + 1, Quill.sources.SILENT);
-            quill.focus();
-
-            // ============ ĐÓNG LOADING, BÁO THÀNH CÔNG ============
-            if (loadingToast && loadingToast.close) {
-                loadingToast.close();
-            }
-            showToast('✅ Đã chèn ảnh thành công!', 'success', 2500);
-
-            console.log('✅ Upload Cloudinary thành công:', imageUrl);
-
-        } catch (error) {
-            console.error('Cloudinary upload error:', error);
-            quill.enable(true);
-
-            if (loadingToast && loadingToast.close) {
-                loadingToast.close();
-            }
-            showToast('❌ Lỗi tải ảnh: ' + error.message, 'error', 6000);
-        } finally {
-            input.remove();
+        if (!response.ok) {
+            const errMsg = (data && data.error && data.error.message)
+                ? data.error.message
+                : 'Upload thất bại (' + response.status + ')';
+            throw new Error(errMsg);
         }
-    });
 
-    // ============ GẮN INPUT VÀO DOM VÀ KÍCH HOẠT ============
-    document.body.appendChild(input);
-    input.click();
+        if (!data.secure_url) {
+            throw new Error('Không nhận được URL ảnh từ Cloudinary.');
+        }
+
+        // ============ TỐI ƯU URL ẢNH ============
+        let imageUrl = data.secure_url;
+        if (imageUrl.includes('/upload/')) {
+            imageUrl = imageUrl.replace(
+                '/upload/',
+                '/upload/w_500,q_auto,f_auto/'
+            );
+        }
+
+        // ============ CHÈN ẢNH VÀO QUILL ============
+        quill.enable(true);
+        quill.insertEmbed(range.index, 'image', imageUrl, Quill.sources.USER);
+        quill.setSelection(range.index + 1, Quill.sources.SILENT);
+        quill.focus();
+
+        // ============ ĐÓNG LOADING, BÁO THÀNH CÔNG ============
+        if (loadingToast && loadingToast.close) {
+            loadingToast.close();
+        }
+        showToast('✅ Đã chèn ảnh thành công!', 'success', 2500);
+
+        console.log('✅ Upload Cloudinary thành công:', imageUrl);
+
+    } catch (error) {
+        console.error('Cloudinary upload error:', error);
+        try {
+            quill.enable(true);
+        } catch (e) {
+            console.warn('Không enable lại được Quill:', e);
+        }
+
+        if (loadingToast && loadingToast.close) {
+            loadingToast.close();
+        }
+        showToast('❌ Lỗi tải ảnh: ' + error.message, 'error', 6000);
+
+    } finally {
+        // ============ DỌN TRẠNG THÁI ============
+        window._currentQuillForUpload = null;
+
+        // Reset input.value để lần sau chọn cùng ảnh vẫn fire 'change'
+        try {
+            input.value = '';
+        } catch (e) {
+            console.warn('Không reset được input.value sau upload:', e);
+        }
+    }
 }
 
 /**
@@ -2112,17 +2168,27 @@ function updateLatexOutput() {
 }
 
 /**
- * Cấu hình MathLive keyboard — XỬ LÝ XUNG ĐỘT BÀN PHÍM TRÊN MOBILE.
+ * Cấu hình MathLive keyboard — CHIẾN THUẬT MẠNH TAY CHO iOS SAFARI.
  *
- * Cơ chế:
- *   - Policy = 'manual' → MathLive KHÔNG tự mở bàn phím ảo, ta chủ động show().
- *   - Trên mobile: set inputmode='none' + autocorrect/autocapitalize='off'
- *     để chặn bàn phím chữ (native text keyboard) của hệ điều hành.
- *   - Lắng nghe pointerdown / touchstart / focus / click → ép gọi
- *     window.mathVirtualKeyboard.show() ngay khi user chạm vào math-field.
- *   - Gắn focus guard để refocus math-field sau khi user đóng menu 3 gạch.
- *   - Bind listener virtual-keyboard-toggle để đồng bộ class body
- *     (dùng cho responsive CSS khi bàn phím ảo mở).
+ * VẤN ĐỀ:
+ *   - iOS Safari phớt lờ inputmode="none" bên trong Shadow DOM
+ *     của <math-field> → bàn phím chữ vẫn trồi lên.
+ *   - Không thể can thiệp vào Shadow DOM để chặn focus native.
+ *
+ * CHIẾN THUẬT:
+ *   - Dùng e.preventDefault() ngay trong touchstart / pointerdown
+ *     để chặn TOÀN BỘ hành vi mặc định của browser, bao gồm:
+ *       • Native text keyboard
+ *       • Focus tự động vào element
+ *       • Các event con lan truyền
+ *   - Sau khi chặn, tự gọi mathField.focus() để đặt focus thủ công.
+ *   - Sau đó ép window.mathVirtualKeyboard.show() để mở bàn phím Toán.
+ *   - Vẫn giữ inputmode="none" như lớp phòng thủ thứ 2.
+ *
+ * ĐÁNH ĐỔI ĐÃ CHẤP NHẬN:
+ *   - Không click được vào giữa công thức để đặt con trỏ.
+ *   - Con trỏ sẽ nhảy về CUỐI công thức khi focus.
+ *   - Đây là đánh đổi cần thiết để bàn phím Toán hoạt động.
  *
  * @param {HTMLElement} mathField - Element <math-field> của MathLive
  */
@@ -2137,24 +2203,21 @@ function setupMathLiveKeyboardState(mathField) {
         window._mathLiveKeyboardListenerBound = false;
     }
 
-    if (mathField._mobileKbShowHandler) {
+    if (mathField._mathLiveBlockHandler) {
         try {
-            mathField.removeEventListener('pointerdown', mathField._mobileKbShowHandler);
-            mathField.removeEventListener('touchstart', mathField._mobileKbShowHandler);
-            mathField.removeEventListener('focus', mathField._mobileKbShowHandler);
-            mathField.removeEventListener('click', mathField._mobileKbShowHandler);
+            mathField.removeEventListener('touchstart', mathField._mathLiveBlockHandler);
+            mathField.removeEventListener('pointerdown', mathField._mathLiveBlockHandler);
+            mathField.removeEventListener('mousedown', mathField._mathLiveBlockHandler);
         } catch (e) {
-            console.warn('Không gỡ được listener mobile kb cũ:', e);
+            console.warn('Không gỡ được listener block cũ:', e);
         }
-        mathField._mobileKbShowHandler = null;
+        mathField._mathLiveBlockHandler = null;
     }
 
     // ============ XÁC ĐỊNH THIẾT BỊ ============
     const isMobile = isMobileDeviceForMathLive();
 
-    // ============ BƯỚC 1: ĐỔI POLICY SANG 'MANUAL' ============
-    // Manual → MathLive không tự show bàn phím khi focus.
-    // Ta sẽ chủ động gọi show() khi user chạm.
+    // ============ BƯỚC 1: POLICY = 'MANUAL' ============
     try {
         if (typeof mathField.mathVirtualKeyboardPolicy !== 'undefined') {
             mathField.mathVirtualKeyboardPolicy = 'manual';
@@ -2164,7 +2227,8 @@ function setupMathLiveKeyboardState(mathField) {
         console.warn('Không set được mathVirtualKeyboardPolicy:', e);
     }
 
-    // ============ BƯỚC 2: CHẶN BÀN PHÍM CHỮ TRÊN MOBILE ============
+    // ============ BƯỚC 2: SET INPUTMODE = 'NONE' (LỚP DỰ PHÒNG) ============
+    // Vẫn giữ để làm lớp phòng thủ thứ 2, dù iOS Safari có thể bỏ qua.
     if (isMobile) {
         try {
             mathField.setAttribute('inputmode', 'none');
@@ -2172,19 +2236,9 @@ function setupMathLiveKeyboardState(mathField) {
             mathField.setAttribute('autocorrect', 'off');
             mathField.setAttribute('autocapitalize', 'off');
             mathField.setAttribute('spellcheck', 'false');
-            console.log('🚫 Đã chặn native text keyboard trên mobile');
+            console.log('🚫 Đã set inputmode="none" (lớp dự phòng)');
         } catch (e) {
-            console.warn('Không set được inputmode cho mathField:', e);
-        }
-    } else {
-        try {
-            mathField.removeAttribute('inputmode');
-            mathField.removeAttribute('autocomplete');
-            mathField.removeAttribute('autocorrect');
-            mathField.removeAttribute('autocapitalize');
-            mathField.removeAttribute('spellcheck');
-        } catch (e) {
-            console.warn('Không gỡ được inputmode cho mathField:', e);
+            console.warn('Không set được inputmode:', e);
         }
     }
 
@@ -2203,8 +2257,8 @@ function setupMathLiveKeyboardState(mathField) {
         console.warn('Không set được MathLive smart options:', e);
     }
 
-    // ============ BƯỚC 4: ÉP SHOW BÀN PHÍM MATHLIVE KHI CHẠM ============
-    const showMathLiveKeyboard = function() {
+    // ============ BƯỚC 4: HÀM ÉP SHOW BÀN PHÍM TOÁN ============
+    const forceShowMathKeyboard = function() {
         if (!window.mathVirtualKeyboard) return;
         if (typeof window.mathVirtualKeyboard.show !== 'function') return;
         try {
@@ -2214,37 +2268,75 @@ function setupMathLiveKeyboardState(mathField) {
         }
     };
 
-    const mobileKbShowHandler = function(event) {
-        // KHÔNG preventDefault — để math-field vẫn nhận được tọa độ chạm
-        // và đặt con trỏ đúng vị trí bên trong công thức.
-        // Việc chặn bàn phím chữ đã được xử lý bằng inputmode='none'.
-        showMathLiveKeyboard();
+    // ============ BƯỚC 5: HÀM CHẶN + FOCUS + SHOW ============
+    /**
+     * Xử lý sự kiện chạm: chặn hoàn toàn hành vi mặc định (bao gồm
+     * native keyboard), sau đó tự focus và ép show bàn phím Toán.
+     *
+     * @param {Event} e - touchstart / pointerdown / mousedown
+     */
+    const blockAndShowHandler = function(e) {
+        // ---- 1. CHẶN MỌI HÀNH VI MẶC ĐỊNH ----
+        // Đây là bước quan trọng nhất để "giết" native keyboard iOS.
+        try {
+            e.preventDefault();
+            e.stopPropagation();
+        } catch (err) {
+            console.warn('Không preventDefault được:', err);
+        }
 
-        // Backup: sau 80ms, nếu bàn phím ảo vẫn chưa hiện thì thử show lại.
-        // Điều này xử lý trường hợp iOS delay focus event.
+        // ---- 2. FOCUS THỦ CÔNG VÀO MATH-FIELD ----
+        // Sau khi preventDefault, browser không tự focus nữa,
+        // nên ta phải gọi focus() bằng tay.
+        // Lưu ý: có thể gây warning "preventDefault inside passive listener"
+        // trên Chrome, nhưng vẫn chạy được trên iOS Safari.
         setTimeout(function() {
-            if (window.mathVirtualKeyboard && !window.mathVirtualKeyboard.visible) {
-                showMathLiveKeyboard();
+            try {
+                mathField.focus();
+            } catch (err) {
+                console.warn('Không focus được mathField:', err);
             }
-        }, 80);
 
-        // Backup 2: sau 250ms, thử lần cuối cho các máy Android chậm.
-        setTimeout(function() {
-            if (window.mathVirtualKeyboard && !window.mathVirtualKeyboard.visible) {
-                showMathLiveKeyboard();
-            }
-        }, 250);
+            // ---- 3. ÉP SHOW BÀN PHÍM TOÁN ----
+            forceShowMathKeyboard();
+
+            // ---- 4. FALLBACK: retry sau 80ms và 250ms ----
+            // Xử lý trường hợp iOS delay hoặc MathLive chưa kịp init.
+            setTimeout(function() {
+                if (window.mathVirtualKeyboard && !window.mathVirtualKeyboard.visible) {
+                    forceShowMathKeyboard();
+                }
+            }, 80);
+
+            setTimeout(function() {
+                if (window.mathVirtualKeyboard && !window.mathVirtualKeyboard.visible) {
+                    forceShowMathKeyboard();
+                }
+            }, 250);
+        }, 0);
     };
 
-    mathField._mobileKbShowHandler = mobileKbShowHandler;
-    mathField.addEventListener('pointerdown', mobileKbShowHandler);
-    mathField.addEventListener('touchstart', mobileKbShowHandler, { passive: true });
-    mathField.addEventListener('focus', mobileKbShowHandler);
-    mathField.addEventListener('click', mobileKbShowHandler);
+    // ============ BƯỚC 6: GẮN LISTENER ============
+    // touchstart: sự kiện chính trên mobile — chặn trước khi iOS kịp
+    //             trigger native keyboard.
+    // pointerdown: cho các trình duyệt hiện đại, kể cả desktop.
+    // mousedown: fallback cho trình duyệt cũ.
+    //
+    // Dùng { passive: false } để cho phép preventDefault.
+    // ĐÂY LÀ BẮT BUỘC — mặc định touchstart/pointerdown là passive,
+    // nếu không set passive:false thì preventDefault sẽ bị bỏ qua.
+    mathField._mathLiveBlockHandler = blockAndShowHandler;
 
-    console.log('👆 Đã gắn trigger ép mở bàn phím MathLive khi chạm');
+    try {
+        mathField.addEventListener('touchstart', blockAndShowHandler, { passive: false });
+        mathField.addEventListener('pointerdown', blockAndShowHandler, { passive: false });
+        mathField.addEventListener('mousedown', blockAndShowHandler, { passive: false });
+        console.log('🛑 Đã gắn touchstart/pointerdown/mousedown với preventDefault + passive:false');
+    } catch (e) {
+        console.error('Không gắn được listener block:', e);
+    }
 
-    // ============ BƯỚC 5: GẮN FOCUS GUARD ============
+    // ============ BƯỚC 7: FOCUS GUARD ============
     try {
         setupMathLiveFocusGuard(mathField);
         console.log('🛡️ Đã gắn focus guard (giữ menu 3 gạch)');
@@ -2252,7 +2344,7 @@ function setupMathLiveKeyboardState(mathField) {
         console.warn('Không gắn được focus guard:', e);
     }
 
-    // ============ BƯỚC 6: BIND LISTENER CHO BODY CLASS ============
+    // ============ BƯỚC 8: BIND LISTENER CHO BODY CLASS ============
     const bindKeyboardToggleListener = function() {
         if (window._mathLiveKeyboardListenerBound) return;
         if (!window.mathVirtualKeyboard) return;
