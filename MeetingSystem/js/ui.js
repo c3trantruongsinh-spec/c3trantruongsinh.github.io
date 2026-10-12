@@ -1214,9 +1214,13 @@ function renderRichContent(str) {
     
     return escapeHtml(s).replace(/\n/g, '<br>');
 }
-
 /**
  * Khởi tạo Quill editor cho 1 element
+ * TÍCH HỢP ĐẦY ĐỦ:
+ *   - Plugin resize ảnh (resize-quill-image)
+ *   - Custom imageHandler upload Cloudinary
+ *   - Modal công thức Toán học trực quan (Visual Formula Builder)
+ *   - Xử lý initialContent (backward compat với dữ liệu cũ)
  * @param {string} selector - CSS selector, ví dụ '#conclusionEditor'
  * @param {string} initialContent - HTML hoặc plain text
  * @param {string} placeholder
@@ -1226,6 +1230,22 @@ function initQuillEditor(selector, initialContent, placeholder) {
     if (typeof Quill === 'undefined') {
         console.warn('Quill.js chưa load. Kiểm tra CDN.');
         return null;
+    }
+    
+    if (typeof ImageResize !== 'undefined' && !window._imageResizeRegistered) {
+        try {
+            Quill.register('modules/imageResize', ImageResize);
+            window._imageResizeRegistered = true;
+            console.log('✅ Đã đăng ký module resize ảnh (resize-quill-image)');
+        } catch (e) {
+            console.warn('⚠️ Không đăng ký được module resize:', e.message);
+        }
+    }
+    
+    if (typeof katex === 'undefined') {
+        console.warn('⚠️ KaTeX chưa load. Nút công thức Toán sẽ không hoạt động.');
+    } else {
+        console.log('✅ KaTeX đã sẵn sàng cho công thức Toán học');
     }
     
     const el = document.querySelector(selector);
@@ -1238,13 +1258,39 @@ function initQuillEditor(selector, initialContent, placeholder) {
         theme: 'snow',
         placeholder: placeholder || 'Nhập nội dung...',
         modules: {
-            toolbar: [
-                ['bold', 'italic', 'underline'],
-                [{ 'list': 'ordered' }, { 'list': 'bullet' }],
-                ['clean']
-            ]
+            toolbar: {
+                container: [
+                    ['bold', 'italic', 'underline'],
+                    [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+                    ['image', 'formula'],
+                    ['clean']
+                ],
+                handlers: {
+                    image: function() {
+                        selectAndUploadImage(this.quill);
+                    },
+                    formula: function() {
+                        openFormulaModal(this.quill, '', 'insert', null);
+                    }
+                }
+            },
+            imageResize: {
+                modules: ['Resize', 'DisplaySize'],
+                displaySize: true,
+                styleSelection: true,
+                handleStyles: {
+                    backgroundColor: '#2563eb',
+                    border: '2px solid #ffffff',
+                    boxShadow: '0 2px 8px rgba(37, 99, 235, 0.4)',
+                    width: '14px',
+                    height: '14px',
+                    borderRadius: '3px'
+                }
+            }
         }
     });
+    
+    bindFormulaEditHandler(quill);
     
     if (initialContent && String(initialContent).trim()) {
         const s = String(initialContent);
@@ -1258,18 +1304,923 @@ function initQuillEditor(selector, initialContent, placeholder) {
     
     return quill;
 }
+/**
+ * Chọn ảnh từ máy và upload lên Cloudinary, chèn vào Quill
+ * @param {Object} quill - Quill instance
+ */
+function selectAndUploadImage(quill) {
+    if (!quill) {
+        showToast('Editor chưa sẵn sàng', 'error');
+        return;
+    }
+    
+    // ==== Tạo input file ngầm ====
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/png,image/jpeg,image/jpg,image/gif,image/webp';
+    input.style.display = 'none';
+    
+    // ==== Xử lý khi user chọn ảnh ====
+    input.addEventListener('change', async function() {
+        const file = input.files && input.files[0];
+        if (!file) {
+            input.remove();
+            return;
+        }
+        
+        // ==== VALIDATE ====
+        if (file.size > 10 * 1024 * 1024) {
+            showToast('❌ Ảnh quá lớn (>10MB). Vui lòng chọn ảnh nhỏ hơn.', 'error', 5000);
+            input.remove();
+            return;
+        }
+        
+        const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp'];
+        if (!allowedTypes.includes(file.type)) {
+            showToast('❌ Định dạng ảnh không hỗ trợ. Chỉ chấp nhận PNG, JPG, GIF, WEBP.', 'error', 5000);
+            input.remove();
+            return;
+        }
+        
+        // ==== Lưu vị trí con trỏ hiện tại ====
+        const range = quill.getSelection(true) || { index: quill.getLength() };
+        
+        // ==== Loading indicator ====
+        const loadingToast = showToast(
+            `<span class="spinner" style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.4);border-top-color:#fff;border-radius:50%;animation:spin 0.6s linear infinite;vertical-align:middle;margin-right:6px;"></span> Đang tải ảnh lên Cloudinary...`,
+            'info',
+            60000
+        );
+        
+        // Disable editor để tránh user gõ khi đang upload
+        quill.enable(false);
+        
+        try {
+            // ==== Upload lên Cloudinary ====
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('upload_preset', 'upload_anh_firebase');
+            
+            const response = await fetch('https://api.cloudinary.com/v1_1/svvzpxjj/image/upload', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (!response.ok) {
+                const errMsg = (data && data.error && data.error.message) 
+                    ? data.error.message 
+                    : 'Upload thất bại (' + response.status + ')';
+                throw new Error(errMsg);
+            }
+            
+            if (!data.secure_url) {
+                throw new Error('Không nhận được URL ảnh từ Cloudinary.');
+            }
+            
+            // ==== Tối ưu URL: thêm transformation ====
+            // Cloudinary tự động resize và nén ảnh → giảm băng thông, tăng tốc tải
+            let imageUrl = data.secure_url;
+            if (imageUrl.includes('/upload/')) {
+                imageUrl = imageUrl.replace(
+                    '/upload/',
+                    '/upload/w_500,q_auto,f_auto/'
+                );
+            }
+            
+            // ==== Chèn ảnh vào Quill tại vị trí con trỏ ====
+            quill.enable(true);
+            quill.insertEmbed(range.index, 'image', imageUrl, Quill.sources.USER);
+            quill.setSelection(range.index + 1, Quill.sources.SILENT);
+            quill.focus();
+            
+            // ==== Đóng loading, báo thành công ====
+            if (loadingToast && loadingToast.close) loadingToast.close();
+            showToast('✅ Đã chèn ảnh thành công!', 'success', 2500);
+            
+            console.log('✅ Upload Cloudinary thành công:', imageUrl);
+            
+        } catch (error) {
+            console.error('Cloudinary upload error:', error);
+            quill.enable(true);
+            
+            if (loadingToast && loadingToast.close) loadingToast.close();
+            showToast('❌ Lỗi tải ảnh: ' + error.message, 'error', 6000);
+        } finally {
+            input.remove();
+        }
+    });
+    
+    // ==== Gắn input vào DOM và kích hoạt ====
+    document.body.appendChild(input);
+    input.click();
+}
+// ============================================================
+// VISUAL FORMULA BUILDER — Modal nhập công thức Toán
+// Tích hợp Quick Toolbar (Toán - Lý - Hóa) cho giáo viên THPT
+// ============================================================
+
+// Biến lưu trạng thái modal đang mở
+window._formulaModalState = {
+    quill: null,
+    mode: 'insert',
+    editingElement: null,
+    opening: false
+};
+
+// Timer dùng để hủy focus nếu user đóng modal quá nhanh
+window._formulaModalFocusTimer = null;
+
+// Bộ đệm quản lý focus guard cho menu MathLive (KHÔNG ẩn menu)
+window._formulaModalFocusGuard = {
+    pollTimer: null
+};
+
+/**
+ * Phát hiện thiết bị di động để chọn policy bàn phím ảo phù hợp.
+ * Trên desktop: 'manual' — user phải bấm nút bàn phím mới mở.
+ * Trên mobile: 'auto' — bàn phím tự mở khi focus vào math-field.
+ * @returns {boolean}
+ */
+function isMobileDeviceForMathLive() {
+    if (typeof window === 'undefined') return false;
+    const hasTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+    const isSmallScreen = window.matchMedia('(max-width: 1024px)').matches;
+    return hasTouch && isSmallScreen;
+}
+
+/**
+ * Kiểm tra math-field có đang giữ focus không.
+ * Bao gồm cả trường hợp focus nằm trong shadow DOM của math-field
+ * (ví dụ khi menu 3 gạch đang mở).
+ * @param {HTMLElement} mathField
+ * @returns {boolean}
+ */
+function isMathFieldActive(mathField) {
+    if (!mathField) return false;
+    if (document.activeElement === mathField) return true;
+    if (mathField.shadowRoot && mathField.shadowRoot.activeElement) return true;
+    if (document.activeElement && typeof mathField.contains === 'function') {
+        if (mathField.contains(document.activeElement)) return true;
+    }
+    return false;
+}
+
+/**
+ * Dừng polling focus guard.
+ */
+function clearMathLiveFocusGuard() {
+    if (window._formulaModalFocusGuard && window._formulaModalFocusGuard.pollTimer) {
+        clearInterval(window._formulaModalFocusGuard.pollTimer);
+        window._formulaModalFocusGuard.pollTimer = null;
+    }
+}
+
+/**
+ * Gắn focus guard cho math-field — KHÔNG ẩn menu 3 gạch.
+ * Khi user mở menu, math-field bị blur nhưng focus chuyển vào shadow DOM.
+ * Polling 100ms phát hiện khi menu đóng → tự động refocus math-field.
+ * @param {HTMLElement} mathField
+ */
+function setupMathLiveFocusGuard(mathField) {
+    if (!mathField) return;
+
+    if (mathField._focusGuardBlurHandler) {
+        try {
+            mathField.removeEventListener('blur', mathField._focusGuardBlurHandler);
+        } catch (e) {
+            console.warn('Không gỡ được blur handler cũ:', e);
+        }
+        mathField._focusGuardBlurHandler = null;
+    }
+
+    const blurHandler = function() {
+        setTimeout(function() {
+            const overlay = document.getElementById('formulaModalOverlay');
+            if (!overlay || !overlay.classList.contains('active')) return;
+
+            if (!isMathFieldActive(mathField)) return;
+
+            clearMathLiveFocusGuard();
+
+            window._formulaModalFocusGuard.pollTimer = setInterval(function() {
+                const ov = document.getElementById('formulaModalOverlay');
+
+                if (!ov || !ov.classList.contains('active')) {
+                    clearMathLiveFocusGuard();
+                    return;
+                }
+
+                if (isMathFieldActive(mathField)) return;
+
+                clearMathLiveFocusGuard();
+
+                const activeNow = document.activeElement;
+                if (activeNow && activeNow !== document.body && ov.contains(activeNow)) {
+                    return;
+                }
+
+                setTimeout(function() {
+                    const ov2 = document.getElementById('formulaModalOverlay');
+                    if (!ov2 || !ov2.classList.contains('active')) return;
+
+                    const a2 = document.activeElement;
+                    if (a2 && a2.classList && a2.classList.contains('fqt-btn')) return;
+
+                    try {
+                        mathField.focus();
+                    } catch (e) {
+                        console.warn('Không refocus được mathField sau khi đóng menu:', e);
+                    }
+                }, 40);
+            }, 100);
+        }, 0);
+    };
+
+    mathField._focusGuardBlurHandler = blurHandler;
+    mathField.addEventListener('blur', blurHandler);
+}
+
+/**
+ * Render preview KaTeX cho các nút trong Quick Toolbar.
+ * Nếu KaTeX chưa load, giữ lại fallback text.
+ */
+function renderQuickToolbarPreviews() {
+    const previews = document.querySelectorAll('#formulaModalOverlay .fqt-preview');
+    previews.forEach(function(el) {
+        if (el.dataset.rendered === 'true') return;
+
+        const latex = el.getAttribute('data-preview');
+        if (!latex) return;
+
+        if (typeof katex === 'undefined' || typeof katex.render !== 'function') {
+            return;
+        }
+
+        try {
+            el.innerHTML = '';
+            katex.render(latex, el, {
+                throwOnError: false,
+                displayMode: false,
+                output: 'html'
+            });
+            el.dataset.rendered = 'true';
+        } catch (e) {
+            console.warn('Không render được preview cho:', latex, e);
+            el.dataset.rendered = 'true';
+        }
+    });
+}
+
+/**
+ * Đảm bảo Modal Formula đã được tạo trong DOM (tạo 1 lần duy nhất).
+ * Bao gồm Quick Toolbar chèn nhanh công thức Toán - Lý - Hóa THPT.
+ * TUYỆT ĐỐI KHÔNG dùng menuItems = [] — giữ nguyên menu 3 gạch mặc định.
+ */
+function ensureFormulaModal() {
+    if (document.getElementById('formulaModalOverlay')) return;
+
+    const modalHtml = `
+    <div class="formula-modal-overlay" id="formulaModalOverlay">
+        <div class="formula-modal" onclick="event.stopPropagation()">
+            <div class="formula-modal-header">
+                <h3>
+                    <span style="font-size:22px;">🧮</span>
+                    <span id="formulaModalTitle">Chèn công thức Toán học</span>
+                </h3>
+                <button type="button" class="formula-modal-close" onclick="closeFormulaModal()" title="Đóng (ESC)">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <div class="formula-modal-body">
+                
+                <div class="formula-quick-toolbar">
+                    <div class="fqt-group">
+                        <span class="fqt-label"><i class="fas fa-square-root-variable"></i> Toán</span>
+                        <div class="fqt-buttons">
+                            <button type="button" class="fqt-btn"
+                                data-latex="\\frac{#?}{#?}"
+                                onmousedown="event.preventDefault()"
+                                onclick="insertQuickFormula(this.dataset.latex)"
+                                title="Phân số">
+                                <span class="fqt-preview" data-preview="\\frac{a}{b}"><span class="fqt-fallback">a/b</span></span>
+                            </button>
+                            <button type="button" class="fqt-btn"
+                                data-latex="#?^{#?}"
+                                onmousedown="event.preventDefault()"
+                                onclick="insertQuickFormula(this.dataset.latex)"
+                                title="Lũy thừa">
+                                <span class="fqt-preview" data-preview="x^{n}"><span class="fqt-fallback">x^n</span></span>
+                            </button>
+                            <button type="button" class="fqt-btn"
+                                data-latex="\\sqrt{#?}"
+                                onmousedown="event.preventDefault()"
+                                onclick="insertQuickFormula(this.dataset.latex)"
+                                title="Căn bậc 2">
+                                <span class="fqt-preview" data-preview="\\sqrt{x}"><span class="fqt-fallback">√x</span></span>
+                            </button>
+                            <button type="button" class="fqt-btn"
+                                data-latex="\\begin{cases} #? \\\\ #? \\end{cases}"
+                                onmousedown="event.preventDefault()"
+                                onclick="insertQuickFormula(this.dataset.latex)"
+                                title="Hệ 2 phương trình">
+                                <span class="fqt-preview" data-preview="\\begin{cases} x \\\\ y \\end{cases}"><span class="fqt-fallback">Hệ</span></span>
+                            </button>
+                            <button type="button" class="fqt-btn"
+                                data-latex="\\int_{#?}^{#?} #? \\, dx"
+                                onmousedown="event.preventDefault()"
+                                onclick="insertQuickFormula(this.dataset.latex)"
+                                title="Tích phân">
+                                <span class="fqt-preview" data-preview="\\int_{a}^{b} f(x) \\, dx"><span class="fqt-fallback">∫</span></span>
+                            </button>
+                            <button type="button" class="fqt-btn"
+                                data-latex="\\lim_{#? \\to #?}"
+                                onmousedown="event.preventDefault()"
+                                onclick="insertQuickFormula(this.dataset.latex)"
+                                title="Giới hạn">
+                                <span class="fqt-preview" data-preview="\\lim_{x \\to \\infty}"><span class="fqt-fallback">lim</span></span>
+                            </button>
+                            <button type="button" class="fqt-btn"
+                                data-latex="\\vec{#?}"
+                                onmousedown="event.preventDefault()"
+                                onclick="insertQuickFormula(this.dataset.latex)"
+                                title="Vector">
+                                <span class="fqt-preview" data-preview="\\vec{v}"><span class="fqt-fallback">vec</span></span>
+                            </button>
+                       
+                            <button type="button" class="fqt-btn" data-latex="\\overrightarrow{#?}" onmousedown="event.preventDefault()" onclick="insertQuickFormula(this.dataset.latex)" title="Vector">
+                                <span class="fqt-preview" data-preview="\\overrightarrow{AB}"><span class="fqt-fallback">Véc-tơ</span></span>
+                            </button>
+                           
+
+<!-- 1. Căn bậc n -->
+<button type="button" class="fqt-btn" data-latex="\\sqrt[#?]{#?}" onmousedown="event.preventDefault()" onclick="insertQuickFormula(this.dataset.latex)" title="Căn bậc n">
+    <span class="fqt-preview" data-preview="\\sqrt[n]{x}"><span class="fqt-fallback">n√x</span></span>
+</button>
+
+<!-- 2. Trị tuyệt đối -->
+<button type="button" class="fqt-btn" data-latex="\\left| #? \\right|" onmousedown="event.preventDefault()" onclick="insertQuickFormula(this.dataset.latex)" title="Trị tuyệt đối">
+    <span class="fqt-preview" data-preview="|x|"><span class="fqt-fallback">|x|</span></span>
+</button>
+
+<!-- 3. Logarit (Đại số 12) -->
+<button type="button" class="fqt-btn" data-latex="\\log_{#?} #?" onmousedown="event.preventDefault()" onclick="insertQuickFormula(this.dataset.latex)" title="Logarit">
+    <span class="fqt-preview" data-preview="\\log_a b"><span class="fqt-fallback">log</span></span>
+</button>
+
+<!-- 4. Ký hiệu Góc (Hình học) -->
+<button type="button" class="fqt-btn" data-latex="\\widehat{#?}" onmousedown="event.preventDefault()" onclick="insertQuickFormula(this.dataset.latex)" title="Ký hiệu Góc">
+    <span class="fqt-preview" data-preview="\\widehat{ABC}"><span class="fqt-fallback">Góc</span></span>
+</button>
+
+<!-- 5. Tổng Sigma (Đại số 11) -->
+<button type="button" class="fqt-btn" data-latex="\\sum_{#?}^{#?} #?" onmousedown="event.preventDefault()" onclick="insertQuickFormula(this.dataset.latex)" title="Tổng Sigma">
+    <span class="fqt-preview" data-preview="\\sum_{i=1}^{n}"><span class="fqt-fallback">∑</span></span>
+</button>
+
+<!-- 6. Tổ hợp chập k của n (Đại số 11) -->
+<button type="button" class="fqt-btn" data-latex="C_{#?}^{#?}" onmousedown="event.preventDefault()" onclick="insertQuickFormula(this.dataset.latex)" title="Tổ hợp">
+    <span class="fqt-preview" data-preview="C_n^k"><span class="fqt-fallback">C</span></span>
+</button>
+                        </div>
+
+                    <div class="fqt-group">
+                        <span class="fqt-label"><i class="fas fa-flask"></i> Lý - Hóa</span>
+                        <div class="fqt-buttons">
+                            <button type="button" class="fqt-btn"
+                                data-latex="\\xrightarrow{ t^\\circ }"
+                                onmousedown="event.preventDefault()"
+                                onclick="insertQuickFormula(this.dataset.latex)"
+                                title="Mũi tên phản ứng">
+                                <span class="fqt-preview" data-preview="\\xrightarrow{t^\\circ}"><span class="fqt-fallback">→</span></span>
+                            </button>
+                            <button type="button" class="fqt-btn"
+                                data-latex="_{#?}^{#?}\\text{#?}"
+                                onmousedown="event.preventDefault()"
+                                onclick="insertQuickFormula(this.dataset.latex)"
+                                title="Đồng vị / Nguyên tử">
+                                <span class="fqt-preview" data-preview="_{Z}^{A}\\text{X}"><span class="fqt-fallback">A/Z X</span></span>
+                            </button>
+                            <button type="button" class="fqt-btn"
+                                data-latex="^\\circ\\text{C}"
+                                onmousedown="event.preventDefault()"
+                                onclick="insertQuickFormula(this.dataset.latex)"
+                                title="Độ C">
+                                <span class="fqt-preview" data-preview="^\\circ\\text{C}"><span class="fqt-fallback">°C</span></span>
+                            </button>
+                            <button type="button" class="fqt-btn"
+                                data-latex="\\Delta"
+                                onmousedown="event.preventDefault()"
+                                onclick="insertQuickFormula(this.dataset.latex)"
+                                title="Delta">
+                                <span class="fqt-preview" data-preview="\\Delta"><span class="fqt-fallback">Δ</span></span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <math-field id="formulaMathField" virtual-keyboard-mode="auto"></math-field>
+
+                <div class="formula-latex-output empty" id="formulaLatexOutput">
+                    <span class="label">LaTeX:</span>
+                    <span class="value" id="formulaLatexValue">(trống)</span>
+                </div>
+            </div>
+
+            <div class="formula-modal-footer">
+                <div class="formula-modal-hint">
+                    <i class="fas fa-mouse-pointer"></i>
+                    <span>Bấm đúp vào công thức có sẵn để chỉnh sửa</span>
+                </div>
+                <div class="formula-modal-footer-actions">
+                    <button type="button" class="formula-btn formula-btn-secondary" onclick="closeFormulaModal()">
+                        <i class="fas fa-times"></i> Hủy
+                    </button>
+                    <button type="button" class="formula-btn formula-btn-primary" id="formulaInsertBtn" onclick="confirmInsertFormula()">
+                        <i class="fas fa-check"></i> <span id="formulaInsertBtnText">Chèn</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    const overlay = document.getElementById('formulaModalOverlay');
+
+    overlay.addEventListener('click', function(e) {
+        if (e.target === overlay) {
+            closeFormulaModal();
+        }
+    });
+
+    const mathField = document.getElementById('formulaMathField');
+    if (mathField) {
+        mathField.addEventListener('input', updateLatexOutput);
+        mathField.addEventListener('change', updateLatexOutput);
+    }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            const ov = document.getElementById('formulaModalOverlay');
+            if (ov && ov.classList.contains('active')) {
+                closeFormulaModal();
+            }
+        }
+    });
+
+    console.log('✅ Formula Modal (MathLive) đã sẵn sàng — Quick Toolbar kèm menu 3 gạch');
+}
+
+/**
+ * Cập nhật khung hiển thị LaTeX bên dưới math-field.
+ */
+function updateLatexOutput() {
+    const mathField = document.getElementById('formulaMathField');
+    const outputEl = document.getElementById('formulaLatexOutput');
+    const valueEl = document.getElementById('formulaLatexValue');
+
+    if (!mathField || !outputEl || !valueEl) return;
+
+    let latex = '';
+    try {
+        latex = mathField.getValue ? mathField.getValue('latex') : (mathField.value || '');
+    } catch (e) {
+        latex = mathField.value || '';
+    }
+
+    latex = (latex || '').trim();
+
+    if (!latex) {
+        outputEl.classList.add('empty');
+        valueEl.textContent = '(trống)';
+    } else {
+        outputEl.classList.remove('empty');
+        valueEl.textContent = latex;
+    }
+}
+
+/**
+ * Cấu hình MathLive keyboard — TRẢ LẠI HÀNH VI MẶC ĐỊNH.
+ * ✅ Mobile: policy = 'auto' — bàn phím tự mở khi focus.
+ * ✅ Desktop: policy = 'manual' — user bấm nút bàn phím mới mở.
+ * ✅ TUYỆT ĐỐI KHÔNG dùng menuItems = [] — giữ menu 3 gạch.
+ * ✅ Gắn focus guard để refocus math-field sau khi menu đóng.
+ * ✅ KHÔNG ép show() từ click/focusin.
+ * @param {HTMLElement} mathField
+ */
+function setupMathLiveKeyboardState(mathField) {
+    if (!mathField) {
+        console.warn('setupMathLiveKeyboardState: mathField không hợp lệ');
+        return;
+    }
+
+    if (window._mathLiveKeyboardListenerBound) {
+        window._mathLiveKeyboardListenerBound = false;
+    }
+
+    try {
+        const isMobile = isMobileDeviceForMathLive();
+        const policy = isMobile ? 'auto' : 'manual';
+        if (typeof mathField.mathVirtualKeyboardPolicy !== 'undefined') {
+            mathField.mathVirtualKeyboardPolicy = policy;
+            console.log('⌨️ MathLive keyboard policy:', policy.toUpperCase(), '(mobile=' + isMobile + ')');
+        }
+    } catch (e) {
+        console.warn('Không set được mathVirtualKeyboardPolicy:', e);
+    }
+
+    try {
+        if (typeof mathField.smartFence !== 'undefined') {
+            mathField.smartFence = true;
+        }
+        if (typeof mathField.smartSuperscript !== 'undefined') {
+            mathField.smartSuperscript = true;
+        }
+        if (typeof mathField.removeExtraneousParentheses !== 'undefined') {
+            mathField.removeExtraneousParentheses = true;
+        }
+    } catch (e) {
+        console.warn('Không set được MathLive options:', e);
+    }
+
+    try {
+        setupMathLiveFocusGuard(mathField);
+        console.log('🛡️ Đã gắn focus guard (giữ menu 3 gạch)');
+    } catch (e) {
+        console.warn('Không gắn được focus guard:', e);
+    }
+
+    const bindKeyboardToggleListener = function() {
+        if (window._mathLiveKeyboardListenerBound) return;
+        if (!window.mathVirtualKeyboard) return;
+
+        window._mathLiveKeyboardListenerBound = true;
+
+        window.mathVirtualKeyboard.addEventListener('virtual-keyboard-toggle', function() {
+            setTimeout(function() {
+                const isVisible = window.mathVirtualKeyboard
+                               && window.mathVirtualKeyboard.visible === true;
+
+                if (isVisible) {
+                    document.body.classList.add('keyboard-open');
+                    console.log('⌨️ Keyboard MỞ');
+                } else {
+                    document.body.classList.remove('keyboard-open');
+                    console.log('⌨️ Keyboard ĐÓNG');
+                }
+            }, 50);
+        });
+
+        console.log('✅ Đã gắn listener virtual-keyboard-toggle');
+    };
+
+    if (window.mathVirtualKeyboard) {
+        bindKeyboardToggleListener();
+    } else {
+        console.warn('⚠️ window.mathVirtualKeyboard chưa sẵn sàng — thử bind lại sau 500ms');
+        setTimeout(bindKeyboardToggleListener, 500);
+    }
+}
+
+/**
+ * Mở Modal Formula Builder.
+ * Trình tự BẮT BUỘC:
+ *   Bước 1: Hiển thị Modal (display = 'flex').
+ *   Bước 2: Chờ 1 nhịp paint (2 x requestAnimationFrame) rồi mới setValue.
+ *   Bước 3: Chờ MathLive render xong (180ms) mới gọi focus().
+ * Tuyệt đối KHÔNG gọi focus() trước hoặc cùng nhịp với setValue().
+ * @param {Object} quill - Quill instance
+ * @param {string} initialLatex - LaTeX ban đầu
+ * @param {string} mode - 'insert' hoặc 'edit'
+ * @param {HTMLElement} editingElement - Element .ql-formula đang edit
+ */
+function openFormulaModal(quill, initialLatex, mode, editingElement) {
+    if (!quill) {
+        showToast('Editor chưa sẵn sàng', 'error');
+        return;
+    }
+
+    if (typeof MathLive === 'undefined' && !customElements.get('math-field')) {
+        showToast('⚠️ MathLive chưa load. Không thể mở bàn phím toán.', 'error', 5000);
+        return;
+    }
+
+    if (window._formulaModalState.opening) {
+        console.log('⏳ Formula Modal đang mở, bỏ qua lần gọi trùng');
+        return;
+    }
+    window._formulaModalState.opening = true;
+
+    if (window._formulaModalFocusTimer) {
+        clearTimeout(window._formulaModalFocusTimer);
+        window._formulaModalFocusTimer = null;
+    }
+
+    clearMathLiveFocusGuard();
+
+    ensureFormulaModal();
+
+    window._formulaModalState.quill = quill;
+    window._formulaModalState.mode = mode || 'insert';
+    window._formulaModalState.editingElement = editingElement || null;
+
+    const overlay = document.getElementById('formulaModalOverlay');
+    const titleEl = document.getElementById('formulaModalTitle');
+    const insertBtnText = document.getElementById('formulaInsertBtnText');
+    const mathField = document.getElementById('formulaMathField');
+
+    if (titleEl) {
+        titleEl.textContent = mode === 'edit'
+            ? 'Chỉnh sửa công thức Toán học'
+            : 'Chèn công thức Toán học';
+    }
+
+    if (insertBtnText) {
+        insertBtnText.textContent = mode === 'edit' ? 'Cập nhật' : 'Chèn';
+    }
+
+    if (editingElement) {
+        editingElement.classList.add('formula-editing');
+    }
+
+    document.body.classList.add('formula-focus-mode');
+
+    overlay.classList.add('active');
+    document.body.style.overflow = 'hidden';
+
+    requestAnimationFrame(function() {
+        requestAnimationFrame(function() {
+            if (!overlay.classList.contains('active')) {
+                window._formulaModalState.opening = false;
+                return;
+            }
+
+            if (mathField) {
+                try {
+                    const latexValue = initialLatex || '';
+                    if (typeof mathField.setValue === 'function') {
+                        mathField.setValue(latexValue);
+                    } else {
+                        mathField.value = latexValue;
+                    }
+                } catch (e) {
+                    console.warn('Không set được LaTeX vào math-field:', e);
+                }
+
+                setupMathLiveKeyboardState(mathField);
+            }
+
+            updateLatexOutput();
+            renderQuickToolbarPreviews();
+
+            window._formulaModalFocusTimer = setTimeout(function() {
+                window._formulaModalFocusTimer = null;
+
+                if (!overlay.classList.contains('active')) {
+                    window._formulaModalState.opening = false;
+                    return;
+                }
+
+                if (!mathField) {
+                    window._formulaModalState.opening = false;
+                    return;
+                }
+
+                try {
+                    mathField.focus();
+                } catch (e) {
+                    console.warn('Không focus được math-field:', e);
+                }
+
+                window._formulaModalState.opening = false;
+            }, 180);
+        });
+    });
+}
+
+/**
+ * Đóng Modal Formula.
+ */
+function closeFormulaModal() {
+    const overlay = document.getElementById('formulaModalOverlay');
+    if (!overlay) return;
+
+    if (window._formulaModalFocusTimer) {
+        clearTimeout(window._formulaModalFocusTimer);
+        window._formulaModalFocusTimer = null;
+    }
+
+    clearMathLiveFocusGuard();
+
+    window._formulaModalState.opening = false;
+
+    if (window._formulaModalState.editingElement) {
+        window._formulaModalState.editingElement.classList.remove('formula-editing');
+    }
+
+    if (window.mathVirtualKeyboard && typeof window.mathVirtualKeyboard.hide === 'function') {
+        try {
+            window.mathVirtualKeyboard.hide();
+        } catch (e) {
+            console.warn('Không đóng được MathLive keyboard:', e);
+        }
+    }
+
+    document.body.classList.remove('keyboard-open');
+    document.body.classList.remove('formula-focus-mode');
+
+    overlay.classList.remove('active');
+    document.body.style.overflow = '';
+
+    const mathField = document.getElementById('formulaMathField');
+    if (mathField) {
+        try {
+            if (typeof mathField.setValue === 'function') {
+                mathField.setValue('');
+            } else {
+                mathField.value = '';
+            }
+        } catch (e) {
+            console.warn('Không reset được math-field:', e);
+        }
+    }
+
+    window._formulaModalState.quill = null;
+    window._formulaModalState.mode = 'insert';
+    window._formulaModalState.editingElement = null;
+}
+
+/**
+ * Xác nhận chèn/cập nhật công thức vào Quill.
+ */
+function confirmInsertFormula() {
+    const mathField = document.getElementById('formulaMathField');
+    const quill = window._formulaModalState.quill;
+    const mode = window._formulaModalState.mode;
+    const editingElement = window._formulaModalState.editingElement;
+
+    if (!mathField) return;
+    if (!quill) {
+        showToast('Editor chưa sẵn sàng', 'error');
+        return;
+    }
+
+    let latex = '';
+    try {
+        latex = mathField.getValue ? mathField.getValue('latex') : (mathField.value || '');
+    } catch (e) {
+        latex = mathField.value || '';
+    }
+    latex = (latex || '').trim();
+
+    if (!latex) {
+        showToast('Vui lòng nhập công thức trước khi chèn', 'warning');
+        return;
+    }
+
+    if (typeof katex !== 'undefined') {
+        try {
+            katex.renderToString(latex, { throwOnError: true });
+        } catch (e) {
+            showToast('⚠️ Công thức chưa hợp lệ: ' + (e.message || ''), 'error', 5000);
+            return;
+        }
+    }
+
+    try {
+        if (mode === 'edit' && editingElement) {
+            const blot = Quill.find(editingElement);
+            if (blot) {
+                const index = blot.offset(quill.scroll);
+                quill.deleteText(index, 1, Quill.sources.USER);
+                quill.insertEmbed(index, 'formula', latex, Quill.sources.USER);
+                quill.setSelection(index + 1, Quill.sources.SILENT);
+                showToast('✅ Đã cập nhật công thức!', 'success', 2500);
+            } else {
+                showToast('⚠️ Không tìm thấy công thức để cập nhật.', 'error');
+                closeFormulaModal();
+                return;
+            }
+        } else {
+            const range = quill.getSelection(true) || { index: quill.getLength() - 1 };
+            quill.insertEmbed(range.index, 'formula', latex, Quill.sources.USER);
+            quill.setSelection(range.index + 1, Quill.sources.SILENT);
+            showToast('✅ Đã chèn công thức!', 'success', 2500);
+        }
+
+        quill.focus();
+        closeFormulaModal();
+    } catch (error) {
+        console.error('Lỗi chèn công thức:', error);
+        showToast('❌ Lỗi chèn công thức: ' + error.message, 'error', 5000);
+    }
+}
+
+/**
+ * Gắn sự kiện double-click để chỉnh sửa công thức có sẵn trong Quill.
+ * @param {Object} quill
+ */
+function bindFormulaEditHandler(quill) {
+    if (!quill || !quill.root) return;
+
+    if (quill.root.dataset.formulaBound === 'true') return;
+    quill.root.dataset.formulaBound = 'true';
+
+    quill.root.addEventListener('dblclick', function(e) {
+        const formulaEl = e.target.closest('.ql-formula');
+        if (!formulaEl) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        const latex = formulaEl.getAttribute('data-value') || '';
+        openFormulaModal(quill, latex, 'edit', formulaEl);
+    });
+
+    console.log('✅ Đã gắn sự kiện double-click chỉnh sửa công thức');
+}
+
+/**
+ * Chèn nhanh công thức vào math-field từ Quick Toolbar.
+ * Sử dụng cú pháp placeholder #? của MathLive để con trỏ nhảy đúng vị trí.
+ * @param {string} latex
+ */
+window.insertQuickFormula = function(latex) {
+    const mathField = document.getElementById('formulaMathField');
+    if (!mathField || !latex) return;
+
+    try {
+        mathField.focus();
+    } catch (e) {
+        console.warn('Không focus được mathField trước khi insert:', e);
+    }
+
+    setTimeout(function() {
+        try {
+            if (typeof mathField.executeCommand === 'function') {
+                mathField.executeCommand(['insert', latex]);
+            } else if (typeof mathField.insert === 'function') {
+                mathField.insert(latex);
+            } else {
+                const cur = typeof mathField.getValue === 'function'
+                    ? mathField.getValue('latex')
+                    : (mathField.value || '');
+                const next = cur + latex;
+                if (typeof mathField.setValue === 'function') {
+                    mathField.setValue(next);
+                } else {
+                    mathField.value = next;
+                }
+            }
+        } catch (e) {
+            console.warn('Không chèn được công thức nhanh:', e);
+        }
+
+        setTimeout(function() {
+            try {
+                mathField.focus();
+            } catch (e) {
+                console.warn('Không refocus được mathField sau khi chèn:', e);
+            }
+
+            if (typeof updateLatexOutput === 'function') {
+                updateLatexOutput();
+            }
+        }, 20);
+    }, 20);
+};
+
+// Export ra window
+window.ensureFormulaModal = ensureFormulaModal;
+
+window.openFormulaModal = openFormulaModal;
+window.closeFormulaModal = closeFormulaModal;
+window.confirmInsertFormula = confirmInsertFormula;
+window.bindFormulaEditHandler = bindFormulaEditHandler;
+window.initQuillEditor = initQuillEditor;
+window.selectAndUploadImage = selectAndUploadImage;
 
 window.isHtmlContent = isHtmlContent;
 window.renderRichContent = renderRichContent;
-window.initQuillEditor = initQuillEditor;
-// Export
+
 window.showWelcomeModal = showWelcomeModal;
 window.closeWelcomeModal = closeWelcomeModal;
 window.shouldShowWelcomeModal = shouldShowWelcomeModal;
 window.markWelcomeAsShown = markWelcomeAsShown;
-// Export
+
 window.autoResizeTextarea = autoResizeTextarea;
 window.attachAutoResizeToDiscussionInputs = attachAutoResizeToDiscussionInputs;
+
+window.isMobileDeviceForMathLive = isMobileDeviceForMathLive;
+window.isMathFieldActive = isMathFieldActive;
+window.setupMathLiveFocusGuard = setupMathLiveFocusGuard;
+window.clearMathLiveFocusGuard = clearMathLiveFocusGuard;
+window.renderQuickToolbarPreviews = renderQuickToolbarPreviews;
+
 // ============================================================
 // EXPORTS
 // ============================================================
@@ -1304,3 +2255,5 @@ window.renderAttachmentList = renderAttachmentList;
 window.getPendingLinks = getPendingLinks;
 window.resetPendingLinks = resetPendingLinks;
 window.renderAttachmentsHTML = renderAttachmentsHTML;
+window.updateLatexOutput = updateLatexOutput;
+window.setupMathLiveKeyboardState = setupMathLiveKeyboardState;

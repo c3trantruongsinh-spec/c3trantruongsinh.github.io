@@ -3429,51 +3429,62 @@ async function exportMeetingMinutes(meetingId) {
     }
     
     @media print {
-        body > :not(#meeting-print-section) {
-            display: none !important;
-        }
-        
-        #meeting-print-section {
-            display: block !important;
-            width: 100%;
-            position: absolute;
-            top: 0;
-            left: 0;
-            background: #ffffff;
-            color: #000000;
-            font-family: "Times New Roman", "Liberation Serif", serif;
-            font-size: 13pt;
-            line-height: 1.15;
-        }
-        
-        @page {
-            size: A4;
-            margin: 12mm 12mm 12mm 12mm;
-        }
-        
-        #meeting-print-section * {
-            box-sizing: border-box;
-        }
-        
-        #meeting-print-section table,
-        
-        #meeting-print-section tbody,
-       
-        #meeting-print-section td,
-        #meeting-print-section th,
-        #meeting-print-section div,
-        #meeting-print-section ul,
-        #meeting-print-section ol,
-        #meeting-print-section li,
-        #meeting-print-section p {
-            page-break-inside: auto !important;
-            break-inside: auto !important;
-        }
-                /* === CHỐNG CẮT NGANG DÒNG BẢNG === */
-        #meeting-print-section tr {
-            page-break-inside: avoid !important;
-            break-inside: avoid !important;
-        }
+    body > :not(#meeting-print-section) {
+        display: none !important;
+    }
+    
+    #meeting-print-section {
+        display: block !important;
+        width: 100%;
+        position: absolute;
+        top: 0;
+        left: 0;
+        background: #ffffff;
+        color: #000000;
+        font-family: "Times New Roman", "Liberation Serif", serif;
+        font-size: 13pt;
+        line-height: 1.15;
+    }
+    
+    @page {
+        size: A4;
+        margin: 12mm 12mm 12mm 12mm;
+    }
+    
+    #meeting-print-section * {
+        box-sizing: border-box;
+    }
+    
+    #meeting-print-section table,
+    #meeting-print-section tbody,
+    #meeting-print-section td,
+    #meeting-print-section th,
+    #meeting-print-section div,
+    #meeting-print-section ul,
+    #meeting-print-section ol,
+    #meeting-print-section li,
+    #meeting-print-section p {
+        page-break-inside: auto !important;
+        break-inside: auto !important;
+    }
+
+    /* === CHỐNG CẮT NGANG DÒNG BẢNG === */
+    #meeting-print-section tr {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+    }
+
+    /* === CHỐNG CẮT NGANG ẢNH === */
+    #meeting-print-section .rich-text-content img,
+    #meeting-print-section img {
+        max-width: 100% !important;
+        height: auto !important;
+        display: block !important;
+        margin: 6pt auto !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+    }
+}
         
         /* === LẶP HEADER BẢNG Ở MỖI TRANG === */
         #meeting-print-section thead {

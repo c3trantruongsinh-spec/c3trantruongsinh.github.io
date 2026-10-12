@@ -2605,3 +2605,92 @@ input, textarea, select {
 .discussion-toggle-btn.open .toggle-icon {
     transform: rotate(180deg);
 }
+/* ============================================
+   QUILL EDITOR — IMAGE STYLING
+   Ảnh chèn vào editor tự co giãn, không tràn khung
+   ============================================ */
+
+/* Editor container */
+.ql-editor {
+    min-height: 150px;
+    font-size: 15px;
+    line-height: 1.7;
+    font-family: inherit;
+}
+
+/* Ảnh trong editor — tự động co giãn */
+.ql-editor img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 10px 0;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    cursor: pointer;
+    transition: box-shadow 0.2s;
+}
+
+.ql-editor img:hover {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+/* Ảnh trong chế độ xem (không phải editor) — khi render rich content */
+.rich-text-content img,
+.discussion-content img,
+.conclusion-content img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 10px 0;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.rich-text-content img:hover,
+.discussion-content img:hover,
+.conclusion-content img:hover {
+    transform: scale(1.01);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+/* Responsive cho ảnh trên mobile */
+@media (max-width: 768px) {
+    .ql-editor img,
+    .rich-text-content img,
+    .discussion-content img,
+    .conclusion-content img {
+        border-radius: 6px;
+        margin: 8px 0;
+    }
+}
+/* ============================================
+   IMAGE RESIZE OVERLAY — Tùy chỉnh hiển thị
+   ============================================ */
+
+/* Viền xanh quanh ảnh đang chọn */
+.ql-editor img.ql-image-selected,
+.ql-editor .image-resize-selected {
+    outline: 2px solid #2563eb;
+    outline-offset: 2px;
+}
+
+/* Badge hiển thị kích thước */
+.ql-editor .image-resize-display {
+    background: #1e293b !important;
+    color: #ffffff !important;
+    font-size: 11px !important;
+    padding: 3px 8px !important;
+    border-radius: 4px !important;
+    font-family: monospace !important;
+    font-weight: 600 !important;
+}
+
+/* Trên mobile: ô vuông to hơn để dễ chạm */
+@media (max-width: 768px) {
+    .ql-editor .image-resize-handle {
+        width: 18px !important;
+        height: 18px !important;
+    }
+}

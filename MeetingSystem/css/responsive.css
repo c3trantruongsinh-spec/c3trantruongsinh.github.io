@@ -328,3 +328,543 @@
         transition-duration: 0.01ms !important;
     }
 }
+/* =========================================================
+   FORMULA MODAL — MATHLIVE 0.101.2
+   Dùng specificity tối đa (tag + id + attribute) + !important
+   để thắng mọi inline style MathLive inject vào math-field.
+   Body flex column: các con khác cố định, math-field grow fill.
+   ========================================================= */
+
+body.formula-focus-mode .sidebar,
+body.formula-focus-mode #sidebar,
+body.formula-focus-mode .top-bar,
+body.formula-focus-mode .mobile-bottom-nav {
+    display: none !important;
+}
+body.formula-focus-mode .main-content {
+    width: 100% !important;
+    margin-left: 0 !important;
+}
+body.formula-focus-mode #app {
+    display: block !important;
+}
+body.formula-focus-mode .page-container {
+    max-width: 100% !important;
+    padding: 0 !important;
+}
+
+/* ---- OVERLAY ---- */
+.formula-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2147483645;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    overflow: auto;
+    box-sizing: border-box;
+    background: rgba(15, 23, 42, 0.75);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    animation: formulaFadeIn 0.2s ease;
+}
+.formula-modal-overlay.active {
+    display: flex;
+}
+@keyframes formulaFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* ---- MODAL CONTAINER ---- */
+.formula-modal {
+    position: relative;
+    z-index: 2147483646;
+    display: flex !important;
+    flex-direction: column !important;
+    width: 90vw !important;
+    max-width: 1000px !important;
+    height: 80vh !important;
+    max-height: 80vh !important;
+    min-height: 480px !important;
+    margin: auto !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+    background: #ffffff !important;
+    border-radius: 18px !important;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35);
+    animation: formulaModalFadeIn 0.2s ease;
+}
+@keyframes formulaModalFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.formula-modal-header {
+    display: flex !important;
+    flex: 0 0 auto !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 16px !important;
+    padding: 14px 24px !important;
+    color: #ffffff !important;
+    background: linear-gradient(135deg, #1e3a8a 0%, #172554 100%) !important;
+    border-bottom: 3px solid #d97706 !important;
+    box-sizing: border-box !important;
+}
+.formula-modal-header h3 {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    margin: 0 !important;
+    font-size: 17px !important;
+    font-weight: 700 !important;
+    line-height: 1.4 !important;
+}
+.formula-modal-close {
+    display: inline-flex !important;
+    flex: 0 0 auto !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 38px !important;
+    height: 38px !important;
+    padding: 0 !important;
+    color: #ffffff !important;
+    font-size: 17px !important;
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.15) !important;
+    border: 0 !important;
+    border-radius: 10px !important;
+    transition: background 0.2s ease;
+}
+.formula-modal-close:hover {
+    background: rgba(255, 255, 255, 0.3) !important;
+}
+
+/* ---- BODY ----
+   flex: 1 1 0 !important + min-height: 0 !important để body
+   LUÔN grow fill khoảng giữa header và footer.
+   ---- */
+.formula-modal-body {
+    display: flex !important;
+    flex: 1 1 0 !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    padding: 14px 20px !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+    background: #ffffff !important;
+}
+
+/* Các con của body: mặc định cố định */
+.formula-modal-body > .formula-hint,
+.formula-modal-body > .formula-quick-toolbar,
+.formula-modal-body > .formula-latex-output {
+    flex: 0 0 auto !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+}
+
+/* ---- MATH-FIELD ----
+   Selector `math-field#formulaMathField[virtual-keyboard-mode]`
+   có specificity (1,2,1) — cao hơn mọi rule thường.
+   height/min-height/max-height/padding tất cả đều !important
+   để chống inline style MathLive.
+   ---- */
+.formula-modal-body > math-field#formulaMathField,
+.formula-modal-body > math-field#formulaMathField[virtual-keyboard-mode] {
+    display: block !important;
+    flex: 1 1 auto !important;
+    flex-basis: auto !important;
+    flex-grow: 1 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: auto !important;
+    min-height: 280px !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 18px 22px !important;
+    box-sizing: border-box !important;
+    color: #0f172a !important;
+    font-family: "Times New Roman", "Latin Modern Math", serif !important;
+    font-size: 26px !important;
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%) !important;
+    border: 2px solid #cbd5e1 !important;
+    border-radius: 12px !important;
+    outline: none !important;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.03) !important;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+    overflow: auto !important;
+}
+.formula-modal-body > math-field#formulaMathField:hover {
+    border-color: #94a3b8 !important;
+}
+.formula-modal-body > math-field#formulaMathField:focus,
+.formula-modal-body > math-field#formulaMathField:focus-within {
+    background: #ffffff !important;
+    border-color: #2563eb !important;
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12),
+                inset 0 2px 4px rgba(0, 0, 0, 0.03) !important;
+}
+.formula-modal-body > math-field#formulaMathField::part(virtual-keyboard-toggle) {
+    color: #2563eb !important;
+    font-size: 22px !important;
+}
+.formula-modal-body > math-field#formulaMathField::part(virtual-keyboard-toggle):hover {
+    color: #1d4ed8 !important;
+}
+.formula-modal-body > math-field#formulaMathField::part(menu-toggle) {
+    color: #64748b !important;
+}
+.formula-modal-body > math-field#formulaMathField::part(selection) {
+    background: rgba(37, 99, 235, 0.2) !important;
+}
+
+/* ---- HINT ---- */
+.formula-hint {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 8px 12px !important;
+    color: #1e40af !important;
+    font-size: 12px !important;
+    line-height: 1.5 !important;
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%) !important;
+    border-left: 4px solid #2563eb !important;
+    border-radius: 8px !important;
+}
+.formula-hint kbd {
+    display: inline-block !important;
+    margin: 0 2px !important;
+    padding: 1px 6px !important;
+    color: #0f172a !important;
+    font-family: Consolas, monospace !important;
+    font-size: 10px !important;
+    font-weight: 600 !important;
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    border-bottom-width: 2px !important;
+    border-radius: 4px !important;
+}
+.formula-hint i {
+    flex: 0 0 auto !important;
+    color: #d97706 !important;
+}
+
+/* ---- LATEX OUTPUT ---- */
+.formula-latex-output {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    min-height: 38px !important;
+    max-height: 60px !important;
+    padding: 8px 14px !important;
+    overflow: auto !important;
+    box-sizing: border-box !important;
+    color: #e2e8f0 !important;
+    font-family: Consolas, Monaco, monospace !important;
+    font-size: 13px !important;
+    line-height: 1.5 !important;
+    overflow-wrap: anywhere !important;
+    background: #1e293b !important;
+    border-radius: 8px !important;
+}
+.formula-latex-output .label {
+    flex: 0 0 auto !important;
+    color: #94a3b8 !important;
+    font-weight: 600 !important;
+}
+.formula-latex-output .value {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    color: #fbbf24 !important;
+    overflow-wrap: anywhere !important;
+}
+.formula-latex-output.empty .value {
+    color: #64748b !important;
+    font-style: italic !important;
+}
+
+/* ---- FOOTER ---- */
+.formula-modal-footer {
+    display: flex !important;
+    flex: 0 0 auto !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    flex-wrap: wrap !important;
+    gap: 12px !important;
+    padding: 12px 24px !important;
+    background: #f8fafc !important;
+    border-top: 1px solid #e2e8f0 !important;
+    box-sizing: border-box !important;
+}
+.formula-modal-footer-actions {
+    display: flex !important;
+    flex: 0 0 auto !important;
+    flex-wrap: wrap !important;
+    gap: 10px !important;
+}
+.formula-modal-hint {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    color: #64748b !important;
+    font-size: 13px !important;
+    line-height: 1.5 !important;
+}
+.formula-modal-hint i {
+    color: #d97706 !important;
+}
+
+/* ---- BUTTONS ---- */
+.formula-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    padding: 10px 22px !important;
+    color: inherit;
+    font-family: inherit !important;
+    font-size: 15px !important;
+    font-weight: 700 !important;
+    cursor: pointer;
+    border: 0 !important;
+    border-radius: 10px !important;
+    transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+.formula-btn-secondary {
+    color: #334155 !important;
+    background: #e2e8f0 !important;
+}
+.formula-btn-secondary:hover {
+    background: #cbd5e1 !important;
+}
+.formula-btn-primary {
+    color: #ffffff !important;
+    background: linear-gradient(135deg, #1e3a8a 0%, #172554 100%) !important;
+    box-shadow: 0 4px 14px rgba(30, 58, 138, 0.35) !important;
+}
+.formula-btn-primary:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px rgba(30, 58, 138, 0.35) !important;
+}
+.formula-btn-primary:disabled {
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+}
+
+/* ---- VIRTUAL KEYBOARD ---- */
+math-virtual-keyboard {
+    z-index: 2147483647 !important;
+    --keyboard-zindex: 2147483647;
+    --keycap-height: 44px;
+    --keycap-max-height: 48px;
+    --keycap-font-size: 18px;
+    --keycap-small-font-size: 13px;
+    --keycap-gap: 5px;
+    --keycap-border-radius: 7px;
+    --keyboard-padding: 10px;
+}
+
+/* ---- QUICK TOOLBAR ---- */
+.formula-quick-toolbar {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 6px !important;
+    max-height: 130px !important;
+    padding: 10px 12px !important;
+    overflow-y: auto !important;
+    box-sizing: border-box !important;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%) !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 10px !important;
+}
+.fqt-group {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 10px !important;
+    min-width: 0 !important;
+}
+.fqt-label {
+    display: inline-flex !important;
+    flex: 0 0 auto !important;
+    align-items: center !important;
+    gap: 5px !important;
+    min-width: 62px !important;
+    color: #475569 !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.5px !important;
+    text-transform: uppercase !important;
+    line-height: 1 !important;
+}
+.fqt-label i {
+    color: #d97706 !important;
+    font-size: 11px !important;
+}
+.fqt-buttons {
+    display: flex !important;
+    flex: 1 1 auto !important;
+    flex-wrap: wrap !important;
+    gap: 5px !important;
+    min-width: 0 !important;
+}
+.fqt-btn {
+    display: inline-flex !important;
+    flex: 0 0 auto !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-width: 38px !important;
+    min-height: 34px !important;
+    padding: 3px 8px !important;
+    color: #1e293b !important;
+    font-family: "Times New Roman", "Latin Modern Math", serif !important;
+    font-size: 14px !important;
+    line-height: 1 !important;
+    cursor: pointer;
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 7px !important;
+    box-sizing: border-box !important;
+    -webkit-user-select: none !important;
+    user-select: none !important;
+    transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+.fqt-btn:hover {
+    color: #1e40af !important;
+    background: #eff6ff !important;
+    border-color: #3b82f6 !important;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.15) !important;
+}
+.fqt-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 2px rgba(37, 99, 235, 0.15) !important;
+}
+.fqt-btn:focus-visible {
+    outline: 2px solid #2563eb !important;
+    outline-offset: 2px !important;
+}
+.fqt-btn .fqt-preview {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-height: 18px !important;
+    pointer-events: none !important;
+}
+.fqt-btn .fqt-preview .katex {
+    font-size: 0.92em !important;
+}
+.fqt-btn .fqt-fallback {
+    color: #334155 !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+    white-space: nowrap !important;
+}
+
+/* ---- DESKTOP LỚN ---- */
+@media (min-width: 1025px) {
+    .formula-modal-body > math-field#formulaMathField,
+    .formula-modal-body > math-field#formulaMathField[virtual-keyboard-mode] {
+        min-height: 320px !important;
+    }
+}
+
+/* ---- TABLET ---- */
+@media (max-width: 768px) {
+    .formula-modal-overlay { padding: 10px !important; }
+    .formula-modal {
+        width: 96vw !important;
+        height: 88vh !important;
+        max-height: 88vh !important;
+        min-height: 0 !important;
+        border-radius: 14px !important;
+    }
+    .formula-modal-header { padding: 12px 18px !important; }
+    .formula-modal-header h3 { font-size: 15px !important; }
+    .formula-modal-body { gap: 8px !important; padding: 12px 16px !important; }
+    .formula-hint { padding: 6px 10px !important; font-size: 11px !important; }
+    .formula-modal-body > math-field#formulaMathField,
+    .formula-modal-body > math-field#formulaMathField[virtual-keyboard-mode] {
+        min-height: 220px !important;
+        padding: 14px 16px !important;
+        font-size: 22px !important;
+    }
+    .formula-modal-footer { padding: 10px 18px !important; }
+    .formula-btn { padding: 9px 18px !important; font-size: 14px !important; }
+    .formula-quick-toolbar { gap: 5px !important; max-height: 120px !important; padding: 8px 10px !important; }
+    .fqt-label { min-width: 54px !important; font-size: 10px !important; }
+    .fqt-btn { min-width: 34px !important; min-height: 30px !important; padding: 2px 6px !important; font-size: 13px !important; }
+    .fqt-btn .fqt-preview .katex { font-size: 0.88em !important; }
+    .fqt-btn .fqt-fallback { font-size: 10px !important; }
+    math-virtual-keyboard {
+        --keycap-height: 40px;
+        --keycap-font-size: 16px;
+        --keycap-gap: 4px;
+        --keyboard-padding: 8px;
+    }
+}
+
+/* ---- SMALL MOBILE ---- */
+@media (max-width: 480px) {
+    .formula-modal-overlay { padding: 0 !important; }
+    .formula-modal {
+        width: 100% !important;
+        height: 100vh !important;
+        height: 100dvh !important;
+        max-height: 100dvh !important;
+        min-height: 0 !important;
+        border-radius: 0 !important;
+    }
+    .formula-modal-header,
+    .formula-modal-footer { border-radius: 0 !important; }
+    .formula-modal-header { gap: 10px !important; padding: 10px 14px !important; }
+    .formula-modal-body { gap: 8px !important; padding: 10px 12px !important; }
+    .formula-hint { padding: 6px 10px !important; font-size: 11px !important; }
+    .formula-modal-body > math-field#formulaMathField,
+    .formula-modal-body > math-field#formulaMathField[virtual-keyboard-mode] {
+        min-height: 180px !important;
+        padding: 12px !important;
+        font-size: 18px !important;
+    }
+    .formula-latex-output { padding: 6px 10px !important; font-size: 11px !important; }
+    .formula-modal-footer {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 8px !important;
+        padding: 10px 14px !important;
+    }
+    .formula-modal-footer-actions { flex-direction: column !important; width: 100% !important; }
+    .formula-btn { width: 100% !important; }
+    .formula-modal-hint { justify-content: center !important; text-align: center !important; }
+    .formula-quick-toolbar { gap: 4px !important; max-height: 110px !important; padding: 8px 10px !important; }
+    .fqt-group {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 4px !important;
+    }
+    .fqt-label { min-width: 0 !important; font-size: 10px !important; }
+    .fqt-buttons { gap: 4px !important; }
+    .fqt-btn { min-width: 32px !important; min-height: 28px !important; padding: 2px 5px !important; font-size: 12px !important; border-radius: 6px !important; }
+    .fqt-btn .fqt-preview .katex { font-size: 0.85em !important; }
+    .fqt-btn .fqt-fallback { font-size: 10px !important; }
+    math-virtual-keyboard {
+        --keycap-height: 36px;
+        --keycap-font-size: 14px;
+        --keycap-gap: 3px;
+        --keyboard-padding: 6px;
+    }
+}
+
+.ql-editor .ql-formula.formula-editing {
+    background: #fef3c7 !important;
+    outline: 2px dashed #d97706 !important;
+    outline-offset: 2px !important;
+    transition: all 0.2s ease;
+}
