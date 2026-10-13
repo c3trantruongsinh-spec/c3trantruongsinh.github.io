@@ -1,0 +1,249 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "users": {
+      ".read": "auth.uid !== null",
+      ".write": false,
+      ".indexOn": ["role", "teamId", "email"],
+      "$uid": {
+        ".read": "auth.uid === $uid || root.child('users/' + auth.uid + '/role').val() === 'admin'",
+        ".write": "auth.uid === $uid || root.child('users/' + auth.uid + '/role').val() === 'admin'",
+        "role": {
+          ".write": "root.child('users/' + auth.uid + '/role').val() === 'admin'"
+        }
+      }
+    },
+
+    "teams": {
+      ".read": "auth.uid !== null",
+      ".write": "root.child('users/' + auth.uid + '/role').val() === 'admin'",
+      ".indexOn": ["code", "leaderId"],
+      "$teamId": {
+        ".read": "auth.uid !== null",
+        ".write": "root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('teams/' + $teamId + '/leaderId').val() === auth.uid",
+        "members": {
+          ".write": "root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('teams/' + $teamId + '/leaderId').val() === auth.uid"
+        }
+      }
+    },
+
+    "meetings": {
+      ".read": "auth.uid !== null",
+      ".write": false,
+      ".indexOn": ["teamId", "status", "createdAt", "meetingDate", "code"],
+      "$meetingId": {
+        ".read": "auth.uid !== null && (root.child('meetings/' + $meetingId + '/teamId').val() === root.child('users/' + auth.uid + '/teamId').val() || root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('meetings/' + $meetingId + '/memberIds/' + auth.uid).val() === true)",
+        ".write": "root.child('users/' + auth.uid + '/role').val() === 'admin' || (newData.child('teamId').val() === root.child('users/' + auth.uid + '/teamId').val() && (root.child('users/' + auth.uid + '/role').val() === 'truong_to' || root.child('users/' + auth.uid + '/role').val() === 'to_pho' || root.child('users/' + auth.uid + '/role').val() === 'nhom_truong' || root.child('users/' + auth.uid + '/role').val() === 'thu_ky'))",
+        "status": {
+          ".write": "root.child('users/' + auth.uid + '/role').val() === 'truong_to' || root.child('users/' + auth.uid + '/role').val() === 'to_pho' || root.child('users/' + auth.uid + '/role').val() === 'nhom_truong' || root.child('users/' + auth.uid + '/role').val() === 'admin'"
+        },
+        "closedAt": {
+          ".write": "root.child('users/' + auth.uid + '/role').val() === 'truong_to' || root.child('users/' + auth.uid + '/role').val() === 'to_pho' || root.child('users/' + auth.uid + '/role').val() === 'nhom_truong' || root.child('users/' + auth.uid + '/role').val() === 'admin'"
+        },
+        "closedBy": {
+          ".write": "root.child('users/' + auth.uid + '/role').val() === 'truong_to' || root.child('users/' + auth.uid + '/role').val() === 'to_pho' || root.child('users/' + auth.uid + '/role').val() === 'nhom_truong' || root.child('users/' + auth.uid + '/role').val() === 'admin'"
+        },
+        "forceCloseReason": {
+          ".write": "root.child('users/' + auth.uid + '/role').val() === 'truong_to' || root.child('users/' + auth.uid + '/role').val() === 'to_pho' || root.child('users/' + auth.uid + '/role').val() === 'nhom_truong' || root.child('users/' + auth.uid + '/role').val() === 'admin'"
+        },
+        "forceClosedBy": {
+          ".write": "root.child('users/' + auth.uid + '/role').val() === 'truong_to' || root.child('users/' + auth.uid + '/role').val() === 'to_pho' || root.child('users/' + auth.uid + '/role').val() === 'nhom_truong' || root.child('users/' + auth.uid + '/role').val() === 'admin'"
+        },
+        "forceClosedAt": {
+          ".write": "root.child('users/' + auth.uid + '/role').val() === 'truong_to' || root.child('users/' + auth.uid + '/role').val() === 'to_pho' || root.child('users/' + auth.uid + '/role').val() === 'nhom_truong' || root.child('users/' + auth.uid + '/role').val() === 'admin'"
+        },
+        "unconfirmedMembers": {
+          ".write": "root.child('users/' + auth.uid + '/role').val() === 'truong_to' || root.child('users/' + auth.uid + '/role').val() === 'to_pho' || root.child('users/' + auth.uid + '/role').val() === 'nhom_truong' || root.child('users/' + auth.uid + '/role').val() === 'admin'"
+        },
+        "viewedBy": {
+          "$uid": {
+            ".write": "$uid === auth.uid"
+          }
+        }
+      }
+    },
+
+    "meetingContents": {
+      "$meetingId": {
+        ".read": "auth.uid !== null && (root.child('meetings/' + $meetingId + '/teamId').val() === root.child('users/' + auth.uid + '/teamId').val() || root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('meetings/' + $meetingId + '/memberIds/' + auth.uid).val() === true)",
+        ".write": "root.child('users/' + auth.uid + '/role').val() === 'admin' || ((root.child('meetings/' + $meetingId + '/teamId').val() === root.child('users/' + auth.uid + '/teamId').val() || root.child('meetings/' + $meetingId + '/memberIds/' + auth.uid).val() === true) && (root.child('users/' + auth.uid + '/role').val() === 'truong_to' || root.child('users/' + auth.uid + '/role').val() === 'to_pho' || root.child('users/' + auth.uid + '/role').val() === 'nhom_truong' || root.child('users/' + auth.uid + '/role').val() === 'thu_ky') && root.child('meetings/' + $meetingId + '/status').val() !== 'CLOSED')",
+        ".indexOn": ["status", "createdAt"],
+        "$contentId": {
+          "conclusion": {
+            ".write": "(root.child('users/' + auth.uid + '/role').val() === 'truong_to' || root.child('users/' + auth.uid + '/role').val() === 'to_pho' || root.child('users/' + auth.uid + '/role').val() === 'nhom_truong' || root.child('users/' + auth.uid + '/role').val() === 'admin') && root.child('meetings/' + $meetingId + '/status').val() !== 'CLOSED'"
+          },
+          "concludedAt": {
+            ".write": "(root.child('users/' + auth.uid + '/role').val() === 'truong_to' || root.child('users/' + auth.uid + '/role').val() === 'to_pho' || root.child('users/' + auth.uid + '/role').val() === 'nhom_truong' || root.child('users/' + auth.uid + '/role').val() === 'admin') && root.child('meetings/' + $meetingId + '/status').val() !== 'CLOSED'"
+          },
+          "concludedBy": {
+            ".write": "(root.child('users/' + auth.uid + '/role').val() === 'truong_to' || root.child('users/' + auth.uid + '/role').val() === 'to_pho' || root.child('users/' + auth.uid + '/role').val() === 'nhom_truong' || root.child('users/' + auth.uid + '/role').val() === 'admin') && root.child('meetings/' + $meetingId + '/status').val() !== 'CLOSED'"
+          },
+          "status": {
+            ".write": "(root.child('users/' + auth.uid + '/role').val() === 'truong_to' || root.child('users/' + auth.uid + '/role').val() === 'to_pho' || root.child('users/' + auth.uid + '/role').val() === 'nhom_truong' || root.child('users/' + auth.uid + '/role').val() === 'admin') && root.child('meetings/' + $meetingId + '/status').val() !== 'CLOSED'"
+          },
+          "attachments": {
+            ".write": "auth.uid !== null && root.child('meetings/' + $meetingId + '/status').val() !== 'CLOSED'"
+          },
+          "conclusionAttachments": {
+            ".write": "(root.child('users/' + auth.uid + '/role').val() === 'truong_to' || root.child('users/' + auth.uid + '/role').val() === 'to_pho' || root.child('users/' + auth.uid + '/role').val() === 'nhom_truong' || root.child('users/' + auth.uid + '/role').val() === 'admin') && root.child('meetings/' + $meetingId + '/status').val() !== 'CLOSED'"
+          }
+        }
+      }
+    },
+
+    "discussions": {
+      "$meetingId": {
+        ".read": "auth.uid !== null && (root.child('meetings/' + $meetingId + '/teamId').val() === root.child('users/' + auth.uid + '/teamId').val() || root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('meetings/' + $meetingId + '/memberIds/' + auth.uid).val() === true)",
+        ".write": "auth.uid !== null && (root.child('meetings/' + $meetingId + '/teamId').val() === root.child('users/' + auth.uid + '/teamId').val() || root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('meetings/' + $meetingId + '/memberIds/' + auth.uid).val() === true) && root.child('meetings/' + $meetingId + '/status').val() !== 'CLOSED'",
+        ".indexOn": ["contentId", "authorId", "createdAt", "parentId"],
+        "$discussionId": {
+          ".write": "auth.uid !== null && (root.child('discussions/' + $meetingId + '/' + $discussionId + '/authorId').val() === auth.uid || root.child('users/' + auth.uid + '/role').val() === 'truong_to' || root.child('users/' + auth.uid + '/role').val() === 'to_pho' || root.child('users/' + auth.uid + '/role').val() === 'nhom_truong' || root.child('users/' + auth.uid + '/role').val() === 'admin') && root.child('meetings/' + $meetingId + '/status').val() !== 'CLOSED'",
+          "content": {
+            ".write": "root.child('discussions/' + $meetingId + '/' + $discussionId + '/authorId').val() === auth.uid || root.child('users/' + auth.uid + '/role').val() === 'admin'"
+          },
+          "status": {
+            ".write": "root.child('discussions/' + $meetingId + '/' + $discussionId + '/authorId').val() === auth.uid || root.child('users/' + auth.uid + '/role').val() === 'admin'"
+          }
+        }
+      }
+    },
+
+       "tasks": {
+      "$meetingId": {
+        ".read": "auth.uid !== null && (root.child('meetings/' + $meetingId + '/teamId').val() === root.child('users/' + auth.uid + '/teamId').val() || root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('meetings/' + $meetingId + '/memberIds/' + auth.uid).val() === true)",
+        ".write": "root.child('users/' + auth.uid + '/role').val() === 'admin' || ((root.child('meetings/' + $meetingId + '/teamId').val() === root.child('users/' + auth.uid + '/teamId').val() || root.child('meetings/' + $meetingId + '/memberIds/' + auth.uid).val() === true) && (root.child('users/' + auth.uid + '/role').val() === 'truong_to' || root.child('users/' + auth.uid + '/role').val() === 'to_pho' || root.child('users/' + auth.uid + '/role').val() === 'nhom_truong') && root.child('meetings/' + $meetingId + '/status').val() !== 'CLOSED')",
+        ".indexOn": ["assignedTo", "status", "deadline", "confirmed"],
+        "$taskId": {
+          ".read": "auth.uid !== null && (root.child('meetings/' + $meetingId + '/teamId').val() === root.child('users/' + auth.uid + '/teamId').val() || root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('meetings/' + $meetingId + '/memberIds/' + auth.uid).val() === true)",
+          ".write": "root.child('tasks/' + $meetingId + '/' + $taskId + '/assignedTo').val() === auth.uid",
+          "confirmed": {
+            ".write": "root.child('tasks/' + $meetingId + '/' + $taskId + '/assignedTo').val() === auth.uid || root.child('users/' + auth.uid + '/role').val() === 'truong_to' || root.child('users/' + auth.uid + '/role').val() === 'to_pho' || root.child('users/' + auth.uid + '/role').val() === 'nhom_truong' || root.child('users/' + auth.uid + '/role').val() === 'admin'"
+          },
+          "confirmedAt": {
+            ".write": "root.child('tasks/' + $meetingId + '/' + $taskId + '/assignedTo').val() === auth.uid || root.child('users/' + auth.uid + '/role').val() === 'truong_to' || root.child('users/' + auth.uid + '/role').val() === 'to_pho' || root.child('users/' + auth.uid + '/role').val() === 'nhom_truong' || root.child('users/' + auth.uid + '/role').val() === 'admin'"
+          },
+          "confirmedBy": {
+            ".write": "root.child('tasks/' + $meetingId + '/' + $taskId + '/assignedTo').val() === auth.uid || root.child('users/' + auth.uid + '/role').val() === 'truong_to' || root.child('users/' + auth.uid + '/role').val() === 'to_pho' || root.child('users/' + auth.uid + '/role').val() === 'nhom_truong' || root.child('users/' + auth.uid + '/role').val() === 'admin'"
+          },
+          "status": {
+            ".write": "root.child('tasks/' + $meetingId + '/' + $taskId + '/assignedTo').val() === auth.uid || root.child('users/' + auth.uid + '/role').val() === 'truong_to' || root.child('users/' + auth.uid + '/role').val() === 'to_pho' || root.child('users/' + auth.uid + '/role').val() === 'nhom_truong' || root.child('users/' + auth.uid + '/role').val() === 'admin'"
+          }
+        }
+      }
+    },
+
+        "confirmations": {
+      "$meetingId": {
+        ".read": "auth.uid !== null && (root.child('meetings/' + $meetingId + '/memberIds/' + auth.uid).val() === true || root.child('meetings/' + $meetingId + '/teamId').val() === root.child('users/' + auth.uid + '/teamId').val() || root.child('users/' + auth.uid + '/role').val() === 'admin')",
+        ".write": "auth.uid !== null && (root.child('meetings/' + $meetingId + '/memberIds/' + auth.uid).val() === true || root.child('meetings/' + $meetingId + '/teamId').val() === root.child('users/' + auth.uid + '/teamId').val() || root.child('users/' + auth.uid + '/role').val() === 'admin')",
+        "$uid": {
+          ".write": "$uid === auth.uid || root.child('users/' + auth.uid + '/role').val() === 'admin'",
+          "participated": {
+            ".write": "$uid === auth.uid || root.child('users/' + auth.uid + '/role').val() === 'admin'"
+          },
+          "participatedAt": {
+            ".write": "$uid === auth.uid || root.child('users/' + auth.uid + '/role').val() === 'admin'"
+          },
+          "conclusionRead": {
+            ".write": "$uid === auth.uid || root.child('users/' + auth.uid + '/role').val() === 'admin'"
+          },
+          "conclusionReadAt": {
+            ".write": "$uid === auth.uid || root.child('users/' + auth.uid + '/role').val() === 'admin'"
+          },
+          "finalConfirmed": {
+            ".write": "$uid === auth.uid || root.child('users/' + auth.uid + '/role').val() === 'admin'"
+          },
+          "finalConfirmedAt": {
+            ".write": "$uid === auth.uid || root.child('users/' + auth.uid + '/role').val() === 'admin'"
+          },
+          "finalConfirmationId": {
+            ".write": "$uid === auth.uid || root.child('users/' + auth.uid + '/role').val() === 'admin'"
+          }
+        }
+      }
+    },
+
+    "activityLogs": {
+      "$meetingId": {
+        ".read": "auth.uid !== null && (root.child('meetings/' + $meetingId + '/teamId').val() === root.child('users/' + auth.uid + '/teamId').val() || root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('meetings/' + $meetingId + '/memberIds/' + auth.uid).val() === true)",
+        ".write": "auth.uid !== null && (root.child('meetings/' + $meetingId + '/teamId').val() === root.child('users/' + auth.uid + '/teamId').val() || root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('meetings/' + $meetingId + '/memberIds/' + auth.uid).val() === true)",
+        ".indexOn": ["timestamp", "userId", "action"],
+        "$logId": {
+          ".write": "auth.uid !== null && newData.exists()",
+          ".validate": "newData.exists()"
+        }
+      }
+    },
+
+    "attachments": {
+      "$meetingId": {
+        ".read": "auth.uid !== null && (root.child('meetings/' + $meetingId + '/teamId').val() === root.child('users/' + auth.uid + '/teamId').val() || root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('meetings/' + $meetingId + '/memberIds/' + auth.uid).val() === true)",
+        ".write": "auth.uid !== null && (root.child('meetings/' + $meetingId + '/teamId').val() === root.child('users/' + auth.uid + '/teamId').val() || root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('meetings/' + $meetingId + '/memberIds/' + auth.uid).val() === true) && root.child('meetings/' + $meetingId + '/status').val() !== 'CLOSED'",
+        ".indexOn": ["type", "contentId", "uploadedBy"],
+        "$fileId": {
+          ".write": "auth.uid !== null && (root.child('attachments/' + $meetingId + '/' + $fileId + '/uploadedBy').val() === auth.uid || root.child('users/' + auth.uid + '/role').val() === 'truong_to' || root.child('users/' + auth.uid + '/role').val() === 'to_pho' || root.child('users/' + auth.uid + '/role').val() === 'nhom_truong' || root.child('users/' + auth.uid + '/role').val() === 'admin') && root.child('meetings/' + $meetingId + '/status').val() !== 'CLOSED'"
+        }
+      }
+    },
+
+    "appendices": {
+      "$meetingId": {
+        ".read": "auth.uid !== null && (root.child('meetings/' + $meetingId + '/teamId').val() === root.child('users/' + auth.uid + '/teamId').val() || root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('meetings/' + $meetingId + '/memberIds/' + auth.uid).val() === true)",
+        ".write": "root.child('users/' + auth.uid + '/role').val() === 'admin'",
+        ".indexOn": ["createdAt", "createdBy"]
+      }
+    },
+
+    "notifications": {
+      "$userId": {
+        ".read": "$userId === auth.uid || root.child('users/' + auth.uid + '/role').val() === 'admin'",
+        ".write": "auth.uid !== null",
+        ".indexOn": ["read", "createdAt", "type"],
+        "$notificationId": {
+          ".write": "auth.uid !== null && newData.exists()"
+        }
+      }
+    },
+    "bookings": {
+  ".read": "auth != null",
+  ".write": false,
+  ".indexOn": ["uid", "timestamp"],
+  "$resourceId": {
+    ".read": "auth != null",
+    ".write": false,
+    "$date": {
+      ".read": "auth != null",
+      ".write": false,
+      "$period": {
+        ".read": "auth != null",
+        ".write": "auth != null && (!data.exists() || data.child('uid').val() === auth.uid)",
+        ".validate": "newData.hasChildren(['uid', 'name', 'class', 'purpose', 'lockCode', 'timestamp'])",
+        "uid": {
+          ".validate": "newData.isString() && newData.val() === auth.uid && newData.val().length <= 100"
+        },
+        "name": {
+          ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100"
+        },
+        "class": {
+          ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 50"
+        },
+        "purpose": {
+          ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 200"
+        },
+        "lockCode": {
+          ".validate": "newData.isString() && newData.val().matches(/^[0-9]{4}$/)"
+        },
+        "timestamp": {
+          ".validate": "newData.isNumber() && newData.val() > 0"
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    }
+  }
+}
+  }
+}

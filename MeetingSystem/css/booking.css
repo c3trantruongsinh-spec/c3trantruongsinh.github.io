@@ -1,0 +1,425 @@
+/* ============================================================
+   MODULE: ĐĂNG KÝ PHÒNG DÙNG CHUNG — Stylesheet
+   ============================================================ */
+
+.booking-module {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 16px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* ============================================================
+   TABS PHÒNG
+   ============================================================ */
+.booking-tabs {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 transparent;
+}
+
+.booking-tabs::-webkit-scrollbar {
+    height: 5px;
+}
+
+.booking-tabs::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+.booking-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border: 2px solid #e2e8f0;
+    background: #ffffff;
+    color: #334155;
+    font-weight: 600;
+    font-size: 14px;
+    border-radius: 10px;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    font-family: inherit;
+    transition: all 0.2s ease;
+}
+
+.booking-tab:hover {
+    border-color: #3b82f6;
+    color: #1e3a8a;
+    background: #eff6ff;
+}
+
+.booking-tab.active {
+    background: linear-gradient(135deg, #1e3a8a 0%, #172554 100%);
+    color: #ffffff;
+    border-color: #1e3a8a;
+    box-shadow: 0 4px 14px rgba(30, 58, 138, 0.3);
+}
+
+.booking-tab i {
+    font-size: 14px;
+}
+
+/* ============================================================
+   BẢNG THỜI KHÓA BIỂU — WRAPPER
+   ============================================================ */
+.booking-table-wrapper {
+    overflow-x: auto;
+    border-radius: 14px;
+    box-shadow: 0 4px 20px rgba(30, 58, 138, 0.10), 0 1px 3px rgba(0, 0, 0, 0.04);
+    background: #ffffff;
+    width: 100%;
+    border: 1px solid #e2e8f0;
+}
+
+.booking-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 960px;
+    font-size: 13px;
+    font-family: inherit;
+    table-layout: fixed;
+}
+
+/* ============================================================
+   HEADER — ĐẦU BẢNG
+   ============================================================ */
+.booking-table thead th {
+    background: linear-gradient(135deg, #1e3a8a 0%, #172554 100%);
+    color: #ffffff;
+    padding: 14px 8px;
+    font-weight: 700;
+    font-size: 13px;
+    text-align: center;
+    border-right: 1px solid rgba(255, 255, 255, 0.12);
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    letter-spacing: 0.3px;
+}
+
+.booking-table thead th:last-child {
+    border-right: none;
+}
+
+.booking-table thead th .day-name {
+    display: block;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+}
+
+.booking-table thead th .day-date {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    opacity: 0.85;
+    margin-top: 2px;
+}
+
+.booking-table thead th.col-session,
+.booking-table thead th.col-period {
+    width: 64px;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.booking-table thead th.col-day {
+    min-width: 150px;
+}
+
+/* ============================================================
+   CỘT "BUỔI" — SÁNG VÀNG / CHIỀU XANH
+   ============================================================ */
+.booking-table td.col-session {
+    font-weight: 800;
+    text-align: center;
+    vertical-align: middle;
+    padding: 8px 4px;
+    border-right: 1px solid #e2e8f0;
+    border-bottom: 1px solid #e2e8f0;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+}
+
+.booking-table td.col-session.session-sang {
+    background: linear-gradient(180deg, #fef9c3 0%, #fde68a 100%);
+    color: #854d0e;
+}
+
+.booking-table td.col-session.session-chieu {
+    background: linear-gradient(180deg, #dbeafe 0%, #bfdbfe 100%);
+    color: #1e40af;
+}
+
+.booking-table td.col-session .session-label {
+    display: inline-block;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    white-space: nowrap;
+}
+
+/* ============================================================
+   CỘT "TIẾT"
+   ============================================================ */
+.booking-table td.col-period {
+    background: #f1f5f9;
+    color: #334155;
+    font-weight: 700;
+    text-align: center;
+    padding: 8px 4px;
+    border-right: 1px solid #e2e8f0;
+    border-bottom: 1px solid #e2e8f0;
+    font-size: 12px;
+    white-space: nowrap;
+    letter-spacing: 0.3px;
+}
+
+/* ============================================================
+   ZEBRA STRIPING — HÀNG CHẴN ĐỔI MÀU NHẸ
+   ============================================================ */
+.booking-table tbody tr:nth-child(even) td.col-period {
+    background: #e2e8f0;
+}
+
+.booking-table tbody tr:nth-child(even) td.booking-cell.cell-empty {
+    background: #f0fdf4;
+}
+
+.booking-table tbody tr:nth-child(odd) td.booking-cell.cell-empty {
+    background: #dcfce7;
+}
+
+/* ============================================================
+   ĐƯỜNG PHÂN CÁCH SÁNG/CHIỀU — NÉT ĐẬM
+   ============================================================ */
+.booking-table tbody tr.last-morning-row td {
+    border-bottom: 3px solid #64748b !important;
+    box-shadow: 0 2px 4px rgba(100, 116, 139, 0.15);
+}
+
+/* ============================================================
+   Ô LỊCH — 3 TRẠNG THÁI
+   ============================================================ */
+.booking-cell {
+    padding: 10px 8px;
+    text-align: center;
+    vertical-align: middle;
+    cursor: pointer;
+    border-right: 1px solid #e2e8f0;
+    border-bottom: 1px solid #e2e8f0;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+    min-height: 54px;
+    position: relative;
+    box-sizing: border-box;
+}
+
+.booking-cell:hover {
+    transform: scale(1.04);
+    z-index: 3;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.20);
+    filter: brightness(1.03);
+}
+
+/* ---- TRẠNG THÁI 1: TRỐNG ---- */
+.cell-empty {
+    background: #dcfce7;
+    color: #15803d;
+    font-weight: 600;
+}
+
+.cell-empty:hover {
+    background: #bbf7d0;
+}
+
+.cell-placeholder {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    opacity: 0.9;
+}
+
+/* ---- TRẠNG THÁI 2: NGƯỜI KHÁC ĐẶT ---- */
+.cell-booked-others {
+    background: linear-gradient(180deg, #fed7aa 0%, #fdba74 100%);
+    color: #7c2d12;
+    border-radius: 8px;
+    box-shadow: inset 0 0 0 1px rgba(154, 52, 18, 0.12),
+                0 2px 6px rgba(234, 88, 12, 0.15);
+}
+
+.cell-booked-others:hover {
+    background: linear-gradient(180deg, #fdba74 0%, #fb923c 100%);
+    box-shadow: inset 0 0 0 1px rgba(154, 52, 18, 0.18),
+                0 4px 12px rgba(234, 88, 12, 0.28);
+}
+
+/* ---- TRẠNG THÁI 3: CHÍNH TÔI ĐẶT ---- */
+.cell-booked-mine {
+    background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%);
+    color: #ffffff;
+    border-radius: 8px;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.15),
+                0 3px 10px rgba(30, 58, 138, 0.35);
+}
+
+.cell-booked-mine:hover {
+    background: linear-gradient(135deg, #1e3a8a 0%, #172554 100%);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.20),
+                0 6px 16px rgba(30, 58, 138, 0.45);
+}
+
+/* ---- NỘI DUNG TRONG Ô ---- */
+.cell-line {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.35;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cell-line i {
+    font-size: 11px;
+    margin-right: 3px;
+    opacity: 0.85;
+}
+
+.cell-line.cell-purpose {
+    font-size: 11px;
+    font-weight: 500;
+    opacity: 0.92;
+    margin-top: 3px;
+}
+
+.cell-line.cell-name {
+    font-size: 11px;
+    font-weight: 500;
+    opacity: 0.82;
+    margin-top: 3px;
+    font-style: italic;
+}
+
+.cell-line.cell-class {
+    font-size: 11px;
+    font-weight: 700;
+    opacity: 0.95;
+    margin-top: 3px;
+}
+
+/* ============================================================
+   BADGE SỐ LƯỢT ĐẶT PHÒNG — HIỂN THỊ CÔNG KHAI TRÊN Ô
+   ============================================================ */
+.cell-booking-count {
+    display: inline-block;
+    margin-top: 5px;
+    padding: 2px 8px;
+    background: #fef08a;
+    color: #854d0e;
+    font-size: 10px;
+    font-weight: 800;
+    border-radius: 10px;
+    line-height: 1.5;
+    white-space: nowrap;
+    letter-spacing: 0.2px;
+    box-shadow: 0 1px 2px rgba(133, 77, 14, 0.15);
+}
+
+.cell-booked-mine .cell-booking-count {
+    background: #fde68a;
+    color: #78350f;
+}
+
+.cell-booked-others .cell-booking-count {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 768px) {
+    .booking-module {
+        padding: 8px;
+        gap: 12px;
+    }
+
+    .booking-tab {
+        padding: 8px 12px;
+        font-size: 13px;
+        border-radius: 8px;
+    }
+
+    .booking-tab i {
+        font-size: 12px;
+    }
+
+    .booking-table {
+        min-width: 840px;
+        font-size: 12px;
+    }
+
+    .booking-table thead th {
+        padding: 10px 4px;
+        font-size: 12px;
+    }
+
+    .booking-table thead th .day-name {
+        font-size: 12px;
+    }
+
+    .booking-table thead th .day-date {
+        font-size: 10px;
+    }
+
+    .booking-cell {
+        padding: 8px 4px;
+        min-height: 46px;
+    }
+
+    .cell-line,
+    .cell-line.cell-purpose,
+    .cell-line.cell-name,
+    .cell-line.cell-class {
+        font-size: 11px;
+    }
+
+    .cell-placeholder {
+        font-size: 11px;
+    }
+
+    .cell-booking-count {
+        font-size: 9px;
+        padding: 2px 6px;
+    }
+}
+
+@media (max-width: 480px) {
+    .booking-module {
+        padding: 6px;
+    }
+
+    .booking-tab {
+        padding: 7px 10px;
+        font-size: 12px;
+    }
+
+    .booking-table {
+        min-width: 760px;
+    }
+
+    .booking-cell {
+        padding: 6px 3px;
+        min-height: 42px;
+    }
+}

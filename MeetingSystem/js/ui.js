@@ -1433,16 +1433,13 @@ async function uploadFileToCloudinary(file, quill) {
 }
 
 /**
- * Chọn ảnh từ máy và upload lên Cloudinary, chèn vào Quill.
+ * Chèn ảnh vào Quill — tách rõ 2 lựa chọn nguồn ảnh.
  *
- * XỬ LÝ LỖI MỞ CAMERA TRỰC TIẾP TRÊN MOBILE:
- *   - KHÔNG dùng attribute capture="environment" hay capture="user".
- *   - Dùng accept="image/*" để iOS/Android hiện menu đầy đủ:
- *       • Chụp ảnh mới (Camera)
- *       • Chọn từ Thư viện ảnh (Photo Library)
- *       • Chọn Tệp (Browse/Choose File)
- *   - Validate MIME type ở JS sau khi user chọn xong, không giới hạn
- *     quá chặt ở accept để tránh OS bỏ qua menu và mở thẳng file picker.
+ * Luồng xử lý:
+ *   1. Hiện dialog SweetAlert2 hỏi nguồn ảnh.
+ *   2. "Chụp ảnh mới"  → input có capture="environment" (mở camera sau).
+ *   3. "Chọn từ thư viện" → input KHÔNG có capture (mở picker đầy đủ).
+ *   4. Upload Cloudinary → chèn vào Quill tại vị trí con trỏ.
  *
  * @param {Object} quill - Quill instance
  */
@@ -1452,138 +1449,181 @@ function selectAndUploadImage(quill) {
         return;
     }
 
-    // ============ TẠO INPUT FILE NGẦM ============
-    const input = document.createElement('input');
-    input.type = 'file';
+    // ============ HÀM NỘI BỘ: TẠO INPUT + XỬ LÝ UPLOAD ============
+    function openImagePicker(useCamera) {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.multiple = false;
 
-    // QUAN TRỌNG: Chỉ dùng 'image/*', KHÔNG dùng capture attribute.
-    // Nếu thêm capture="environment", iPhone sẽ mở thẳng Camera và bỏ qua
-    // menu lựa chọn (Thư viện ảnh, Chọn tệp).
-    input.accept = 'image/*';
-
-    input.multiple = false;
-    input.style.display = 'none';
-    input.setAttribute('autocomplete', 'off');
-    input.setAttribute('tabindex', '-1');
-
-    // ============ XỬ LÝ KHI USER CHỌN ẢNH ============
-    input.addEventListener('change', async function() {
-        const file = input.files && input.files[0];
-        if (!file) {
-            input.remove();
-            return;
+        // Chỉ set capture khi user chọn "Chụp ảnh mới".
+        // Khi có capture="environment", Android/iOS sẽ mở thẳng camera sau.
+        // Khi không có capture, hệ điều hành mở menu đầy đủ (Camera, Thư viện, Tệp).
+        if (useCamera) {
+            input.setAttribute('capture', 'environment');
         }
 
-        // ============ VALIDATE KÍCH THƯỚC ============
-        if (file.size > 10 * 1024 * 1024) {
-            showToast('❌ Ảnh quá lớn (>10MB). Vui lòng chọn ảnh nhỏ hơn.', 'error', 5000);
-            input.remove();
-            return;
-        }
+        // Ẩn input khỏi viewport nhưng vẫn cho OS nhận diện được
+        input.style.position = 'fixed';
+        input.style.left = '-9999px';
+        input.style.top = '-9999px';
+        input.style.width = '1px';
+        input.style.height = '1px';
+        input.style.opacity = '0';
+        input.setAttribute('aria-hidden', 'true');
+        input.setAttribute('tabindex', '-1');
 
-        // ============ VALIDATE ĐỊNH DẠNG ============
-        // Kiểm tra MIME type thực tế của file sau khi user chọn.
-        // Chấp nhận cả các alias của iOS (ví dụ: image/heic, image/heif).
-        const allowedTypes = [
-            'image/png',
-            'image/jpeg',
-            'image/jpg',
-            'image/gif',
-            'image/webp',
-            'image/heic',
-            'image/heif'
-        ];
+        // ============ XỬ LÝ KHI USER CHỌN ẢNH ============
+        input.addEventListener('change', async function() {
+            const file = input.files && input.files[0];
 
-        const normalizedType = (file.type || '').toLowerCase();
-        const fileExt = (file.name || '').split('.').pop().toLowerCase();
-        const allowedExts = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'heic', 'heif'];
-
-        const isTypeAllowed = allowedTypes.includes(normalizedType);
-        const isExtAllowed = allowedExts.includes(fileExt);
-
-        if (!isTypeAllowed && !isExtAllowed) {
-            showToast('❌ Định dạng ảnh không hỗ trợ. Chỉ chấp nhận PNG, JPG, GIF, WEBP.', 'error', 5000);
-            input.remove();
-            return;
-        }
-
-        // ============ LƯU VỊ TRÍ CON TRỎ HIỆN TẠI ============
-        const range = quill.getSelection(true) || { index: quill.getLength() };
-
-        // ============ HIỂN THỊ LOADING ============
-        const loadingToast = showToast(
-            '<span class="spinner" style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.4);border-top-color:#fff;border-radius:50%;animation:spin 0.6s linear infinite;vertical-align:middle;margin-right:6px;"></span> Đang tải ảnh lên Cloudinary...',
-            'info',
-            60000
-        );
-
-        // ============ TẠM KHÓA EDITOR ============
-        quill.enable(false);
-
-        try {
-            // ============ UPLOAD LÊN CLOUDINARY ============
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('upload_preset', 'upload_anh_firebase');
-
-            const response = await fetch('https://api.cloudinary.com/v1_1/svvzpxjj/image/upload', {
-                method: 'POST',
-                body: formData
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                const errMsg = (data && data.error && data.error.message)
-                    ? data.error.message
-                    : 'Upload thất bại (' + response.status + ')';
-                throw new Error(errMsg);
+            if (!file) {
+                input.remove();
+                return;
             }
 
-            if (!data.secure_url) {
-                throw new Error('Không nhận được URL ảnh từ Cloudinary.');
+            // ---------- VALIDATE KÍCH THƯỚC ----------
+            if (file.size > 10 * 1024 * 1024) {
+                showToast('❌ Ảnh quá lớn (>10MB). Vui lòng chọn ảnh nhỏ hơn.', 'error', 5000);
+                input.remove();
+                return;
             }
 
-            // ============ TỐI ƯU URL ẢNH ============
-            // Cloudinary tự động resize và nén ảnh → giảm băng thông, tăng tốc tải.
-            let imageUrl = data.secure_url;
-            if (imageUrl.includes('/upload/')) {
-                imageUrl = imageUrl.replace(
-                    '/upload/',
-                    '/upload/w_500,q_auto,f_auto/'
-                );
+            // ---------- VALIDATE ĐỊNH DẠNG ----------
+            const allowedTypes = [
+                'image/png',
+                'image/jpeg',
+                'image/jpg',
+                'image/gif',
+                'image/webp',
+                'image/heic',
+                'image/heif'
+            ];
+
+            const normalizedType = (file.type || '').toLowerCase();
+            const fileExt = (file.name || '').split('.').pop().toLowerCase();
+            const allowedExts = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'heic', 'heif'];
+
+            const isTypeAllowed = allowedTypes.includes(normalizedType);
+            const isExtAllowed = allowedExts.includes(fileExt);
+
+            if (!isTypeAllowed && !isExtAllowed) {
+                showToast('❌ Định dạng ảnh không hỗ trợ. Chỉ chấp nhận PNG, JPG, GIF, WEBP, HEIC.', 'error', 5000);
+                input.remove();
+                return;
             }
 
-            // ============ CHÈN ẢNH VÀO QUILL ============
-            quill.enable(true);
-            quill.insertEmbed(range.index, 'image', imageUrl, Quill.sources.USER);
-            quill.setSelection(range.index + 1, Quill.sources.SILENT);
-            quill.focus();
+            // ---------- LƯU VỊ TRÍ CON TRỎ ----------
+            const range = quill.getSelection(true) || { index: quill.getLength() };
 
-            // ============ ĐÓNG LOADING, BÁO THÀNH CÔNG ============
-            if (loadingToast && loadingToast.close) {
-                loadingToast.close();
+            // ---------- HIỂN THỊ LOADING ----------
+            const loadingToast = showToast(
+                '<span class="spinner" style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.4);border-top-color:#fff;border-radius:50%;animation:spin 0.6s linear infinite;vertical-align:middle;margin-right:6px;"></span> Đang tải ảnh lên Cloudinary...',
+                'info',
+                60000
+            );
+
+            // ---------- TẠM KHÓA EDITOR ----------
+            try {
+                quill.enable(false);
+            } catch (e) {
+                console.warn('Không disable được Quill:', e);
             }
-            showToast('✅ Đã chèn ảnh thành công!', 'success', 2500);
 
-            console.log('✅ Upload Cloudinary thành công:', imageUrl);
+            try {
+                // ---------- UPLOAD LÊN CLOUDINARY ----------
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('upload_preset', 'upload_anh_firebase');
 
-        } catch (error) {
-            console.error('Cloudinary upload error:', error);
-            quill.enable(true);
+                const response = await fetch('https://api.cloudinary.com/v1_1/svvzpxjj/image/upload', {
+                    method: 'POST',
+                    body: formData
+                });
 
-            if (loadingToast && loadingToast.close) {
-                loadingToast.close();
+                const data = await response.json();
+
+                if (!response.ok) {
+                    const errMsg = (data && data.error && data.error.message)
+                        ? data.error.message
+                        : 'Upload thất bại (' + response.status + ')';
+                    throw new Error(errMsg);
+                }
+
+                if (!data.secure_url) {
+                    throw new Error('Không nhận được URL ảnh từ Cloudinary.');
+                }
+
+                // ---------- TỐI ƯU URL ẢNH ----------
+                let imageUrl = data.secure_url;
+                if (imageUrl.includes('/upload/')) {
+                    imageUrl = imageUrl.replace(
+                        '/upload/',
+                        '/upload/w_500,q_auto,f_auto/'
+                    );
+                }
+
+                // ---------- CHÈN ẢNH VÀO QUILL ----------
+                quill.enable(true);
+                quill.insertEmbed(range.index, 'image', imageUrl, Quill.sources.USER);
+                quill.setSelection(range.index + 1, Quill.sources.SILENT);
+                quill.focus();
+
+                // ---------- ĐÓNG LOADING ----------
+                if (loadingToast && loadingToast.close) {
+                    loadingToast.close();
+                }
+                showToast('✅ Đã chèn ảnh thành công!', 'success', 2500);
+
+                console.log('✅ Upload Cloudinary thành công:', imageUrl);
+
+            } catch (error) {
+                console.error('Cloudinary upload error:', error);
+                try {
+                    quill.enable(true);
+                } catch (e) {
+                    console.warn('Không enable lại được Quill:', e);
+                }
+
+                if (loadingToast && loadingToast.close) {
+                    loadingToast.close();
+                }
+                showToast('❌ Lỗi tải ảnh: ' + error.message, 'error', 6000);
+
+            } finally {
+                input.remove();
             }
-            showToast('❌ Lỗi tải ảnh: ' + error.message, 'error', 6000);
-        } finally {
-            input.remove();
+        });
+
+        // ---------- GẮN INPUT VÀO DOM VÀ KÍCH HOẠT ----------
+        document.body.appendChild(input);
+        input.click();
+    }
+
+    // ============ HIỆN DIALOG CHỌN NGUỒN ẢNH ============
+    Swal.fire({
+        title: 'Chèn ảnh',
+        text: 'Chọn nguồn ảnh bạn muốn sử dụng',
+        icon: 'question',
+        showDenyButton: true,
+        showCancelButton: true,
+        confirmButtonText: '<i class="fas fa-camera"></i> Chụp ảnh mới',
+        denyButtonText: '<i class="fas fa-images"></i> Chọn từ thư viện',
+        cancelButtonText: 'Hủy',
+        confirmButtonColor: '#1e3a8a',
+        denyButtonColor: '#059669',
+        cancelButtonColor: '#94a3b8',
+        reverseButtons: false,
+        allowOutsideClick: true
+    }).then(function(result) {
+        if (result.isConfirmed) {
+            // "Chụp ảnh mới" → CÓ capture
+            openImagePicker(true);
+        } else if (result.isDenied) {
+            // "Chọn từ thư viện" → KHÔNG capture
+            openImagePicker(false);
         }
     });
-
-    // ============ GẮN INPUT VÀO DOM VÀ KÍCH HOẠT ============
-    document.body.appendChild(input);
-    input.click();
 }
 
 /**
@@ -2112,17 +2152,23 @@ function updateLatexOutput() {
 }
 
 /**
- * Cấu hình MathLive keyboard — XỬ LÝ XUNG ĐỘT BÀN PHÍM TRÊN MOBILE.
+ * Cấu hình bàn phím MathLive — CHIẾN THUẬT PHÂN BIỆT RÕ MOBILE/DESKTOP.
  *
- * Cơ chế:
- *   - Policy = 'manual' → MathLive KHÔNG tự mở bàn phím ảo, ta chủ động show().
- *   - Trên mobile: set inputmode='none' + autocorrect/autocapitalize='off'
- *     để chặn bàn phím chữ (native text keyboard) của hệ điều hành.
- *   - Lắng nghe pointerdown / touchstart / focus / click → ép gọi
- *     window.mathVirtualKeyboard.show() ngay khi user chạm vào math-field.
- *   - Gắn focus guard để refocus math-field sau khi user đóng menu 3 gạch.
- *   - Bind listener virtual-keyboard-toggle để đồng bộ class body
- *     (dùng cho responsive CSS khi bàn phím ảo mở).
+ * MOBILE:
+ *   - Policy = 'auto' — để MathLive tự quản lý việc mở/đóng bàn phím
+ *     khi math-field nhận focus. KHÔNG can thiệp thủ công.
+ *   - KHÔNG set inputmode="none" (tránh chặn cơ chế auto của MathLive).
+ *   - KHÔNG gắn listener focus/click để gọi show().
+ *
+ * DESKTOP:
+ *   - Policy = 'manual' — user tự bấm nút bàn phím (biểu tượng ☰ hoặc ⌨)
+ *     trên math-field để mở bàn phím ảo.
+ *   - Set inputmode="none" để chặn bàn phím chữ của máy tính.
+ *
+ * QUẢN LÝ LISTENER TOÀN CỤC:
+ *   - Lưu tham chiếu hàm listener vào window._mathLiveToggleListenerFn.
+ *   - Trước khi gắn mới, removeEventListener đúng cách để tránh trùng lặp.
+ *   - Clear timeout cũ đang chờ bind (nếu có).
  *
  * @param {HTMLElement} mathField - Element <math-field> của MathLive
  */
@@ -2132,63 +2178,89 @@ function setupMathLiveKeyboardState(mathField) {
         return;
     }
 
-    // ============ DỌN LISTENER CŨ (TRÁNH BIND TRÙNG) ============
-    if (window._mathLiveKeyboardListenerBound) {
-        window._mathLiveKeyboardListenerBound = false;
-    }
-
-    if (mathField._mobileKbShowHandler) {
+    // ============ BƯỚC 1: GỠ LISTENER CŨ TRÊN MATHFIELD ============
+    if (mathField._mathLiveShowHandler) {
         try {
-            mathField.removeEventListener('pointerdown', mathField._mobileKbShowHandler);
-            mathField.removeEventListener('touchstart', mathField._mobileKbShowHandler);
-            mathField.removeEventListener('focus', mathField._mobileKbShowHandler);
-            mathField.removeEventListener('click', mathField._mobileKbShowHandler);
+            mathField.removeEventListener('focus', mathField._mathLiveShowHandler);
+            mathField.removeEventListener('click', mathField._mathLiveShowHandler);
         } catch (e) {
-            console.warn('Không gỡ được listener mobile kb cũ:', e);
+            console.warn('Không gỡ được listener show cũ trên mathField:', e);
         }
-        mathField._mobileKbShowHandler = null;
+        mathField._mathLiveShowHandler = null;
     }
 
-    // ============ XÁC ĐỊNH THIẾT BỊ ============
+    // ============ BƯỚC 2: GỠ LISTENER CŨ TRÊN WINDOW.MATHVIRTUALKEYBOARD ============
+    // Đây là fix quan trọng: phải lưu tham chiếu hàm listener,
+    // vì chỉ set cờ về false không tháo được listener đã đăng ký.
+    if (window._mathLiveToggleListenerFn && window.mathVirtualKeyboard) {
+        try {
+            window.mathVirtualKeyboard.removeEventListener(
+                'virtual-keyboard-toggle',
+                window._mathLiveToggleListenerFn
+            );
+            console.log('🧹 Đã gỡ listener virtual-keyboard-toggle cũ');
+        } catch (e) {
+            console.warn('Không gỡ được listener cũ trên mathVirtualKeyboard:', e);
+        }
+        window._mathLiveToggleListenerFn = null;
+    }
+
+    // ============ BƯỚC 3: CLEAR TIMER BIND CŨ (NẾU CÓ) ============
+    if (window._mathLiveToggleBindTimer) {
+        try {
+            clearTimeout(window._mathLiveToggleBindTimer);
+        } catch (e) {
+            console.warn('Không clear được timer bind cũ:', e);
+        }
+        window._mathLiveToggleBindTimer = null;
+    }
+
+    // ============ BƯỚC 4: XÁC ĐỊNH THIẾT BỊ ============
     const isMobile = isMobileDeviceForMathLive();
 
-    // ============ BƯỚC 1: ĐỔI POLICY SANG 'MANUAL' ============
-    // Manual → MathLive không tự show bàn phím khi focus.
-    // Ta sẽ chủ động gọi show() khi user chạm.
+    // ============ BƯỚC 5: SET POLICY THEO THIẾT BỊ ============
+    // Mobile  → 'auto'   : MathLive tự show/hide bàn phím khi focus/blur
+    // Desktop → 'manual' : chỉ mở khi user bấm nút trên math-field
     try {
         if (typeof mathField.mathVirtualKeyboardPolicy !== 'undefined') {
-            mathField.mathVirtualKeyboardPolicy = 'manual';
-            console.log('⌨️ MathLive keyboard policy: MANUAL (mobile=' + isMobile + ')');
+            const policy = isMobile ? 'auto' : 'manual';
+            mathField.mathVirtualKeyboardPolicy = policy;
+            console.log('⌨️ MathLive keyboard policy: ' + policy.toUpperCase() + ' (mobile=' + isMobile + ')');
         }
     } catch (e) {
         console.warn('Không set được mathVirtualKeyboardPolicy:', e);
     }
 
-    // ============ BƯỚC 2: CHẶN BÀN PHÍM CHỮ TRÊN MOBILE ============
+    // ============ BƯỚC 6: ATTRIBUTE THEO THIẾT BỊ ============
     if (isMobile) {
-        try {
-            mathField.setAttribute('inputmode', 'none');
-            mathField.setAttribute('autocomplete', 'off');
-            mathField.setAttribute('autocorrect', 'off');
-            mathField.setAttribute('autocapitalize', 'off');
-            mathField.setAttribute('spellcheck', 'false');
-            console.log('🚫 Đã chặn native text keyboard trên mobile');
-        } catch (e) {
-            console.warn('Không set được inputmode cho mathField:', e);
-        }
-    } else {
+        // Mobile: KHÔNG set inputmode="none".
+        // Lý do: policy='auto' cần MathLive tự quản lý focus để mở bàn phím.
+        // Nếu set inputmode='none', ta vô tình chặn cơ chế auto của MathLive.
         try {
             mathField.removeAttribute('inputmode');
             mathField.removeAttribute('autocomplete');
             mathField.removeAttribute('autocorrect');
             mathField.removeAttribute('autocapitalize');
             mathField.removeAttribute('spellcheck');
+            console.log('📱 Mobile: đã gỡ các attribute can thiệp bàn phím');
         } catch (e) {
-            console.warn('Không gỡ được inputmode cho mathField:', e);
+            console.warn('Không gỡ được attribute mobile:', e);
+        }
+    } else {
+        // Desktop: set inputmode='none' để chặn bàn phím chữ của máy tính.
+        try {
+            mathField.setAttribute('inputmode', 'none');
+            mathField.setAttribute('autocomplete', 'off');
+            mathField.setAttribute('autocorrect', 'off');
+            mathField.setAttribute('autocapitalize', 'off');
+            mathField.setAttribute('spellcheck', 'false');
+            console.log('🖥️ Desktop: đã set inputmode="none"');
+        } catch (e) {
+            console.warn('Không set được attribute desktop:', e);
         }
     }
 
-    // ============ BƯỚC 3: SMART OPTIONS ============
+    // ============ BƯỚC 7: SMART OPTIONS ============
     try {
         if (typeof mathField.smartFence !== 'undefined') {
             mathField.smartFence = true;
@@ -2203,101 +2275,80 @@ function setupMathLiveKeyboardState(mathField) {
         console.warn('Không set được MathLive smart options:', e);
     }
 
-    // ============ BƯỚC 4: ÉP SHOW BÀN PHÍM MATHLIVE KHI CHẠM ============
-    const showMathLiveKeyboard = function() {
-        if (!window.mathVirtualKeyboard) return;
-        if (typeof window.mathVirtualKeyboard.show !== 'function') return;
-        try {
-            window.mathVirtualKeyboard.show();
-        } catch (e) {
-            console.warn('Không show được MathLive keyboard:', e);
-        }
-    };
-
-    const mobileKbShowHandler = function(event) {
-        // KHÔNG preventDefault — để math-field vẫn nhận được tọa độ chạm
-        // và đặt con trỏ đúng vị trí bên trong công thức.
-        // Việc chặn bàn phím chữ đã được xử lý bằng inputmode='none'.
-        showMathLiveKeyboard();
-
-        // Backup: sau 80ms, nếu bàn phím ảo vẫn chưa hiện thì thử show lại.
-        // Điều này xử lý trường hợp iOS delay focus event.
-        setTimeout(function() {
-            if (window.mathVirtualKeyboard && !window.mathVirtualKeyboard.visible) {
-                showMathLiveKeyboard();
-            }
-        }, 80);
-
-        // Backup 2: sau 250ms, thử lần cuối cho các máy Android chậm.
-        setTimeout(function() {
-            if (window.mathVirtualKeyboard && !window.mathVirtualKeyboard.visible) {
-                showMathLiveKeyboard();
-            }
-        }, 250);
-    };
-
-    mathField._mobileKbShowHandler = mobileKbShowHandler;
-    mathField.addEventListener('pointerdown', mobileKbShowHandler);
-    mathField.addEventListener('touchstart', mobileKbShowHandler, { passive: true });
-    mathField.addEventListener('focus', mobileKbShowHandler);
-    mathField.addEventListener('click', mobileKbShowHandler);
-
-    console.log('👆 Đã gắn trigger ép mở bàn phím MathLive khi chạm');
-
-    // ============ BƯỚC 5: GẮN FOCUS GUARD ============
+    // ============ BƯỚC 8: FOCUS GUARD ============
+    // Giữ focus guard để refocus math-field sau khi đóng menu 3 gạch.
     try {
         setupMathLiveFocusGuard(mathField);
-        console.log('🛡️ Đã gắn focus guard (giữ menu 3 gạch)');
+        console.log('🛡️ Đã gắn focus guard');
     } catch (e) {
         console.warn('Không gắn được focus guard:', e);
     }
 
-    // ============ BƯỚC 6: BIND LISTENER CHO BODY CLASS ============
+    // ============ BƯỚC 9: LISTENER CHO BODY CLASS ============
+    // Chỉ gắn DUY NHẤT 1 listener cho toàn bộ ứng dụng.
+    // Lưu tham chiếu hàm để có thể gỡ đúng cách khi cần.
+    const toggleListenerFn = function() {
+        setTimeout(function() {
+            const isVisible = window.mathVirtualKeyboard
+                           && window.mathVirtualKeyboard.visible === true;
+
+            if (isVisible) {
+                document.body.classList.add('keyboard-open');
+                console.log('⌨️ Keyboard MỞ');
+            } else {
+                document.body.classList.remove('keyboard-open');
+                console.log('⌨️ Keyboard ĐÓNG');
+            }
+        }, 50);
+    };
+
     const bindKeyboardToggleListener = function() {
-        if (window._mathLiveKeyboardListenerBound) return;
         if (!window.mathVirtualKeyboard) return;
 
-        window._mathLiveKeyboardListenerBound = true;
+        // Nếu đã có listener đang gắn, không gắn lại
+        if (window._mathLiveToggleListenerFn) return;
 
-        window.mathVirtualKeyboard.addEventListener('virtual-keyboard-toggle', function() {
-            setTimeout(function() {
-                const isVisible = window.mathVirtualKeyboard
-                               && window.mathVirtualKeyboard.visible === true;
-
-                if (isVisible) {
-                    document.body.classList.add('keyboard-open');
-                    console.log('⌨️ Keyboard MỞ');
-                } else {
-                    document.body.classList.remove('keyboard-open');
-                    console.log('⌨️ Keyboard ĐÓNG');
-                }
-            }, 50);
-        });
-
+        window._mathLiveToggleListenerFn = toggleListenerFn;
+        window.mathVirtualKeyboard.addEventListener('virtual-keyboard-toggle', toggleListenerFn);
         console.log('✅ Đã gắn listener virtual-keyboard-toggle');
     };
 
     if (window.mathVirtualKeyboard) {
         bindKeyboardToggleListener();
     } else {
-        console.warn('⚠️ window.mathVirtualKeyboard chưa sẵn sàng — thử bind lại sau 500ms');
-        setTimeout(bindKeyboardToggleListener, 500);
+        console.warn('⚠️ window.mathVirtualKeyboard chưa sẵn sàng — thử lại sau 500ms');
+        window._mathLiveToggleBindTimer = setTimeout(function() {
+            window._mathLiveToggleBindTimer = null;
+            bindKeyboardToggleListener();
+        }, 500);
     }
 }
 
 /**
  * Mở Modal Formula Builder.
- * Trình tự BẮT BUỘC:
- *   Bước 1: Hiển thị Modal (display = 'flex').
- *   Bước 2: Chờ 1 nhịp paint (2 x requestAnimationFrame) rồi mới setValue.
- *   Bước 3: Chờ MathLive render xong (180ms) mới gọi focus().
- * Tuyệt đối KHÔNG gọi focus() trước hoặc cùng nhịp với setValue().
+ *
+ * Chiến thuật focus theo thiết bị:
+ *   - MOBILE: gọi mathField.focus() NGAY LẬP TỨC, đồng bộ trong
+ *     user gesture (trước khi qua RAF). Cần thiết vì iOS Safari
+ *     chỉ cho phép mở bàn phím bên trong user gesture. Sau đó,
+ *     MathLive với policy='auto' sẽ tự động hiện bàn phím Toán.
+ *
+ *   - DESKTOP: chờ 2 RAF + 180ms để MathLive render xong rồi mới
+ *     focus — không cần gấp vì bàn phím ảo là 'manual', user sẽ
+ *     tự bấm nút bàn phím trên math-field khi cần.
+ *
+ * Quản lý cờ opening:
+ *   - Đặt true khi bắt đầu.
+ *   - Đặt false trong MỌI nhánh: thành công, lỗi, modal đóng sớm.
+ *   - Cấu trúc try/catch bọc toàn bộ, không dùng finally setTimeout.
+ *
  * @param {Object} quill - Quill instance
  * @param {string} initialLatex - LaTeX ban đầu
  * @param {string} mode - 'insert' hoặc 'edit'
  * @param {HTMLElement} editingElement - Element .ql-formula đang edit
  */
 function openFormulaModal(quill, initialLatex, mode, editingElement) {
+    // ============ VALIDATE INPUT ============
     if (!quill) {
         showToast('Editor chưa sẵn sàng', 'error');
         return;
@@ -2308,99 +2359,149 @@ function openFormulaModal(quill, initialLatex, mode, editingElement) {
         return;
     }
 
+    // ============ CHỐNG DOUBLE-OPEN ============
     if (window._formulaModalState.opening) {
         console.log('⏳ Formula Modal đang mở, bỏ qua lần gọi trùng');
         return;
     }
     window._formulaModalState.opening = true;
 
-    if (window._formulaModalFocusTimer) {
-        clearTimeout(window._formulaModalFocusTimer);
-        window._formulaModalFocusTimer = null;
-    }
+    try {
+        // ============ DỌN TIMER + GUARD CŨ ============
+        if (window._formulaModalFocusTimer) {
+            clearTimeout(window._formulaModalFocusTimer);
+            window._formulaModalFocusTimer = null;
+        }
 
-    clearMathLiveFocusGuard();
+        clearMathLiveFocusGuard();
 
-    ensureFormulaModal();
+        // ============ ĐẢM BẢO MODAL DOM ĐÃ TỒN TẠI ============
+        ensureFormulaModal();
 
-    window._formulaModalState.quill = quill;
-    window._formulaModalState.mode = mode || 'insert';
-    window._formulaModalState.editingElement = editingElement || null;
+        // ============ LƯU STATE ============
+        window._formulaModalState.quill = quill;
+        window._formulaModalState.mode = mode || 'insert';
+        window._formulaModalState.editingElement = editingElement || null;
 
-    const overlay = document.getElementById('formulaModalOverlay');
-    const titleEl = document.getElementById('formulaModalTitle');
-    const insertBtnText = document.getElementById('formulaInsertBtnText');
-    const mathField = document.getElementById('formulaMathField');
+        // ============ LẤY ELEMENT ============
+        const overlay = document.getElementById('formulaModalOverlay');
+        const titleEl = document.getElementById('formulaModalTitle');
+        const insertBtnText = document.getElementById('formulaInsertBtnText');
+        const mathField = document.getElementById('formulaMathField');
 
-    if (titleEl) {
-        titleEl.textContent = mode === 'edit'
-            ? 'Chỉnh sửa công thức Toán học'
-            : 'Chèn công thức Toán học';
-    }
+        // ============ CẬP NHẬT TIÊU ĐỀ + NÚT ============
+        if (titleEl) {
+            titleEl.textContent = mode === 'edit'
+                ? 'Chỉnh sửa công thức Toán học'
+                : 'Chèn công thức Toán học';
+        }
 
-    if (insertBtnText) {
-        insertBtnText.textContent = mode === 'edit' ? 'Cập nhật' : 'Chèn';
-    }
+        if (insertBtnText) {
+            insertBtnText.textContent = mode === 'edit' ? 'Cập nhật' : 'Chèn';
+        }
 
-    if (editingElement) {
-        editingElement.classList.add('formula-editing');
-    }
+        // ============ ĐÁNH DẤU CÔNG THỨC ĐANG EDIT ============
+        if (editingElement) {
+            editingElement.classList.add('formula-editing');
+        }
 
-    document.body.classList.add('formula-focus-mode');
+        // ============ BẬT FOCUS MODE + HIỆN MODAL ============
+        document.body.classList.add('formula-focus-mode');
+        overlay.classList.add('active');
+        document.body.style.overflow = 'hidden';
 
-    overlay.classList.add('active');
-    document.body.style.overflow = 'hidden';
+        const isMobile = isMobileDeviceForMathLive();
 
-    requestAnimationFrame(function() {
+        // ============ MOBILE: FOCUS ĐỒNG BỘ TRONG USER GESTURE ============
+        // iOS Safari chỉ cho phép mở bàn phím bên trong user gesture.
+        // Focus ngay lập tức, không qua RAF, để MathLive auto policy
+        // kịp bắt focus event và mở bàn phím Toán.
+        if (isMobile && mathField) {
+            try {
+                mathField.focus();
+                console.log('📱 Mobile: đã focus đồng bộ');
+            } catch (e) {
+                console.warn('Focus mobile thất bại:', e);
+            }
+        }
+
+        // ============ RAF CHAIN: SETVALUE + SETUP KEYBOARD ============
         requestAnimationFrame(function() {
-            if (!overlay.classList.contains('active')) {
-                window._formulaModalState.opening = false;
-                return;
-            }
-
-            if (mathField) {
-                try {
-                    const latexValue = initialLatex || '';
-                    if (typeof mathField.setValue === 'function') {
-                        mathField.setValue(latexValue);
-                    } else {
-                        mathField.value = latexValue;
-                    }
-                } catch (e) {
-                    console.warn('Không set được LaTeX vào math-field:', e);
-                }
-
-                setupMathLiveKeyboardState(mathField);
-            }
-
-            updateLatexOutput();
-            renderQuickToolbarPreviews();
-
-            window._formulaModalFocusTimer = setTimeout(function() {
-                window._formulaModalFocusTimer = null;
-
+            requestAnimationFrame(function() {
                 if (!overlay.classList.contains('active')) {
                     window._formulaModalState.opening = false;
                     return;
                 }
 
-                if (!mathField) {
+                // ---------- BƠM LATEX VÀO MATH-FIELD ----------
+                if (mathField) {
+                    try {
+                        const latexValue = initialLatex || '';
+                        if (typeof mathField.setValue === 'function') {
+                            mathField.setValue(latexValue);
+                        } else {
+                            mathField.value = latexValue;
+                        }
+                    } catch (e) {
+                        console.warn('Không set được LaTeX vào math-field:', e);
+                    }
+
+                    // ---------- CẤU HÌNH BÀN PHÍM CHO MATH-FIELD ----------
+                    setupMathLiveKeyboardState(mathField);
+                }
+
+                // ---------- CẬP NHẬT UI PHỤ ----------
+                updateLatexOutput();
+                renderQuickToolbarPreviews();
+
+                // ---------- FOCUS THEO THIẾT BỊ ----------
+                if (isMobile) {
+                    // Mobile: đã focus đồng bộ ở trên.
+                    // Không cần focus lại — chỉ set opening=false.
                     window._formulaModalState.opening = false;
-                    return;
-                }
+                    console.log('✅ Mobile: modal sẵn sàng');
+                } else {
+                    // Desktop: focus sau 180ms để MathLive render xong.
+                    window._formulaModalFocusTimer = setTimeout(function() {
+                        window._formulaModalFocusTimer = null;
 
-                try {
-                    mathField.focus();
-                } catch (e) {
-                    console.warn('Không focus được math-field:', e);
-                }
+                        if (!overlay.classList.contains('active')) {
+                            window._formulaModalState.opening = false;
+                            return;
+                        }
 
-                window._formulaModalState.opening = false;
-            }, 180);
+                        if (mathField) {
+                            try {
+                                mathField.focus();
+                            } catch (e) {
+                                console.warn('Focus desktop thất bại:', e);
+                            }
+                        }
+
+                        window._formulaModalState.opening = false;
+                        console.log('✅ Desktop: modal sẵn sàng');
+                    }, 180);
+                }
+            });
         });
-    });
-}
 
+    } catch (error) {
+        // ============ XỬ LÝ LỖI ĐỒNG BỘ ============
+        console.error('❌ Lỗi mở Formula Modal:', error);
+        window._formulaModalState.opening = false;
+
+        // Cố gắng đóng modal nếu nó đã mở nửa chừng
+        try {
+            const overlay = document.getElementById('formulaModalOverlay');
+            if (overlay && overlay.classList.contains('active')) {
+                // Không tự động đóng — để user tự đóng, chỉ log lỗi
+                console.warn('⚠️ Modal đang mở nhưng gặp lỗi — user có thể đóng thủ công');
+            }
+        } catch (e) {
+            console.warn('Không cleanup được overlay sau lỗi:', e);
+        }
+    }
+}
 /**
  * Đóng Modal Formula.
  */

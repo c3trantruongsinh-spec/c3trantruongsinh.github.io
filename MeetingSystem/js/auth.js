@@ -97,6 +97,20 @@ function initAuth() {
                     }
                     
                     // ============================================================
+                    // LƯU USER VÀO WINDOW — để các module khác (booking, tasks...)
+                    // có thể đọc thông tin user đã đăng nhập.
+                    // ============================================================
+                    window.currentUser = {
+                        uid: user.uid,
+                        email: user.email || '',
+                        displayName: user.displayName || (userData && userData.displayName) || user.email || 'Người dùng',
+                        role: (userData && userData.role) || 'giao_vien',
+                        teamId: (userData && userData.teamId) || null,
+                        photoURL: user.photoURL || ''
+                    };
+                    console.log('✅ window.currentUser đã sẵn sàng:', window.currentUser.uid);
+                    
+                    // ============================================================
                     // 1. HIỂN THỊ TÊN NGƯỜI DÙNG
                     // ============================================================
                     const userNameEl = document.getElementById('userName');
@@ -156,6 +170,10 @@ function initAuth() {
                 }
             } else {
                 console.log('User not authenticated');
+                
+                // ⬇⬇⬇ RESET LẠI BIẾN KHI CHƯA ĐĂNG NHẬP HOẶC ĐĂNG XUẤT ⬇⬇⬇
+                window.currentUser = null;
+                
                 if (loadingOverlay) loadingOverlay.classList.add('hidden');
                 
                 if (!window.location.pathname.includes('login.html')) {

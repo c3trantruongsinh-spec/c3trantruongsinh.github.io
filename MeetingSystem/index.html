@@ -15,19 +15,23 @@
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/responsive.css">
     <link rel="stylesheet" href="css/formula-modal.css">
-    
+    <link rel="stylesheet" href="css/booking.css">
+    <!-- SweetAlert2 - Thư viện tạo Popup -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
-     <!-- KaTeX — Render công thức Toán học (LaTeX) -->
+    <!-- KaTeX — Render công thức Toán học (LaTeX) -->
     <link href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+
     <!-- MathLive — Bàn phím toán ảo WYSIWYG -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mathlive@0.101.2/dist/mathlive-fonts.css" />
-<script src="https://cdn.jsdelivr.net/npm/mathlive@0.101.2/dist/mathlive.min.js"></script>
-        <!-- Quill.js Rich Text Editor -->
-   <link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mathlive@0.101.2/dist/mathlive-fonts.css" />
+    <script src="https://cdn.jsdelivr.net/npm/mathlive@0.101.2/dist/mathlive.min.js"></script>
+
+    <!-- Quill.js Rich Text Editor -->
+    <link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
     
     <!-- Plugin Resize Ảnh — PHẢI LOAD SAU QUILL -->
@@ -76,9 +80,9 @@
                     <span>Thông báo</span>
                     <span class="badge" id="notificationBadge">0</span>
                 </a>
-                <a href="#" class="nav-item" data-page="admin" id="adminNav" style="display:none;">
-                    <i class="fas fa-cog"></i>
-                    <span>Quản lý</span>
+                <a href="#" class="nav-item" data-page="booking">
+                    <i class="fas fa-door-open"></i>
+                    <span>Lịch phòng UDCNTT</span>
                 </a>
             </nav>
             
@@ -90,7 +94,7 @@
                         <span id="userRole" class="user-role">Vai trò</span>
                     </div>
                 </div>
-                <!-- NÚT ĐỔI MẬT KHẨU - MỚI THÊM -->
+                <!-- NÚT ĐỔI MẬT KHẨU -->
                 <button id="changePasswordBtn" class="btn-change-password">
                     <i class="fas fa-key"></i>
                     <span>Đổi mật khẩu</span>
@@ -104,8 +108,7 @@
 
         <!-- Main Content -->
         <main class="main-content">
-            <!-- Top Bar -->
-                        <!-- Top Bar — Logo + School Name + Page Title + Date -->
+            <!-- Top Bar — Logo + School Name + Page Title + Date -->
             <header class="top-bar">
                 <button id="toggleSidebar" class="btn-toggle-sidebar">
                     <i class="fas fa-bars"></i>
@@ -126,10 +129,33 @@
                 </div>
             </header>
 
-            <!-- Page Container -->
+            <!-- Page Container: Nơi render động các trang (dashboard, meetings, tasks...) -->
             <div id="pageContainer" class="page-container">
                 <!-- Pages will be dynamically loaded here -->
             </div>
+
+            <!-- ============================================================
+                 BOOKING SECTION — Đặt NGOÀI #pageContainer
+                 Không bị loadPage() ghi đè khi chuyển tab
+                 ============================================================ -->
+            <div id="booking-section" class="content-section page-container" style="display: none;">
+                <!-- MODULE: ĐĂNG KÝ PHÒNG DÙNG CHUNG -->
+                <div class="booking-module">
+
+                    <!-- 5 Tabs phòng -->
+                    <div class="booking-tabs" id="bookingTabs"></div>
+
+                    <!-- Bảng thời khóa biểu tuần -->
+                    <div class="booking-table-wrapper">
+                        <table class="booking-table">
+                            <thead id="bookingThead"></thead>
+                            <tbody id="bookingTbody"></tbody>
+                        </table>
+                    </div>
+
+                </div>
+            </div>
+
         </main>
 
         <!-- Mobile Bottom Navigation -->
@@ -145,6 +171,10 @@
             <a href="#" class="mobile-nav-item" data-page="create-meeting">
                 <i class="fas fa-plus-circle"></i>
                 <span>Tạo mới</span>
+            </a>
+            <a href="#" class="mobile-nav-item" data-page="booking">
+                <i class="fas fa-door-open"></i>
+                <span>Phòng</span>
             </a>
             <a href="#" class="mobile-nav-item" data-page="tasks">
                 <i class="fas fa-tasks"></i>
@@ -179,7 +209,8 @@
     <!-- Module chính -->
     <script src="js/meetings.js"></script>
     <script src="js/app.js"></script>
-
+    <script src="js/booking.js"></script>
+    <script src="js/booking-integration.js"></script>
     
 </body>
 </html>
