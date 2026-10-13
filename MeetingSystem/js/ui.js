@@ -2327,20 +2327,21 @@ function setupMathLiveKeyboardState(mathField) {
 /**
  * Mở Modal Formula Builder.
  *
- * Chiến thuật focus theo thiết bị:
- *   - MOBILE: gọi mathField.focus() NGAY LẬP TỨC, đồng bộ trong
- *     user gesture (trước khi qua RAF). Cần thiết vì iOS Safari
- *     chỉ cho phép mở bàn phím bên trong user gesture. Sau đó,
- *     MathLive với policy='auto' sẽ tự động hiện bàn phím Toán.
+ * TRÌNH TỰ ĐÃ SỬA (fix lỗi policy 'auto' set sau focus):
  *
- *   - DESKTOP: chờ 2 RAF + 180ms để MathLive render xong rồi mới
- *     focus — không cần gấp vì bàn phím ảo là 'manual', user sẽ
- *     tự bấm nút bàn phím trên math-field khi cần.
+ *   Bước 1: Validate + chống double-open.
+ *   Bước 2: ensureFormulaModal() — tạo DOM nếu chưa có.
+ *   Bước 3: Hiển thị modal (overlay.classList.add('active')).
+ *   Bước 4: setupMathLiveKeyboardState() NGAY — set policy 'auto'
+ *           (mobile) hoặc 'manual' (desktop) TRƯỚC khi focus.
+ *   Bước 5: Gán LaTeX vào math-field (setValue).
+ *   Bước 6: MOBILE → focus ĐỒNG BỘ trong user gesture ngay sau đó.
+ *           DESKTOP → chờ 180ms mới focus.
+ *   Bước 7: Verify focus trên mobile sau 2 RAF — nếu chưa vào
+ *           math-field, thử lại 1 lần (không loop vô hạn).
  *
- * Quản lý cờ opening:
- *   - Đặt true khi bắt đầu.
- *   - Đặt false trong MỌI nhánh: thành công, lỗi, modal đóng sớm.
- *   - Cấu trúc try/catch bọc toàn bộ, không dùng finally setTimeout.
+ * Cờ window._formulaModalState.opening được reset trong MỌI nhánh
+ * (thành công, lỗi, modal đóng giữa chừng) nhờ cấu trúc try/catch.
  *
  * @param {Object} quill - Quill instance
  * @param {string} initialLatex - LaTeX ban đầu
@@ -2348,7 +2349,7 @@ function setupMathLiveKeyboardState(mathField) {
  * @param {HTMLElement} editingElement - Element .ql-formula đang edit
  */
 function openFormulaModal(quill, initialLatex, mode, editingElement) {
-    // ============ VALIDATE INPUT ============
+    // ============ BƯỚC 1: VALIDATE INPUT ============
     if (!quill) {
         showToast('Editor chưa sẵn sàng', 'error');
         return;
@@ -2375,7 +2376,7 @@ function openFormulaModal(quill, initialLatex, mode, editingElement) {
 
         clearMathLiveFocusGuard();
 
-        // ============ ĐẢM BẢO MODAL DOM ĐÃ TỒN TẠI ============
+        // ============ BƯỚC 2: ĐẢM BẢO MODAL DOM TỒN TẠI ============
         ensureFormulaModal();
 
         // ============ LƯU STATE ============
@@ -2405,101 +2406,131 @@ function openFormulaModal(quill, initialLatex, mode, editingElement) {
             editingElement.classList.add('formula-editing');
         }
 
-        // ============ BẬT FOCUS MODE + HIỆN MODAL ============
+        // ============ BƯỚC 3: HIỂN THỊ MODAL ============
+        // Phải hiển thị TRƯỚC khi setup keyboard và focus, để math-field
+        // có kích thước thật (không còn display:none).
         document.body.classList.add('formula-focus-mode');
         overlay.classList.add('active');
         document.body.style.overflow = 'hidden';
 
         const isMobile = isMobileDeviceForMathLive();
 
-        // ============ MOBILE: FOCUS ĐỒNG BỘ TRONG USER GESTURE ============
-        // iOS Safari chỉ cho phép mở bàn phím bên trong user gesture.
-        // Focus ngay lập tức, không qua RAF, để MathLive auto policy
-        // kịp bắt focus event và mở bàn phím Toán.
-        if (isMobile && mathField) {
+        // ============ BƯỚC 4: SETUP KEYBOARD NGAY (FIX CHÍNH) ============
+        // Gọi setupMathLiveKeyboardState() ngay sau khi modal hiển thị,
+        // TRƯỚC khi focus. Điều này đảm bảo:
+        //   - Mobile: mathVirtualKeyboardPolicy = 'auto' đã sẵn sàng.
+        //   - Desktop: mathVirtualKeyboardPolicy = 'manual' + inputmode='none'.
+        //   - Listener cũ (nếu có) đã được gỡ.
+        //   - Focus guard + toggle listener đã được gắn.
+        if (mathField) {
+            setupMathLiveKeyboardState(mathField);
+        }
+
+        // ============ BƯỚC 5: GÁN LATEX VÀO MATH-FIELD ============
+        if (mathField) {
             try {
-                mathField.focus();
-                console.log('📱 Mobile: đã focus đồng bộ');
+                const latexValue = initialLatex || '';
+                if (typeof mathField.setValue === 'function') {
+                    mathField.setValue(latexValue);
+                } else {
+                    mathField.value = latexValue;
+                }
             } catch (e) {
-                console.warn('Focus mobile thất bại:', e);
+                console.warn('Không set được LaTeX vào math-field:', e);
             }
         }
 
-        // ============ RAF CHAIN: SETVALUE + SETUP KEYBOARD ============
-        requestAnimationFrame(function() {
+        // ============ CẬP NHẬT UI PHỤ ============
+        updateLatexOutput();
+
+        // Render KaTeX preview cho các nút Quick Toolbar (sync, nhẹ)
+        try {
+            renderQuickToolbarPreviews();
+        } catch (e) {
+            console.warn('Lỗi render preview Quick Toolbar:', e);
+        }
+
+        // ============ BƯỚC 6: FOCUS THEO THIẾT BỊ ============
+        if (isMobile && mathField) {
+            // MOBILE: focus ĐỒNG BỘ trong user gesture.
+            // Policy 'auto' đã được set ở Bước 4 → MathLive sẽ tự mở
+            // bàn phím Toán khi nhận focus event này.
+            try {
+                mathField.focus();
+                console.log('📱 Mobile: đã focus đồng bộ (policy=auto đã set)');
+            } catch (e) {
+                console.warn('Focus mobile thất bại:', e);
+            }
+
+            // BƯỚC 7: VERIFY FOCUS SAU 2 RAF
+            // Nếu vì lý do gì đó focus chưa vào math-field (race condition
+            // khi DOM đang cập nhật), thử focus lại 1 LẦN DUY NHẤT.
+            // Không tạo loop vô hạn.
             requestAnimationFrame(function() {
+                requestAnimationFrame(function() {
+                    if (!overlay.classList.contains('active')) {
+                        window._formulaModalState.opening = false;
+                        return;
+                    }
+
+                    // Kiểm tra focus thực tế có nằm trong math-field không
+                    let focusOk = false;
+                    try {
+                        if (document.activeElement === mathField) {
+                            focusOk = true;
+                        } else if (mathField.shadowRoot && mathField.shadowRoot.activeElement) {
+                            focusOk = true;
+                        } else if (typeof mathField.contains === 'function'
+                                   && mathField.contains(document.activeElement)) {
+                            focusOk = true;
+                        }
+                    } catch (e) {
+                        console.warn('Không kiểm tra được focus:', e);
+                    }
+
+                    if (!focusOk) {
+                        try {
+                            mathField.focus();
+                            console.log('📱 Mobile: focus lại lần 2 (verify failed)');
+                        } catch (e) {
+                            console.warn('Focus lại mobile thất bại:', e);
+                        }
+                    } else {
+                        console.log('📱 Mobile: focus đã vào math-field');
+                    }
+
+                    window._formulaModalState.opening = false;
+                });
+            });
+
+        } else {
+            // DESKTOP: chờ 180ms để MathLive render xong rồi mới focus.
+            // Không cần gấp vì policy='manual' — user sẽ tự bấm nút bàn phím.
+            window._formulaModalFocusTimer = setTimeout(function() {
+                window._formulaModalFocusTimer = null;
+
                 if (!overlay.classList.contains('active')) {
                     window._formulaModalState.opening = false;
                     return;
                 }
 
-                // ---------- BƠM LATEX VÀO MATH-FIELD ----------
                 if (mathField) {
                     try {
-                        const latexValue = initialLatex || '';
-                        if (typeof mathField.setValue === 'function') {
-                            mathField.setValue(latexValue);
-                        } else {
-                            mathField.value = latexValue;
-                        }
+                        mathField.focus();
                     } catch (e) {
-                        console.warn('Không set được LaTeX vào math-field:', e);
+                        console.warn('Focus desktop thất bại:', e);
                     }
-
-                    // ---------- CẤU HÌNH BÀN PHÍM CHO MATH-FIELD ----------
-                    setupMathLiveKeyboardState(mathField);
                 }
 
-                // ---------- CẬP NHẬT UI PHỤ ----------
-                updateLatexOutput();
-                renderQuickToolbarPreviews();
-
-                // ---------- FOCUS THEO THIẾT BỊ ----------
-                if (isMobile) {
-                    // Mobile: đã focus đồng bộ ở trên.
-                    // Không cần focus lại — chỉ set opening=false.
-                    window._formulaModalState.opening = false;
-                    console.log('✅ Mobile: modal sẵn sàng');
-                } else {
-                    // Desktop: focus sau 180ms để MathLive render xong.
-                    window._formulaModalFocusTimer = setTimeout(function() {
-                        window._formulaModalFocusTimer = null;
-
-                        if (!overlay.classList.contains('active')) {
-                            window._formulaModalState.opening = false;
-                            return;
-                        }
-
-                        if (mathField) {
-                            try {
-                                mathField.focus();
-                            } catch (e) {
-                                console.warn('Focus desktop thất bại:', e);
-                            }
-                        }
-
-                        window._formulaModalState.opening = false;
-                        console.log('✅ Desktop: modal sẵn sàng');
-                    }, 180);
-                }
-            });
-        });
+                window._formulaModalState.opening = false;
+                console.log('✅ Desktop: modal sẵn sàng');
+            }, 180);
+        }
 
     } catch (error) {
         // ============ XỬ LÝ LỖI ĐỒNG BỘ ============
         console.error('❌ Lỗi mở Formula Modal:', error);
         window._formulaModalState.opening = false;
-
-        // Cố gắng đóng modal nếu nó đã mở nửa chừng
-        try {
-            const overlay = document.getElementById('formulaModalOverlay');
-            if (overlay && overlay.classList.contains('active')) {
-                // Không tự động đóng — để user tự đóng, chỉ log lỗi
-                console.warn('⚠️ Modal đang mở nhưng gặp lỗi — user có thể đóng thủ công');
-            }
-        } catch (e) {
-            console.warn('Không cleanup được overlay sau lỗi:', e);
-        }
     }
 }
 /**
