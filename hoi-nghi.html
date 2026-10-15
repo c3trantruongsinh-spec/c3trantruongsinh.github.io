@@ -1,0 +1,2204 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tài liệu Hội nghị viên chức — Trường THCS-THPT Trần Trường Sinh</title>
+
+<style>
+    /* ============================================================
+       RESET & BIẾN TOÀN CỤC
+       ============================================================ */
+    *, *::before, *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+    }
+
+    :root {
+        --primary: #1e3a8a;
+        --primary-dark: #172554;
+        --primary-light: #3b82f6;
+        --accent: #d97706;
+        --accent-light: #f59e0b;
+
+        --gray-50: #f8fafc;
+        --gray-100: #f1f5f9;
+        --gray-200: #e2e8f0;
+        --gray-300: #cbd5e1;
+        --gray-400: #94a3b8;
+        --gray-500: #64748b;
+        --gray-600: #475569;
+        --gray-700: #334155;
+        --gray-800: #1e293b;
+        --gray-900: #0f172a;
+
+        --white: #ffffff;
+        --danger: #dc2626;
+        --danger-light: #ef4444;
+        --success: #16a34a;
+
+        --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04);
+        --shadow-md: 0 4px 12px rgba(30, 58, 138, 0.08), 0 2px 4px rgba(15, 23, 42, 0.05);
+        --shadow-lg: 0 12px 32px rgba(30, 58, 138, 0.15), 0 4px 8px rgba(15, 23, 42, 0.06);
+        --shadow-xl: 0 24px 60px rgba(15, 23, 42, 0.35);
+
+        --radius: 14px;
+        --radius-sm: 10px;
+        --radius-lg: 20px;
+    }
+
+    html {
+        font-size: 16px;
+        scroll-behavior: smooth;
+        -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        background: linear-gradient(180deg, #eff6ff 0%, #f8fafc 400px, #f8fafc 100%);
+        min-height: 100vh;
+        color: var(--gray-800);
+        line-height: 1.6;
+        padding-bottom: 60px;
+    }
+
+    body.modal-open {
+        overflow: hidden;
+    }
+
+    /* ============================================================
+       HEADER
+       ============================================================ */
+    .page-header {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+        color: var(--white);
+        padding: 32px 20px 40px;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 4px 20px rgba(30, 58, 138, 0.25);
+    }
+
+    .page-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -100px;
+        width: 400px;
+        height: 400px;
+        background: radial-gradient(circle, rgba(217, 119, 6, 0.18) 0%, transparent 70%);
+        pointer-events: none;
+    }
+
+    .page-header::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, var(--accent-light) 0%, var(--accent) 50%, var(--accent-light) 100%);
+    }
+
+    .header-inner {
+        max-width: 1280px;
+        margin: 0 auto;
+        position: relative;
+        z-index: 1;
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        flex-wrap: wrap;
+    }
+
+    .header-logo {
+        flex-shrink: 0;
+        width: 64px;
+        height: 64px;
+        background: rgba(255, 255, 255, 0.12);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 32px;
+        border: 2px solid rgba(255, 255, 255, 0.25);
+        backdrop-filter: blur(4px);
+        cursor: pointer;
+        user-select: none;
+        -webkit-user-select: none;
+        transition: transform 0.2s ease, background 0.2s ease;
+    }
+
+    .header-logo:hover {
+        background: rgba(255, 255, 255, 0.20);
+    }
+
+    .header-logo:active {
+        transform: scale(0.94);
+    }
+
+    .header-text {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .header-school {
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        color: var(--accent-light);
+        margin-bottom: 6px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .admin-badge {
+        display: none;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 8px;
+        background: var(--accent);
+        color: var(--white);
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 1px;
+        border-radius: 4px;
+        text-transform: uppercase;
+    }
+
+    .admin-badge.visible {
+        display: inline-flex;
+    }
+
+    .header-title {
+        font-size: clamp(20px, 4.5vw, 30px);
+        font-weight: 800;
+        letter-spacing: 0.3px;
+        line-height: 1.2;
+        margin-bottom: 4px;
+    }
+
+    .header-subtitle {
+        font-size: clamp(13px, 2.5vw, 15px);
+        opacity: 0.88;
+        font-weight: 500;
+    }
+
+    /* ============================================================
+       INFO BANNER
+       ============================================================ */
+    .info-banner {
+        max-width: 1280px;
+        margin: -20px auto 0;
+        padding: 0 20px;
+        position: relative;
+        z-index: 2;
+    }
+
+    .info-banner-inner {
+        background: var(--white);
+        border-radius: var(--radius);
+        padding: 14px 20px;
+        box-shadow: var(--shadow-md);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        font-size: 14px;
+        color: var(--gray-600);
+        border-left: 4px solid var(--accent);
+    }
+
+    .info-banner-inner i {
+        color: var(--accent);
+        font-size: 18px;
+        flex-shrink: 0;
+        font-style: normal;
+    }
+
+    .info-banner-inner strong {
+        color: var(--primary);
+        font-weight: 700;
+    }
+
+    .info-count {
+        margin-left: auto;
+        background: var(--primary);
+        color: var(--white);
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-weight: 700;
+        font-size: 13px;
+        white-space: nowrap;
+    }
+
+    /* ============================================================
+       ADMIN TOOLBAR
+       ============================================================ */
+    .admin-toolbar {
+        max-width: 1280px;
+        margin: 20px auto 0;
+        padding: 0 20px;
+        display: none;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .admin-toolbar.visible {
+        display: flex;
+    }
+
+    .btn-add-doc {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 22px;
+        background: linear-gradient(135deg, var(--accent-light) 0%, var(--accent) 100%);
+        color: var(--white);
+        border: 0;
+        border-radius: var(--radius-sm);
+        font-family: inherit;
+        font-size: 14px;
+        font-weight: 800;
+        cursor: pointer;
+        box-shadow: 0 4px 14px rgba(217, 119, 6, 0.35);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        letter-spacing: 0.3px;
+        white-space: nowrap;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .btn-add-doc:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 22px rgba(217, 119, 6, 0.45);
+    }
+
+    .btn-add-doc:active {
+        transform: translateY(0);
+    }
+
+    .btn-add-doc span {
+        font-style: normal;
+    }
+
+    .btn-exit-admin {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 10px 16px;
+        background: var(--white);
+        color: var(--gray-600);
+        border: 1.5px solid var(--gray-300);
+        border-radius: var(--radius-sm);
+        font-family: inherit;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .btn-exit-admin:hover {
+        background: var(--gray-100);
+        color: var(--gray-800);
+        border-color: var(--gray-400);
+    }
+
+    /* ============================================================
+       GRID DANH SÁCH VĂN BẢN
+       ============================================================ */
+    .docs-container {
+        max-width: 1280px;
+        margin: 28px auto 0;
+        padding: 0 20px;
+    }
+
+    .docs-section-title {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--gray-700);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .docs-section-title::before {
+        content: '';
+        display: inline-block;
+        width: 4px;
+        height: 18px;
+        background: linear-gradient(180deg, var(--accent-light), var(--accent));
+        border-radius: 2px;
+    }
+
+    .docs-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 14px;
+    }
+
+    /* ============================================================
+       TRẠNG THÁI LOADING / EMPTY
+       ============================================================ */
+    .state-box {
+        grid-column: 1 / -1;
+        background: var(--white);
+        border-radius: var(--radius);
+        padding: 48px 24px;
+        text-align: center;
+        box-shadow: var(--shadow-sm);
+        border: 1px dashed var(--gray-300);
+    }
+
+    .state-box .state-icon {
+        font-size: 44px;
+        margin-bottom: 12px;
+        font-style: normal;
+    }
+
+    .state-box .state-title {
+        font-size: 16px;
+        font-weight: 700;
+        color: var(--gray-700);
+        margin-bottom: 6px;
+    }
+
+    .state-box .state-desc {
+        font-size: 14px;
+        color: var(--gray-500);
+    }
+
+    .state-box .state-spinner {
+        display: inline-block;
+        width: 40px;
+        height: 40px;
+        border: 4px solid var(--gray-200);
+        border-top-color: var(--primary);
+        border-radius: 50%;
+        animation: docSpin 0.8s linear infinite;
+        margin-bottom: 14px;
+    }
+
+    @keyframes docSpin {
+        to { transform: rotate(360deg); }
+    }
+
+    /* ============================================================
+       CARD VĂN BẢN
+       ============================================================ */
+    .doc-card {
+        background: var(--white);
+        border-radius: var(--radius);
+        padding: 16px 16px 16px 14px;
+        box-shadow: var(--shadow-sm);
+        border: 1px solid var(--gray-200);
+        cursor: pointer;
+        transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+                    box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+                    border-color 0.25s ease;
+        display: flex;
+        align-items: flex-start;
+        gap: 14px;
+        position: relative;
+        overflow: hidden;
+        min-height: 90px;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .doc-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        width: 4px;
+        background: linear-gradient(180deg, var(--accent-light) 0%, var(--accent) 100%);
+        opacity: 0;
+        transition: opacity 0.25s ease;
+    }
+
+    .doc-card:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-lg);
+        border-color: var(--primary-light);
+    }
+
+    .doc-card:hover::before {
+        opacity: 1;
+    }
+
+    .doc-card:active {
+        transform: translateY(-2px);
+    }
+
+    /* ---- Icon văn bản ---- */
+    .doc-icon-wrap {
+        flex-shrink: 0;
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+        position: relative;
+    }
+
+    .doc-icon-wrap.pdf {
+        background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+        color: #b91c1c;
+    }
+
+    .doc-icon-wrap.word {
+        background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+        color: #1e40af;
+    }
+
+    .doc-icon-wrap.excel {
+        background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+        color: #15803d;
+    }
+
+    /* ---- Nội dung chính ---- */
+    .doc-body {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .doc-number {
+        font-size: 11px;
+        font-weight: 800;
+        color: var(--accent);
+        letter-spacing: 1px;
+        text-transform: uppercase;
+    }
+
+    .doc-title {
+        font-size: 14.5px;
+        font-weight: 700;
+        color: var(--gray-800);
+        line-height: 1.4;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        word-break: break-word;
+    }
+
+    .doc-meta {
+        font-size: 12px;
+        color: var(--gray-400);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 2px;
+    }
+
+    /* ---- Mũi tên chỉ báo ---- */
+    .doc-arrow {
+        flex-shrink: 0;
+        align-self: center;
+        color: var(--gray-300);
+        font-size: 14px;
+        transition: transform 0.25s ease, color 0.25s ease;
+    }
+
+    .doc-card:hover .doc-arrow {
+        color: var(--primary);
+        transform: translateX(4px);
+    }
+
+    /* ---- Nút XÓA (chỉ hiện trong admin mode) ---- */
+    .doc-delete-btn {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        width: 30px;
+        height: 30px;
+        border: 0;
+        border-radius: 8px;
+        background: var(--danger);
+        color: var(--white);
+        font-size: 14px;
+        cursor: pointer;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.2s ease, transform 0.2s ease;
+        box-shadow: 0 2px 6px rgba(220, 38, 38, 0.4);
+        z-index: 3;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    body.admin-mode .doc-delete-btn {
+        display: flex;
+    }
+
+    .doc-delete-btn:hover {
+        background: var(--danger-light);
+        transform: scale(1.08);
+    }
+
+    .doc-delete-btn:active {
+        transform: scale(0.94);
+    }
+
+    /* ============================================================
+       MODAL XEM VĂN BẢN
+       ============================================================ */
+    .doc-modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.82);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+        z-index: 99999;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        opacity: 0;
+        transition: opacity 0.25s ease;
+    }
+
+    .doc-modal-overlay.active {
+        display: flex;
+        opacity: 1;
+    }
+
+    .doc-modal {
+        background: var(--white);
+        border-radius: var(--radius-lg);
+        width: 100%;
+        max-width: 1000px;
+        height: 92vh;
+        max-height: 900px;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        box-shadow: var(--shadow-xl);
+        transform: scale(0.96) translateY(12px);
+        transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .doc-modal-overlay.active .doc-modal {
+        transform: scale(1) translateY(0);
+    }
+
+    /* ---- Header modal ---- */
+    .doc-modal-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 16px;
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+        color: var(--white);
+        flex-shrink: 0;
+        border-bottom: 3px solid var(--accent);
+    }
+
+    .doc-modal-icon {
+        flex-shrink: 0;
+        width: 38px;
+        height: 38px;
+        background: rgba(255, 255, 255, 0.15);
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        font-style: normal;
+    }
+
+    .doc-modal-title-wrap {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .doc-modal-label {
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--accent-light);
+        margin-bottom: 2px;
+    }
+
+    .doc-modal-title {
+        font-size: 15px;
+        font-weight: 700;
+        line-height: 1.35;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+    }
+
+    .doc-modal-close {
+        flex-shrink: 0;
+        width: 44px;
+        height: 44px;
+        border: 0;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.15);
+        color: var(--white);
+        font-size: 20px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.2s ease, transform 0.2s ease;
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+    }
+
+    .doc-modal-close:hover {
+        background: rgba(255, 255, 255, 0.28);
+    }
+
+    .doc-modal-close:active {
+        transform: scale(0.92);
+    }
+
+    /* ---- Body modal ---- */
+    .doc-modal-body {
+        flex: 1;
+        min-height: 0;
+        position: relative;
+        background: #525659;
+    }
+
+    .doc-modal-iframe {
+        width: 100%;
+        height: 100%;
+        border: 0;
+        display: block;
+        background: #525659;
+    }
+
+    /* ---- Loading spinner ---- */
+    .doc-modal-loading {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        background: var(--gray-50);
+        color: var(--gray-600);
+        font-size: 14px;
+        z-index: 1;
+        transition: opacity 0.3s ease;
+    }
+
+    .doc-modal-loading.hidden {
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .doc-modal-spinner {
+        width: 42px;
+        height: 42px;
+        border: 4px solid var(--gray-200);
+        border-top-color: var(--primary);
+        border-radius: 50%;
+        animation: docSpin 0.8s linear infinite;
+    }
+
+    /* ---- Footer modal ---- */
+    .doc-modal-footer {
+        padding: 12px 16px;
+        background: var(--gray-50);
+        border-top: 1px solid var(--gray-200);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
+        flex-shrink: 0;
+    }
+
+    .doc-modal-footer-hint {
+        font-size: 12px;
+        color: var(--gray-500);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .doc-modal-footer-hint i {
+        color: var(--accent);
+        font-style: normal;
+    }
+
+    .doc-modal-open-external {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 14px;
+        background: var(--white);
+        color: var(--primary);
+        border: 1.5px solid var(--primary-light);
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        text-decoration: none;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .doc-modal-open-external:hover {
+        background: var(--primary);
+        color: var(--white);
+        border-color: var(--primary);
+    }
+
+    /* ============================================================
+       MODAL THÊM TÀI LIỆU
+       ============================================================ */
+    .add-modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.82);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+        z-index: 100000;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        opacity: 0;
+        transition: opacity 0.25s ease;
+    }
+
+    .add-modal-overlay.active {
+        display: flex;
+        opacity: 1;
+    }
+
+    .add-modal {
+        background: var(--white);
+        border-radius: var(--radius-lg);
+        width: 100%;
+        max-width: 560px;
+        max-height: 92vh;
+        overflow-y: auto;
+        box-shadow: var(--shadow-xl);
+        transform: scale(0.96) translateY(12px);
+        transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .add-modal-overlay.active .add-modal {
+        transform: scale(1) translateY(0);
+    }
+
+    .add-modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 18px 22px;
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+        color: var(--white);
+        border-bottom: 3px solid var(--accent);
+        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    }
+
+    .add-modal-header h3 {
+        font-size: 17px;
+        font-weight: 800;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 0;
+    }
+
+    .add-modal-header h3 span {
+        font-style: normal;
+        font-size: 22px;
+    }
+
+    .add-modal-close {
+        width: 38px;
+        height: 38px;
+        border: 0;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.15);
+        color: var(--white);
+        font-size: 17px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.2s ease, transform 0.2s ease;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .add-modal-close:hover {
+        background: rgba(255, 255, 255, 0.3);
+    }
+
+    .add-modal-close:active {
+        transform: scale(0.94);
+    }
+
+    .add-modal-body {
+        padding: 22px;
+    }
+
+    .add-form-group {
+        margin-bottom: 18px;
+    }
+
+    .add-form-group:last-of-type {
+        margin-bottom: 0;
+    }
+
+    .add-form-label {
+        display: block;
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--gray-700);
+        margin-bottom: 6px;
+        letter-spacing: 0.2px;
+    }
+
+    .add-form-label .required {
+        color: var(--danger);
+        margin-left: 2px;
+    }
+
+    .add-form-input,
+    .add-form-select {
+        width: 100%;
+        padding: 11px 14px;
+        border: 2px solid var(--gray-200);
+        border-radius: var(--radius-sm);
+        font-family: inherit;
+        font-size: 14px;
+        color: var(--gray-800);
+        background: var(--white);
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        outline: none;
+    }
+
+    .add-form-input:focus,
+    .add-form-select:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+    }
+
+    .add-form-textarea {
+        width: 100%;
+        padding: 11px 14px;
+        border: 2px solid var(--gray-200);
+        border-radius: var(--radius-sm);
+        font-family: inherit;
+        font-size: 14px;
+        color: var(--gray-800);
+        background: var(--white);
+        resize: vertical;
+        min-height: 80px;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        outline: none;
+    }
+
+    .add-form-textarea:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+    }
+
+    .add-form-hint {
+        font-size: 12px;
+        color: var(--gray-500);
+        margin-top: 6px;
+        line-height: 1.5;
+    }
+
+    .add-form-error {
+        display: none;
+        padding: 10px 14px;
+        background: #fee2e2;
+        color: var(--danger);
+        font-size: 13px;
+        font-weight: 600;
+        border-radius: var(--radius-sm);
+        margin-top: 14px;
+    }
+
+    .add-form-error.visible {
+        display: block;
+    }
+
+    .add-modal-footer {
+        padding: 16px 22px 22px;
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+        border-top: 1px solid var(--gray-100);
+    }
+
+    .add-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 11px 22px;
+        border: 0;
+        border-radius: var(--radius-sm);
+        font-family: inherit;
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .add-btn-cancel {
+        background: var(--gray-100);
+        color: var(--gray-700);
+    }
+
+    .add-btn-cancel:hover {
+        background: var(--gray-200);
+    }
+
+    .add-btn-save {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+        color: var(--white);
+        box-shadow: 0 4px 14px rgba(30, 58, 138, 0.3);
+    }
+
+    .add-btn-save:hover:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow: 0 8px 20px rgba(30, 58, 138, 0.4);
+    }
+
+    .add-btn-save:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    /* ============================================================
+       RESPONSIVE — TABLET (>= 640px): 2 CỘT
+       ============================================================ */
+    @media (min-width: 640px) {
+        .docs-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+
+        .doc-card {
+            padding: 18px 18px 18px 16px;
+            min-height: 100px;
+        }
+
+        .doc-icon-wrap {
+            width: 52px;
+            height: 52px;
+            font-size: 24px;
+        }
+
+        .doc-title {
+            font-size: 15px;
+        }
+    }
+
+    /* ============================================================
+       RESPONSIVE — DESKTOP (>= 960px): 3 CỘT
+       ============================================================ */
+    @media (min-width: 960px) {
+        .page-header {
+            padding: 40px 20px 48px;
+        }
+
+        .docs-container {
+            margin-top: 36px;
+        }
+
+        .docs-grid {
+            grid-template-columns: repeat(3, 1fr);
+            gap: 18px;
+        }
+
+        .doc-card {
+            padding: 20px 20px 20px 18px;
+        }
+
+        .doc-modal-overlay,
+        .add-modal-overlay {
+            padding: 24px;
+        }
+    }
+
+    /* ============================================================
+       RESPONSIVE — DESKTOP LỚN (>= 1280px): 4 CỘT
+       ============================================================ */
+    @media (min-width: 1280px) {
+        .docs-grid {
+            grid-template-columns: repeat(4, 1fr);
+        }
+    }
+
+    /* ============================================================
+       MOBILE NHỎ (<= 480px)
+       ============================================================ */
+    @media (max-width: 480px) {
+        .page-header {
+            padding: 24px 16px 32px;
+        }
+
+        .header-logo {
+            width: 52px;
+            height: 52px;
+            font-size: 26px;
+        }
+
+        .info-banner,
+        .admin-toolbar {
+            padding: 0 14px;
+        }
+
+        .info-banner-inner {
+            padding: 12px 14px;
+            font-size: 13px;
+        }
+
+        .docs-container {
+            padding: 0 14px;
+        }
+
+        .doc-card {
+            padding: 14px 14px 14px 12px;
+            gap: 12px;
+        }
+
+        .doc-icon-wrap {
+            width: 44px;
+            height: 44px;
+            font-size: 20px;
+        }
+
+        .doc-title {
+            font-size: 14px;
+        }
+
+        .doc-modal-overlay {
+            padding: 0;
+        }
+
+        .doc-modal {
+            height: 100dvh;
+            max-height: 100dvh;
+            border-radius: 0;
+        }
+
+        .doc-modal-header {
+            padding: 12px 14px;
+        }
+
+        .doc-modal-close {
+            width: 42px;
+            height: 42px;
+        }
+
+        .doc-modal-footer {
+            padding: 10px 14px;
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .doc-modal-open-external {
+            justify-content: center;
+            width: 100%;
+        }
+
+        .doc-modal-footer-hint {
+            justify-content: center;
+            text-align: center;
+        }
+
+        .add-modal {
+            border-radius: 14px;
+        }
+
+        .add-modal-header {
+            border-radius: 14px 14px 0 0;
+        }
+
+        .add-modal-body {
+            padding: 18px;
+        }
+
+        .add-modal-footer {
+            padding: 14px 18px 18px;
+            flex-direction: column-reverse;
+        }
+
+        .add-btn {
+            width: 100%;
+        }
+    }
+    /* =========================================
+   BẢN VÁ: LÀM GỌN GÀNG CÁC THANH BAR
+   ========================================= */
+
+/* 1. Thu gọn Header & Logo */
+.page-header {
+    padding: 16px 16px 24px !important;
+}
+.header-logo {
+    width: 44px !important;
+    height: 44px !important;
+    font-size: 22px !important;
+}
+.header-title {
+    font-size: clamp(18px, 4vw, 22px) !important;
+    margin-bottom: 0 !important;
+}
+.header-school {
+    margin-bottom: 2px !important;
+}
+
+/* 2. Thu gọn Thanh Hướng dẫn (Info Banner) */
+.info-banner {
+    margin: -12px auto 0 !important;
+}
+.info-banner-inner {
+    padding: 8px 12px !important;
+    font-size: 13px !important;
+}
+
+/* 3. Thu gọn Thanh công cụ Admin */
+.admin-toolbar {
+    margin: 12px auto 0 !important;
+    gap: 8px !important;
+}
+.btn-add-doc {
+    padding: 8px 14px !important;
+    font-size: 13px !important;
+}
+.btn-exit-admin {
+    padding: 6px 12px !important;
+    font-size: 12px !important;
+}
+
+/* 4. Kéo danh sách tài liệu xích lên trên */
+.docs-container {
+    margin: 16px auto 0 !important;
+}
+</style>
+
+</head>
+<body>
+
+    <!-- ============================================================
+         HEADER
+         ============================================================ -->
+    <header class="page-header">
+        <div class="header-inner">
+            <div class="header-logo" id="headerLogo" title="Nhấp đúp để truy cập quản trị">📑</div>
+            <div class="header-text">
+                <div class="header-school">
+                    <span>Trường THCSTHPT Trần Trường Sinh</span>
+                    <span class="admin-badge" id="adminBadge">
+                        <span style="font-style: normal;">🔓</span> ADMIN
+                    </span>
+                </div>
+                <h1 class="header-title">HNVC không giấy</h1>
+               
+            </div>
+        </div>
+    </header>
+
+    <!-- ============================================================
+         INFO BANNER
+         ============================================================ -->
+    
+
+    <!-- ============================================================
+         ADMIN TOOLBAR (chỉ hiện khi bật admin mode)
+         ============================================================ -->
+    <div class="admin-toolbar" id="adminToolbar">
+        <button class="btn-add-doc" id="btnAddDoc">
+            <span>➕</span>
+            <span>Thêm tài liệu mới</span>
+        </button>
+        <button class="btn-exit-admin" id="btnExitAdmin">
+            <span style="font-style: normal;">🔒</span>
+            <span>Thoát Admin</span>
+        </button>
+    </div>
+
+    <!-- ============================================================
+         DANH SÁCH VĂN BẢN
+         ============================================================ -->
+    <main class="docs-container">
+        <h2 class="docs-section-title">Danh mục tài liệu hội nghị</h2>
+        <div class="docs-grid" id="docsGrid">
+            <div class="state-box">
+                <div class="state-spinner"></div>
+                <div class="state-title">Đang tải danh sách tài liệu...</div>
+                <div class="state-desc">Vui lòng chờ trong giây lát</div>
+            </div>
+        </div>
+    </main>
+
+    <!-- ============================================================
+         MODAL XEM VĂN BẢN
+         ============================================================ -->
+    <div class="doc-modal-overlay" id="docModalOverlay">
+        <div class="doc-modal" onclick="event.stopPropagation()">
+
+            <div class="doc-modal-header">
+                <div class="doc-modal-icon" id="modalIcon">📄</div>
+                <div class="doc-modal-title-wrap">
+                    <div class="doc-modal-label">Đang xem văn bản</div>
+                    <div class="doc-modal-title" id="modalTitle">—</div>
+                </div>
+                <button class="doc-modal-close" id="modalCloseBtn" aria-label="Đóng">
+                    <span style="font-style: normal;">✕</span>
+                </button>
+            </div>
+
+            <div class="doc-modal-body">
+                <div class="doc-modal-loading" id="modalLoading">
+                    <div class="doc-modal-spinner"></div>
+                    <div>Đang tải tài liệu...</div>
+                </div>
+                <iframe
+                    class="doc-modal-iframe"
+                    id="modalIframe"
+                    allowfullscreen
+                    referrerpolicy="no-referrer"
+                ></iframe>
+            </div>
+
+            <div class="doc-modal-footer">
+                <div class="doc-modal-footer-hint">
+                    <i>ℹ️</i>
+                    <span>Nếu tài liệu không hiển thị, bấm "Mở trong Drive" để xem trực tiếp.</span>
+                </div>
+                <a
+                    class="doc-modal-open-external"
+                    id="modalOpenExternal"
+                    href="#"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                >
+                    <span style="font-style: normal;">🔗</span>
+                    Mở trong Drive
+                </a>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ============================================================
+         MODAL THÊM TÀI LIỆU MỚI (Admin)
+         ============================================================ -->
+    <div class="add-modal-overlay" id="addModalOverlay">
+        <div class="add-modal" onclick="event.stopPropagation()">
+
+            <div class="add-modal-header">
+                <h3>
+                    <span>➕</span>
+                    Thêm tài liệu mới
+                </h3>
+                <button class="add-modal-close" id="addModalCloseBtn" aria-label="Đóng">
+                    <span style="font-style: normal;">✕</span>
+                </button>
+            </div>
+
+            <div class="add-modal-body">
+
+                <div class="add-form-group">
+                    <label class="add-form-label" for="addDocName">
+                        Tên tài liệu <span class="required">*</span>
+                    </label>
+                    <input
+                        type="text"
+                        id="addDocName"
+                        class="add-form-input"
+                        placeholder="VD: Kế hoạch tổ chức Hội nghị viên chức năm học 2025-2026"
+                        autocomplete="off"
+                    >
+                </div>
+
+                <div class="add-form-group">
+                    <label class="add-form-label" for="addDocUrl">
+                        Link Google Drive <span class="required">*</span>
+                    </label>
+                    <textarea
+                        id="addDocUrl"
+                        class="add-form-textarea"
+                        placeholder="Dán link chia sẻ Google Drive vào đây&#10;VD: https://drive.google.com/file/d/FILE_ID/view?usp=sharing"
+                    ></textarea>
+                    <div class="add-form-hint">
+                        💡 Hướng dẫn: Mở file trên Drive → Chuột phải → Chia sẻ → "Bất kỳ ai có liên kết" → Copy link → Dán vào đây.
+                        Hệ thống sẽ tự động chuyển sang dạng xem trực tiếp.
+                    </div>
+                </div>
+
+                <div class="add-form-group">
+                    <label class="add-form-label" for="addDocType">
+                        Loại tài liệu <span class="required">*</span>
+                    </label>
+                    <select id="addDocType" class="add-form-select">
+                        <option value="pdf">📕 PDF — Tài liệu PDF</option>
+                        <option value="word">📘 Word — Tài liệu Word (.doc, .docx)</option>
+                        <option value="excel">📗 Excel — Bảng tính (.xls, .xlsx)</option>
+                    </select>
+                </div>
+
+                <div class="add-form-error" id="addFormError"></div>
+
+            </div>
+
+            <div class="add-modal-footer">
+                <button class="add-btn add-btn-cancel" id="addBtnCancel">
+                    Hủy
+                </button>
+                <button class="add-btn add-btn-save" id="addBtnSave">
+                    <span style="font-style: normal;">💾</span>
+                    <span>Lưu tài liệu</span>
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ============================================================
+         FIREBASE SDK (compat v8)
+         ============================================================ -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+<script>
+/* ============================================================
+   CẤU HÌNH FIREBASE
+   ------------------------------------------------------------
+   ⚠️ QUAN TRỌNG: Điền thông tin Firebase project của bạn vào đây.
+   Lấy thông tin tại: https://console.firebase.google.com/
+   → Chọn project → Cài đặt dự án → Cấu hình chung → Web app.
+   ============================================================ */
+const firebaseConfig = {
+    apiKey: "AIzaSyDGytyF7dvy-djx8QEgOOOBxFK9O_LE5_w",
+    authDomain: "meetingsystem-b9e71.firebaseapp.com",
+    databaseURL: "https://meetingsystem-b9e71-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "meetingsystem-b9e71",
+    storageBucket: "meetingsystem-b9e71.firebasestorage.app",
+    messagingSenderId: "587548729744",
+    appId: "1:587548729744:web:0e8479fbf7305810e1d315"
+};
+
+/* ============================================================
+   CẤU HÌNH ADMIN
+   ------------------------------------------------------------
+   ⚠️ CẢNH BÁO BẢO MẬT:
+   Mật khẩu admin được lưu TRỰC TIẾP trong mã nguồn phía client,
+   có thể bị xem bởi người rành kỹ thuật. Đây CHỈ là giải pháp
+   MVP cho nội bộ trường học — KHÔNG phù hợp cho ứng dụng công khai
+   với dữ liệu nhạy cảm.
+   Để bảo mật thực sự, cần dùng Firebase Authentication + Rules.
+   ============================================================ */
+const ADMIN_PASSWORD = "admin123";
+const ADMIN_SESSION_KEY = "hoi_nghi_admin_mode";
+
+/* ============================================================
+   CẤU HÌNH ICON THEO LOẠI VĂN BẢN
+   ============================================================ */
+const DOC_TYPE_CONFIG = {
+    pdf:   { icon: '📕', className: 'pdf',   label: 'PDF' },
+    word:  { icon: '📘', className: 'word',  label: 'Word' },
+    excel: { icon: '📗', className: 'excel', label: 'Excel' }
+};
+
+/* ============================================================
+   STATE TOÀN CỤC
+   ============================================================ */
+const appState = {
+    docs: [],
+    isAdmin: false,
+    db: null,
+    docsRef: null,
+    isLoading: true
+};
+
+/* ============================================================
+   HÀM TIỆN ÍCH
+   ============================================================ */
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    const div = document.createElement('div');
+    div.textContent = String(str);
+    return div.innerHTML;
+}
+
+/**
+ * Chuyển link Google Drive sang dạng /preview để nhúng iframe.
+ * - .../file/d/FILE_ID/view?usp=sharing  →  .../file/d/FILE_ID/preview
+ * - ...open?id=FILE_ID                    →  .../file/d/FILE_ID/preview
+ */
+function convertToPreviewUrl(url) {
+    if (!url || typeof url !== 'string') return '';
+
+    const patterns = [
+        /\/file\/d\/([a-zA-Z0-9_-]+)/,
+        /[?&]id=([a-zA-Z0-9_-]+)/
+    ];
+
+    for (let i = 0; i < patterns.length; i++) {
+        const match = url.match(patterns[i]);
+        if (match && match[1]) {
+            return 'https://drive.google.com/file/d/' + match[1] + '/preview';
+        }
+    }
+
+    return url;
+}
+
+/**
+ * Kiểm tra link Google Drive có hợp lệ không.
+ */
+function isValidDriveUrl(url) {
+    if (!url || typeof url !== 'string') return false;
+    return /drive\.google\.com/.test(url);
+}
+
+/* ============================================================
+   FIREBASE — KHỞI TẠO
+   ============================================================ */
+function initFirebase() {
+    // Kiểm tra config đã được điền chưa
+    const isConfigEmpty = !firebaseConfig.apiKey || !firebaseConfig.databaseURL;
+
+    if (isConfigEmpty) {
+        console.warn('⚠️ firebaseConfig chưa được điền. Đang dùng chế độ DEMO.');
+        showConfigError();
+        return false;
+    }
+
+    try {
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        appState.db = firebase.database();
+        appState.docsRef = appState.db.ref('conference_docs');
+        console.log('✅ Firebase đã khởi tạo thành công');
+        return true;
+    } catch (error) {
+        console.error('❌ Lỗi khởi tạo Firebase:', error);
+        showConfigError(error.message);
+        return false;
+    }
+}
+
+function showConfigError(detail) {
+    const grid = document.getElementById('docsGrid');
+    if (!grid) return;
+
+    grid.innerHTML =
+        '<div class="state-box">' +
+            '<div class="state-icon">⚙️</div>' +
+            '<div class="state-title">Chưa cấu hình Firebase</div>' +
+            '<div class="state-desc">' +
+                'Vui lòng mở file <strong>hoi-nghi.html</strong>, tìm biến <strong>firebaseConfig</strong> ' +
+                'ở đầu thẻ &lt;script&gt; và điền thông tin dự án Firebase của bạn.' +
+                (detail ? '<br><br><span style="color:#dc2626;font-family:monospace;font-size:12px;">' + escapeHtml(detail) + '</span>' : '') +
+            '</div>' +
+        '</div>';
+
+    const countEl = document.getElementById('docCount');
+    if (countEl) countEl.textContent = 'Chưa cấu hình';
+}
+
+/* ============================================================
+   FIREBASE — LẮNG NGHE REALTIME
+   ============================================================ */
+function listenToDocs() {
+    if (!appState.docsRef) return;
+
+    appState.docsRef.on('value', function(snapshot) {
+        const data = snapshot.val() || {};
+
+        // Chuyển object thành mảng, thêm key vào mỗi phần tử
+        const docsArray = Object.keys(data).map(function(key) {
+            const d = data[key] || {};
+            return {
+                _key: key,
+                name: d.name || '',
+                type: d.type || 'pdf',
+                url: d.url || '',
+                createdAt: d.createdAt || 0
+            };
+        });
+
+        // Sắp xếp theo thời gian tạo (mới nhất lên đầu)
+        docsArray.sort(function(a, b) {
+            return (b.createdAt || 0) - (a.createdAt || 0);
+        });
+
+        appState.docs = docsArray;
+        appState.isLoading = false;
+
+        renderDocumentGrid();
+        console.log('📥 Đã nhận ' + docsArray.length + ' tài liệu từ Firebase');
+
+    }, function(error) {
+        console.error('❌ Lỗi đọc dữ liệu Firebase:', error);
+        appState.isLoading = false;
+        renderDocumentGrid();
+
+        showToast('Không tải được dữ liệu. Vui lòng kiểm tra kết nối.', 'error');
+    });
+}
+
+/* ============================================================
+   RENDER GRID
+   ============================================================ */
+function renderDocumentGrid() {
+    const grid = document.getElementById('docsGrid');
+    const countEl = document.getElementById('docCount');
+
+    if (!grid) return;
+
+    // ---------- Cập nhật badge đếm ----------
+    if (countEl) {
+        if (appState.isLoading) {
+            countEl.textContent = 'Đang tải...';
+        } else {
+            countEl.textContent = appState.docs.length + ' văn bản';
+        }
+    }
+
+    // ---------- Trạng thái loading ----------
+    if (appState.isLoading) {
+        grid.innerHTML =
+            '<div class="state-box">' +
+                '<div class="state-spinner"></div>' +
+                '<div class="state-title">Đang tải danh sách tài liệu...</div>' +
+                '<div class="state-desc">Vui lòng chờ trong giây lát</div>' +
+            '</div>';
+        return;
+    }
+
+    // ---------- Trạng thái rỗng ----------
+    if (appState.docs.length === 0) {
+        let emptyMsg = 'Hiện chưa có tài liệu nào được đăng.';
+        if (appState.isAdmin) {
+            emptyMsg = 'Chưa có tài liệu nào. Bấm nút <strong>"Thêm tài liệu mới"</strong> ở trên để bắt đầu.';
+        }
+
+        grid.innerHTML =
+            '<div class="state-box">' +
+                '<div class="state-icon">📭</div>' +
+                '<div class="state-title">Chưa có tài liệu</div>' +
+                '<div class="state-desc">' + emptyMsg + '</div>' +
+            '</div>';
+        return;
+    }
+
+    // ---------- Render danh sách ----------
+    const html = appState.docs.map(function(doc, index) {
+        const cfg = DOC_TYPE_CONFIG[doc.type] || DOC_TYPE_CONFIG.pdf;
+        const displayNumber = String(index + 1).padStart(2, '0');
+
+        return '<div class="doc-card" data-doc-key="' + escapeHtml(doc._key) + '" role="button" tabindex="0">' +
+                    '<button class="doc-delete-btn" data-delete-key="' + escapeHtml(doc._key) + '" title="Xóa tài liệu" aria-label="Xóa tài liệu">' +
+                        '<span style="font-style: normal;">✕</span>' +
+                    '</button>' +
+                    '<div class="doc-icon-wrap ' + cfg.className + '">' +
+                        '<span style="font-style: normal;">' + cfg.icon + '</span>' +
+                    '</div>' +
+                    '<div class="doc-body">' +
+                        '<div class="doc-number">Văn bản số ' + displayNumber + '</div>' +
+                        '<div class="doc-title">' + escapeHtml(doc.name) + '</div>' +
+                        '<div class="doc-meta">' +
+                            '<span style="font-style: normal;">📎</span>' +
+                            '<span>' + cfg.label + '</span>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="doc-arrow"><span style="font-style: normal;">›</span></div>' +
+               '</div>';
+    }).join('');
+
+    grid.innerHTML = html;
+}
+
+/* ============================================================
+   MODAL XEM VĂN BẢN
+   ============================================================ */
+const viewModal = {
+    overlay: null,
+    iframe: null,
+    loading: null,
+    title: null,
+    icon: null,
+    openExternal: null,
+    closeBtn: null
+};
+
+function initViewModalRefs() {
+    viewModal.overlay = document.getElementById('docModalOverlay');
+    viewModal.iframe = document.getElementById('modalIframe');
+    viewModal.loading = document.getElementById('modalLoading');
+    viewModal.title = document.getElementById('modalTitle');
+    viewModal.icon = document.getElementById('modalIcon');
+    viewModal.openExternal = document.getElementById('modalOpenExternal');
+    viewModal.closeBtn = document.getElementById('modalCloseBtn');
+}
+
+function openDocumentModal(doc) {
+    if (!viewModal.overlay || !doc) return;
+
+    const cfg = DOC_TYPE_CONFIG[doc.type] || DOC_TYPE_CONFIG.pdf;
+
+    if (viewModal.title) {
+        viewModal.title.textContent = doc.name || 'Văn bản';
+    }
+    if (viewModal.icon) {
+        viewModal.icon.textContent = cfg.icon;
+    }
+    if (viewModal.loading) {
+        viewModal.loading.classList.remove('hidden');
+    }
+
+    const previewUrl = convertToPreviewUrl(doc.url);
+    console.log('📄 Preview URL:', previewUrl);
+
+    if (viewModal.iframe) {
+        viewModal.iframe.src = 'about:blank';
+        setTimeout(function() {
+            viewModal.iframe.src = previewUrl;
+        }, 30);
+
+        viewModal.iframe.onload = function() {
+            setTimeout(function() {
+                if (viewModal.loading) {
+                    viewModal.loading.classList.add('hidden');
+                }
+            }, 300);
+        };
+
+        // Fallback: ẩn loading sau 8s nếu iframe không load xong
+        setTimeout(function() {
+            if (viewModal.loading && !viewModal.loading.classList.contains('hidden')) {
+                viewModal.loading.classList.add('hidden');
+            }
+        }, 8000);
+    }
+
+    if (viewModal.openExternal) {
+        viewModal.openExternal.href = doc.url || '#';
+    }
+
+    viewModal.overlay.classList.add('active');
+    document.body.classList.add('modal-open');
+}
+
+function closeDocumentModal() {
+    if (!viewModal.overlay) return;
+
+    viewModal.overlay.classList.remove('active');
+    document.body.classList.remove('modal-open');
+
+    setTimeout(function() {
+        if (viewModal.iframe) {
+            viewModal.iframe.src = 'about:blank';
+        }
+    }, 280);
+}
+
+/* ============================================================
+   MODAL THÊM TÀI LIỆU
+   ============================================================ */
+const addModal = {
+    overlay: null,
+    nameInput: null,
+    urlInput: null,
+    typeSelect: null,
+    errorEl: null,
+    saveBtn: null,
+    cancelBtn: null,
+    closeBtn: null
+};
+
+function initAddModalRefs() {
+    addModal.overlay = document.getElementById('addModalOverlay');
+    addModal.nameInput = document.getElementById('addDocName');
+    addModal.urlInput = document.getElementById('addDocUrl');
+    addModal.typeSelect = document.getElementById('addDocType');
+    addModal.errorEl = document.getElementById('addFormError');
+    addModal.saveBtn = document.getElementById('addBtnSave');
+    addModal.cancelBtn = document.getElementById('addBtnCancel');
+    addModal.closeBtn = document.getElementById('addModalCloseBtn');
+}
+
+function openAddModal() {
+    if (!addModal.overlay) return;
+
+    // Reset form
+    if (addModal.nameInput) addModal.nameInput.value = '';
+    if (addModal.urlInput) addModal.urlInput.value = '';
+    if (addModal.typeSelect) addModal.typeSelect.value = 'pdf';
+    hideAddFormError();
+
+    addModal.overlay.classList.add('active');
+    document.body.classList.add('modal-open');
+
+    // Auto-focus vào ô tên
+    setTimeout(function() {
+        if (addModal.nameInput) addModal.nameInput.focus();
+    }, 300);
+}
+
+function closeAddModal() {
+    if (!addModal.overlay) return;
+    addModal.overlay.classList.remove('active');
+    document.body.classList.remove('modal-open');
+}
+
+function showAddFormError(msg) {
+    if (!addModal.errorEl) return;
+    addModal.errorEl.textContent = msg;
+    addModal.errorEl.classList.add('visible');
+}
+
+function hideAddFormError() {
+    if (!addModal.errorEl) return;
+    addModal.errorEl.textContent = '';
+    addModal.errorEl.classList.remove('visible');
+}
+
+async function handleSaveDoc() {
+    if (!appState.docsRef) {
+        showAddFormError('Chưa kết nối được Firebase. Vui lòng kiểm tra cấu hình.');
+        return;
+    }
+
+    const name = addModal.nameInput ? addModal.nameInput.value.trim() : '';
+    const url = addModal.urlInput ? addModal.urlInput.value.trim() : '';
+    const type = addModal.typeSelect ? addModal.typeSelect.value : 'pdf';
+
+    // ---------- Validate ----------
+    hideAddFormError();
+
+    if (!name) {
+        showAddFormError('Vui lòng nhập tên tài liệu.');
+        if (addModal.nameInput) addModal.nameInput.focus();
+        return;
+    }
+
+    if (name.length > 300) {
+        showAddFormError('Tên tài liệu quá dài (tối đa 300 ký tự).');
+        return;
+    }
+
+    if (!url) {
+        showAddFormError('Vui lòng nhập link Google Drive.');
+        if (addModal.urlInput) addModal.urlInput.focus();
+        return;
+    }
+
+    if (!isValidDriveUrl(url)) {
+        showAddFormError('Link không hợp lệ. Vui lòng dán link Google Drive.');
+        if (addModal.urlInput) addModal.urlInput.focus();
+        return;
+    }
+
+    // ---------- Disable nút lưu ----------
+    if (addModal.saveBtn) {
+        addModal.saveBtn.disabled = true;
+        addModal.saveBtn.innerHTML = '<span style="font-style: normal;">⏳</span><span>Đang lưu...</span>';
+    }
+
+    try {
+        await appState.docsRef.push({
+            name: name,
+            url: url,
+            type: type,
+            createdAt: Date.now()
+        });
+
+        console.log('✅ Đã lưu tài liệu mới:', name);
+        closeAddModal();
+        showToast('Đã thêm tài liệu thành công!', 'success');
+
+    } catch (error) {
+        console.error('❌ Lỗi lưu tài liệu:', error);
+        showAddFormError('Không lưu được tài liệu. Lỗi: ' + (error.message || 'Không xác định'));
+
+    } finally {
+        if (addModal.saveBtn) {
+            addModal.saveBtn.disabled = false;
+            addModal.saveBtn.innerHTML = '<span style="font-style: normal;">💾</span><span>Lưu tài liệu</span>';
+        }
+    }
+}
+
+/* ============================================================
+   XÓA TÀI LIỆU
+   ============================================================ */
+async function handleDeleteDoc(key, docName) {
+    if (!appState.docsRef) return;
+
+    const confirmed = window.confirm(
+        'Bạn có chắc chắn muốn xóa tài liệu này?\n\n' +
+        '📄 ' + (docName || 'Không rõ tên') + '\n\n' +
+        'Hành động này không thể hoàn tác.'
+    );
+
+    if (!confirmed) return;
+
+    try {
+        await appState.docsRef.child(key).remove();
+        console.log('🗑️ Đã xóa tài liệu:', key);
+        showToast('Đã xóa tài liệu.', 'success');
+
+    } catch (error) {
+        console.error('❌ Lỗi xóa tài liệu:', error);
+        showToast('Không xóa được tài liệu. Lỗi: ' + (error.message || 'Không xác định'), 'error');
+    }
+}
+
+/* ============================================================
+   CHẾ ĐỘ ADMIN
+   ============================================================ */
+function activateAdminMode() {
+    appState.isAdmin = true;
+    document.body.classList.add('admin-mode');
+
+    const toolbar = document.getElementById('adminToolbar');
+    if (toolbar) toolbar.classList.add('visible');
+
+    const badge = document.getElementById('adminBadge');
+    if (badge) badge.classList.add('visible');
+
+    try {
+        sessionStorage.setItem(ADMIN_SESSION_KEY, '1');
+    } catch (e) {
+        console.warn('Không lưu được session admin:', e);
+    }
+
+    console.log('🔓 Đã bật chế độ ADMIN');
+
+    // Re-render để hiện nút xóa
+    renderDocumentGrid();
+}
+
+function deactivateAdminMode() {
+    appState.isAdmin = false;
+    document.body.classList.remove('admin-mode');
+
+    const toolbar = document.getElementById('adminToolbar');
+    if (toolbar) toolbar.classList.remove('visible');
+
+    const badge = document.getElementById('adminBadge');
+    if (badge) badge.classList.remove('visible');
+
+    try {
+        sessionStorage.removeItem(ADMIN_SESSION_KEY);
+    } catch (e) {
+        console.warn('Không xóa được session admin:', e);
+    }
+
+    console.log('🔒 Đã tắt chế độ ADMIN');
+
+    renderDocumentGrid();
+}
+
+function tryRestoreAdminSession() {
+    try {
+        if (sessionStorage.getItem(ADMIN_SESSION_KEY) === '1') {
+            activateAdminMode();
+            console.log('♻️ Đã khôi phục phiên admin từ session');
+        }
+    } catch (e) {
+        console.warn('Không đọc được session admin:', e);
+    }
+}
+
+function handleLogoDoubleClick() {
+    // Nếu đang ở admin mode → không làm gì (đã đăng nhập)
+    if (appState.isAdmin) {
+        console.log('Đang ở chế độ Admin');
+        return;
+    }
+
+    // Hiện prompt yêu cầu mật khẩu
+    const input = window.prompt('🔐 Nhập mật khẩu quản trị để bật chế độ Admin:');
+
+    // User bấm Cancel
+    if (input === null) return;
+
+    const trimmed = String(input).trim();
+
+    if (trimmed === ADMIN_PASSWORD) {
+        activateAdminMode();
+        showToast('Đã bật chế độ Admin', 'success');
+    } else {
+        showToast('Sai mật khẩu. Vui lòng thử lại.', 'error');
+        console.warn('❌ Sai mật khẩu admin');
+    }
+}
+
+/* ============================================================
+   TOAST NOTIFICATION (nhỏ gọn)
+   ============================================================ */
+function showToast(message, type) {
+    type = type || 'info';
+
+    let container = document.getElementById('toastContainer');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toastContainer';
+        container.style.cssText =
+            'position: fixed; top: 20px; right: 20px; z-index: 999999; ' +
+            'display: flex; flex-direction: column; gap: 8px; ' +
+            'max-width: 340px; width: 100%; pointer-events: none;';
+        document.body.appendChild(container);
+    }
+
+    const colors = {
+        info: 'linear-gradient(135deg, #3b82f6, #1e40af)',
+        success: 'linear-gradient(135deg, #22c55e, #15803d)',
+        error: 'linear-gradient(135deg, #ef4444, #b91c1c)',
+        warning: 'linear-gradient(135deg, #f59e0b, #d97706)'
+    };
+
+    const icons = {
+        info: 'ℹ️',
+        success: '✅',
+        error: '❌',
+        warning: '⚠️'
+    };
+
+    const toast = document.createElement('div');
+    toast.style.cssText =
+        'padding: 12px 16px; color: #ffffff; border-radius: 10px; ' +
+        'box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25); font-size: 14px; ' +
+        'font-weight: 600; display: flex; align-items: center; gap: 10px; ' +
+        'background: ' + (colors[type] || colors.info) + '; ' +
+        'animation: toastSlideIn 0.3s ease; pointer-events: auto; ' +
+        'font-family: inherit; line-height: 1.4;';
+    toast.innerHTML =
+        '<span style="font-style: normal; flex-shrink: 0;">' + (icons[type] || icons.info) + '</span>' +
+        '<span style="flex: 1;">' + escapeHtml(message) + '</span>';
+
+    container.appendChild(toast);
+
+    setTimeout(function() {
+        toast.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(20px)';
+        setTimeout(function() {
+            if (toast.parentNode) toast.parentNode.removeChild(toast);
+        }, 300);
+    }, 3200);
+}
+
+// Thêm keyframes cho toast (chỉ 1 lần)
+(function ensureToastKeyframes() {
+    if (document.getElementById('toastKeyframes')) return;
+    const style = document.createElement('style');
+    style.id = 'toastKeyframes';
+    style.textContent =
+        '@keyframes toastSlideIn {' +
+        '    from { opacity: 0; transform: translateX(20px); }' +
+        '    to { opacity: 1; transform: translateX(0); }' +
+        '}';
+    document.head.appendChild(style);
+})();
+
+/* ============================================================
+   GẮN SỰ KIỆN
+   ============================================================ */
+function bindEvents() {
+
+    // ---------- Logo: double click để vào admin ----------
+    const logo = document.getElementById('headerLogo');
+    if (logo) {
+        logo.addEventListener('dblclick', handleLogoDoubleClick);
+    }
+
+    // ---------- Nút thêm tài liệu ----------
+    const btnAdd = document.getElementById('btnAddDoc');
+    if (btnAdd) {
+        btnAdd.addEventListener('click', openAddModal);
+    }
+
+    // ---------- Nút thoát admin ----------
+    const btnExit = document.getElementById('btnExitAdmin');
+    if (btnExit) {
+        btnExit.addEventListener('click', function() {
+            const confirmed = window.confirm('Bạn có chắc muốn thoát chế độ Admin?');
+            if (confirmed) {
+                deactivateAdminMode();
+                showToast('Đã thoát chế độ Admin', 'info');
+            }
+        });
+    }
+
+    // ---------- Grid: click card / click nút xóa ----------
+    const grid = document.getElementById('docsGrid');
+    if (grid) {
+        grid.addEventListener('click', function(e) {
+            // Ưu tiên kiểm tra nút xóa trước
+            const deleteBtn = e.target.closest('.doc-delete-btn');
+            if (deleteBtn) {
+                e.stopPropagation();
+                e.preventDefault();
+
+                const key = deleteBtn.dataset.deleteKey;
+                const doc = appState.docs.find(function(d) { return d._key === key; });
+                if (!doc) return;
+
+                handleDeleteDoc(key, doc.name);
+                return;
+            }
+
+            // Mở modal xem tài liệu
+            const card = e.target.closest('.doc-card');
+            if (!card) return;
+
+            const key = card.dataset.docKey;
+            const doc = appState.docs.find(function(d) { return d._key === key; });
+            if (!doc) return;
+
+            openDocumentModal(doc);
+        });
+
+        // Hỗ trợ Enter/Space
+        grid.addEventListener('keydown', function(e) {
+            if (e.key !== 'Enter' && e.key !== ' ') return;
+
+            const card = e.target.closest('.doc-card');
+            if (!card) return;
+
+            e.preventDefault();
+
+            const key = card.dataset.docKey;
+            const doc = appState.docs.find(function(d) { return d._key === key; });
+            if (!doc) return;
+
+            openDocumentModal(doc);
+        });
+    }
+
+    // ---------- View modal: nút đóng ----------
+    if (viewModal.closeBtn) {
+        viewModal.closeBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            closeDocumentModal();
+        });
+    }
+
+    // ---------- View modal: click overlay ----------
+    if (viewModal.overlay) {
+        viewModal.overlay.addEventListener('click', function(e) {
+            if (e.target === viewModal.overlay) closeDocumentModal();
+        });
+    }
+
+    // ---------- Add modal: nút đóng, hủy ----------
+    if (addModal.closeBtn) {
+        addModal.closeBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            closeAddModal();
+        });
+    }
+    if (addModal.cancelBtn) {
+        addModal.cancelBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            closeAddModal();
+        });
+    }
+    if (addModal.overlay) {
+        addModal.overlay.addEventListener('click', function(e) {
+            if (e.target === addModal.overlay) closeAddModal();
+        });
+    }
+
+    // ---------- Add modal: nút lưu ----------
+    if (addModal.saveBtn) {
+        addModal.saveBtn.addEventListener('click', handleSaveDoc);
+    }
+
+    // ---------- Add modal: Enter ở ô tên/url để lưu nhanh ----------
+    [addModal.nameInput, addModal.urlInput].forEach(function(input) {
+        if (!input) return;
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey && input.tagName !== 'TEXTAREA') {
+                e.preventDefault();
+                handleSaveDoc();
+            }
+        });
+    });
+
+    // ---------- ESC để đóng modal ----------
+    document.addEventListener('keydown', function(e) {
+        if (e.key !== 'Escape') return;
+
+        if (addModal.overlay && addModal.overlay.classList.contains('active')) {
+            closeAddModal();
+            return;
+        }
+
+        if (viewModal.overlay && viewModal.overlay.classList.contains('active')) {
+            closeDocumentModal();
+        }
+    });
+}
+
+/* ============================================================
+   KHỞI TẠO
+   ============================================================ */
+function init() {
+    initViewModalRefs();
+    initAddModalRefs();
+    bindEvents();
+
+    // Khôi phục phiên admin (nếu có) TRƯỚC khi render grid
+    tryRestoreAdminSession();
+
+    // Khởi tạo Firebase
+    const firebaseOk = initFirebase();
+
+    if (firebaseOk) {
+        // Bắt đầu lắng nghe realtime
+        listenToDocs();
+    } else {
+        appState.isLoading = false;
+        renderDocumentGrid();
+    }
+
+    console.log('✅ Trang Tài liệu Hội nghị đã sẵn sàng');
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+} else {
+    init();
+}
+</script>
+
+</body>
+</html>
